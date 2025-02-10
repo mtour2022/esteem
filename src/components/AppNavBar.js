@@ -3,7 +3,7 @@ import logo from'../assets/images/lgu.png';
 import { Link, NavLink } from 'react-router-dom';
 // import { useAuth } from '../auth/authentication.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBed, faUtensils, faSpa, faFlag, faList, faCheckToSlot, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faBed, faUtensils, faSpa, faFlag, faList, faCheckToSlot, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 
 export default function AppNavBar() {
   // const { userLoggedIn } = useAuth();
@@ -17,6 +17,9 @@ export default function AppNavBar() {
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto">
+            <NavLink className="ms-lg-3 navlink d-flex align-items-center" as={NavLink} to="/"> 
+                        <FontAwesomeIcon className="button-icon" icon={faBell} size="md" fixedWidth />
+            </NavLink>
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Home</Nav.Link>
             <NavDropdown className='ms-lg-3 navlink' title="Quick Check" id="basic-nav-dropdown">
               <NavDropdown.Item as={NavLink} >

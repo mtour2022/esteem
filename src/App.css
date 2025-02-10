@@ -25,6 +25,10 @@
   max-width: 100% !important;
 }
 
+.empty-container {
+  height: 25px;
+}
+
 .column {
   margin: 0 !important;
   padding: 0 !important;
@@ -39,26 +43,86 @@ body {
   font-family: 'Inter', sans-serif !important;
 }
 
+.body-container{
+  padding: 20px 50px !important;
+}
+
+
 /* Page Elements */
-.barabara-title {
-  font-family: "BARABARA-final";
-  font-size: 48px;
-  font-weight: bold;
+.barabara-label {
   color: #1F89B2;
-  margin: 0;
+  text-align: center;
+  font-family: BARABARA-FINAL;
+  font-size: 36px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 55px; /* 152.778% */
+  letter-spacing: 0.36px;
+
+}
+
+.barabara-label2 {
+  color: black !important;
+  text-align: start !important;
+  font-family: BARABARA-FINAL;
+  font-size: 36px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 55px; /* 152.778% */
+  letter-spacing: 0.36px;
+
+}
+
+.barabara-title {
+  color: #1F89B2;
+  font-family: BARABARA-FINAL;
+  font-size: 50px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 65px; /* 130% */
+  letter-spacing: 2.5px;
 }
 
 .barabara-subtitle {
   font-family: "BARABARA-final";
-  font-size: 32px;
-  font-weight: bold;
-  color: #1F89B2;
   margin: 0;
+  color: #FFF;
+  text-align: center;
+  text-shadow: 0px 2px 0px #25A2D3;
+  font-size: 36px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 55px; /* 152.778% */
+  letter-spacing: 1.8px;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: #25A2D3;
 }
 
 .sub-title {
+  color: black;
+  text-align: start;
   font-size: 14px;
-  margin-bottom: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
+.sub-title-blue {
+  color: #1F89B2;
+  text-align: center;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
+.sub-title-blue-start {
+  color: #1F89B2;
+  text-align: start;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
 }
 
 .label {
@@ -67,21 +131,63 @@ body {
   font-weight: bold;
 }
 
+.button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .blue-button {
-  background: linear-gradient(90deg, #1F89B2, #25A2D3) !important;
-  color: aliceblue !important;
-  border: none !important;
+  background: #1F89B2 !important;
+  color: #f7fdff !important;
   border-radius: 10px !important;
-  border: 2px aliceblue solid !important;
+  border: 1px solid #1F89B2 !important;
   transition: background-color 0.3s ease, color 0.3s ease !important;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin-top: 15px;
+  width: 50%;
+
 }
 
 .blue-button:hover {
-  background: linear-gradient(90deg, white, aliceblue) !important;
+  background: #f7fdff !important;
   color: #1F89B2 !important;
+  border: 1px solid #1F89B2 !important;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-  border: 1px #1F89B2 solid !important;
+  width: 50%;
+}
+
+
+.white-button {
+  background: #E8F8FF !important;
+  color: #1F89B2 !important;
+  border-radius: 10px !important;
+  border: 1px solid #1F89B2 !important;
+  transition: background-color 0.3s ease, color 0.3s ease !important;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin-top: 15px;
+  width: 50%;
+}
+
+.white-button:hover {
+  background: #1F89B2 !important;
+  color: #f7fdff !important;
+  border: 1px solid #fff !important;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  width: 50%;
+}
+
+/* Icon styling */
+.button-icon {
+  margin-right: 10px !important;
+}
+
+/* Hover effect for icons */
+.white-button:hover .button-icon {
+  transform: scale(1.2); /* Slightly enlarge icon on hover */
 }
 
 /* AppNavBar.css */
@@ -138,8 +244,101 @@ body {
 /* Containers */
 /* Apply gradient background and center text */
 .custom-container {
-  background: linear-gradient(180deg, #1F89B2 13%, white 87%); /* White to blue gradient */
+  background: linear-gradient(180deg, rgba(4, 157, 217, 0.66) 0%, rgba(255, 255, 255, 0.00) 34.4%);
 }
+
+.background-container {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 50%), 
+              url('assets/images/background.png'); /* Image path */
+  background-size: cover; /* Ensures the image covers the entire container */
+  background-position: center; /* Centers the image */
+  background-repeat: no-repeat; /* Prevents image repetition */
+  width: 100%; /* Adjust width as needed */
+  height: 100vh; /* Full viewport height */
+  display: flex;
+  flex-direction: column;
+}
+
+
+.logo-container {
+  display: flex;
+  justify-content: start; /* Centers the images */
+  gap: 20px; /* Adds space between images */
+  margin-bottom: 20px; /* Space before the title */
+  
+}
+
+.logo-image {
+  width: 70px !important; /* Adjust size as needed */
+  height: 70px !important;
+}
+
+.image-container {
+  display: flex;
+  gap: 30px; /* Space between the boxes */
+  padding: 0px 10px !important;
+}
+
+.image-box {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  border-radius: 25px; /* Optional rounded corners */
+  overflow: hidden;
+  box-shadow: 0px 5px 10px 0px rgba(0, 0, 0, 0.15);
+
+}
+
+.image-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.00) 66.9%, #000 100%);
+}
+
+.image-box:nth-child(1) {
+  background-image: url('assets/images/local.png'); /* Change to your local image */
+}
+
+.image-box:nth-child(2) {
+  background-image: url('assets/images/foreign.jpg'); /* Change to your foreign image */
+}
+
+.barabara-subtitle-white{
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FFF;
+  text-align: center;
+  font-family: "BARABARA-final";
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 65px; /* 361.111% */
+  letter-spacing: 1.8px;
+}
+
+
+/* Card */
+.custom-card {
+  border-radius: 25px !important;
+  background: #FFF;
+  box-shadow: 0px 5px 10px 0px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+}
+
+.custom-form {
+  border-radius: 15px !important;
+  background: #FFF !important;
+  box-shadow: 0px 5px 10px 0px rgba(0, 0, 0, 0.15) !important;
+  padding: 20px; /* Adds spacing inside the form */
+  max-width: 100%; /* Adjust width as needed */
+}
+
+
 
 
 /* .App {
