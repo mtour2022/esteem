@@ -1,14 +1,18 @@
 import { Form, Button, InputGroup, Row, Col, Alert, Container, Image, Modal } from 'react-bootstrap';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
 import { Navigate } from 'react-router-dom';
 import { db, storage } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, addDoc, doc, updateDoc  } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 import Company from '../classes/company';
 import AppNavBar from "../components/AppNavBar";
 import Webcam from "react-webcam"; // Install with: npm install react-webcam
+import { useDropzone } from "react-dropzone";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUpload, faCancel, faCamera, faFileWord, faFilePdf } from '@fortawesome/free-solid-svg-icons';
+
 
 
 export default function Login(){
@@ -19,18 +23,29 @@ export default function Login(){
 
     // Initialize Company class
     const [companyData, setCompanyData] = useState(new Company({}));
-    
-
-
-    
-
-    
     const companyCollectionRef = collection(db, "company");
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setCompanyData((prevData) => new Company({ ...prevData.toObject(), [name]: value }));
+    
+        setCompanyData((prevData) => {
+            const newData = { ...prevData };
+    
+            if (name.startsWith("proprietor.")) {
+                const key = name.split(".")[1];
+                newData.proprietor = { ...prevData.proprietor, [key]: value };
+            } else if (name.startsWith("address.")) {
+                const key = name.split(".")[1];
+                newData.address = { ...prevData.address, [key]: value };
+            } else {
+                newData[name] = value;
+            }
+    
+            return new Company(newData);
+        });
     };
+    
+    
     
 
     const handleSubmit = async (e) => {
@@ -73,7 +88,41 @@ export default function Login(){
     const nextStep = () => setCurrentStep((prev) => prev + 1);
     const prevStep = () => setCurrentStep((prev) => prev - 1);
 
-    const [logo, setLogo] = useState("");
+    // const [logo, setLogo] = useState("");
+
+
+    // const handleLogoChange = (e) => {
+    //     const file = e.target.files[0];
+    //     setLogo(file);
+    //   };
+
+    // const uploadLogo = async () => {
+    //     if (!logo) return;
+    
+    //     const filesFolderRef = ref(storage, `company/logos/${logo.name}`);
+    
+    //     try {
+    //       await uploadBytes(filesFolderRef, logo);
+    
+    //       const downloadURL = await getDownloadURL(filesFolderRef);
+    
+    //     setLogo(downloadURL);
+    //         setCompanyData((prevData) => ({
+    //          ...prevData,
+    //          logo: downloadURL,
+    //      }));
+
+         
+    //     } catch (err) {
+    //       console.error(err);
+    //     }
+    //   };
+
+    //Logo Upload
+
+    // Permit Scanner
+    const [logo, setLogo] = useState(null);
+    const [logoURL, setLogoURL] = useState(""); // Stores the uploaded file's URL
 
 
     const handleLogoChange = (e) => {
@@ -81,31 +130,98 @@ export default function Login(){
         setLogo(file);
       };
 
+    
+
+
+    // Dropzone Logic
+    const onLogoDrop = useCallback((acceptedFiles) => {
+        if (acceptedFiles.length > 0) {
+            setLogo(acceptedFiles[0]);
+        }
+    }, []);
+
+    const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps } = useDropzone({
+        onDrop: onLogoDrop,
+        accept: "image/*,application/pdf",
+        disabled: !!logoURL, // Disable dropzone after upload
+    });
+
+    // Upload Logo to Firebase
     const uploadLogo = async () => {
         if (!logo) return;
     
-        const filesFolderRef = ref(storage, `company/logos/${logo}`);
+        // Show Swal loading
+        Swal.fire({
+            title: "Uploading...",
+            text: "Please wait while your logo is being uploaded.",
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+    
+        const filesFolderRef = ref(storage, `company/logos/${logo.name}`);
     
         try {
-          await uploadBytes(filesFolderRef, logo);
+            await uploadBytes(filesFolderRef, logo);
+            const downloadURL = await getDownloadURL(filesFolderRef);
     
-          const downloadURL = await getDownloadURL(filesFolderRef);
-    
-        setLogo(downloadURL);
+            setLogoURL(downloadURL);
             setCompanyData((prevData) => ({
-             ...prevData,
-             logo: downloadURL,
-         }));
-
-         
+                ...prevData,
+                logo: downloadURL,
+            }));
+    
+            // Show success message
+            Swal.fire({
+                title: "Upload Complete!",
+                text: "Your logo has been uploaded successfully.",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false
+            });
+    
         } catch (err) {
-          console.error(err);
+            console.error(err);
+            
+            // Show error message
+            Swal.fire({
+                title: "Upload Failed!",
+                text: "Something went wrong. Please try again.",
+                icon: "error",
+            });
         }
-      };
+    };
+    
+
+    // Reset the uploaded file and delete from firebase
+    const resetLogo = async () => {
+        if (!logoURL) return;
+    
+        try {
+            // Reference to the uploaded file in Firebase Storage
+            const fileRef = ref(storage, logoURL);
+            
+            // Delete the file from Firebase Storage
+            await deleteObject(fileRef);
+    
+            // Reset the state
+            setLogo(null);
+            setLogoURL("");  // Clear uploaded file URL
+            setCompanyData((prevData) => ({
+                ...prevData,
+                logo: "",
+            }));
+    
+            console.log("Previous file deleted successfully.");
+        } catch (err) {
+            console.error("Error deleting file:", err);
+        }
+    };
 
     // Permit Scanner
-
-    const [permit, setPermit] = useState("");
+    const [permit, setPermit] = useState(null);
+    const [permitURL, setPermitURL] = useState(""); // Stores the uploaded file's URL
 
 
     const handlePermitChange = (e) => {
@@ -113,29 +229,92 @@ export default function Login(){
         setPermit(file);
       };
 
+    // Dropzone Logic
+    const onPermitDrop = useCallback((acceptedFiles) => {
+        if (acceptedFiles.length > 0) {
+            setPermit(acceptedFiles[0]);
+        }
+    }, []);
 
+    const { getRootProps: getPermitRootProps, getInputProps: getPermitInputProps } = useDropzone({
+        onDrop: onPermitDrop,
+        accept: "image/*,application/pdf",
+        disabled: !!permitURL, // Disable dropzone after upload
+    });
+    
+
+    // Upload Permit to Firebase
     const uploadPermit = async () => {
         if (!permit) return;
     
-        const filesFolderRef = ref(storage, `company/permits/${permit}`);
+        // Show Swal loading
+        Swal.fire({
+            title: "Uploading...",
+            text: "Please wait while your permit/accreditation is being uploaded.",
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+    
+        const filesFolderRef = ref(storage, `company/permits/${permit.name}`);
     
         try {
-          await uploadBytes(filesFolderRef, logo);
+            await uploadBytes(filesFolderRef, permit);
+            const downloadURL = await getDownloadURL(filesFolderRef);
     
-          const downloadURL = await getDownloadURL(filesFolderRef);
-    
-          setPermit(downloadURL);
+            setPermitURL(downloadURL);
             setCompanyData((prevData) => ({
-             ...prevData,
-             permit: downloadURL,
-         }));
-
-         
+                ...prevData,
+                permit: downloadURL,
+            }));
+    
+            // Show success message
+            Swal.fire({
+                title: "Upload Complete!",
+                text: "Your permit/accreditation has been uploaded successfully.",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false
+            });
+    
         } catch (err) {
-          console.error(err);
+            console.error(err);
+            
+            // Show error message
+            Swal.fire({
+                title: "Upload Failed!",
+                text: "Something went wrong. Please try again.",
+                icon: "error",
+            });
         }
-      };
+    };
+    
 
+    // Reset the uploaded file and delete from firebase
+    const resetPermit = async () => {
+        if (!permitURL) return;
+    
+        try {
+            // Reference to the uploaded file in Firebase Storage
+            const fileRef = ref(storage, permitURL);
+            
+            // Delete the file from Firebase Storage
+            await deleteObject(fileRef);
+    
+            // Reset the state
+            setPermit(null);
+            setPermitURL("");  // Clear uploaded file URL
+            setCompanyData((prevData) => ({
+                ...prevData,
+                permit: "",
+            }));
+    
+            console.log("Previous file deleted successfully.");
+        } catch (err) {
+            console.error("Error deleting file:", err);
+        }
+    };
 
     const [showCamera, setShowCamera] = useState(false);
     const webcamRef = useRef(null);
@@ -159,6 +338,10 @@ export default function Login(){
 
         setShowCamera(false);
     };
+
+    // Dropzone
+
+    
 
 
     return (
@@ -253,7 +436,7 @@ export default function Login(){
                             <Form.Control 
                             className="my-2"
                                 type="text" 
-                                name="first"
+                                name="proprietor.first"
                                 placeholder='first name'
                                 required
                                 value={companyData.proprietor.first}
@@ -262,7 +445,7 @@ export default function Login(){
                             <Form.Control 
                             className="my-2"
                                 type="text" 
-                                name="last"
+                                name="proprietor.last"
                                 placeholder='last name'
                                 required
                                 value={companyData.proprietor.last}
@@ -271,7 +454,7 @@ export default function Login(){
                             <Form.Control 
                             className="my-2"
                                 type="text" 
-                                name="middle"
+                                name="proprietor.middle"
                                 placeholder='middle name'
                                 value={companyData.proprietor.middle}
                                 onChange={handleChange}
@@ -289,38 +472,106 @@ export default function Login(){
                                 }
                             />
                         </Form.Group>
-                        </>
-                    )}
+                        
                     
+                    {/* Drag and Drop Zone */}
                     <Form.Group className="my-2">
-                        <Form.Label className="mt-2 fw-bold">
-                                {companyData.ownership === "cooperative"
+                            <Form.Label className="my-2 fw-bold">
+                                {companyData.classification === "peoples organization"
                                     ? "Certificate of Accreditation from the Sangguniang Bayan Offfice"
-                                    : companyData.ownership === "association"
-                                    ? "Certificate of Accreditation from the Sangguniang Bayan Offfice"
-                                    : "Business Permit/Receipt from the Licensing dated in the current year"}
+                                    : companyData.classification === "travel agency" ||  companyData.classification === "service provider"
+                                    ? "Business Permit/Receipt from the Licensing Office dated in the current year"
+                                    : "Business Permit / LGU Accreditation "}
                             </Form.Label>
-                        <InputGroup>
-                                <Form.Control 
-                                type="file" 
-                                //onClick={uploadFile}
-                                onChange={handlePermitChange} />
-                                <Button variant="outline-secondary" onClick={uploadPermit}>
-                                Upload
+                            <Container {...getPermitRootProps({
+                                accept: "image/png, image/jpeg, image/jpg, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                onDrop: (acceptedFiles) => {
+                                    const file = acceptedFiles[0];
+                                    if (file && ["image/png", "image/jpeg", "image/jpg", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type)) {
+                                        setPermit(file);
+                                    } else {
+                                        Swal.fire({
+                                            icon: "error",
+                                            title: "Invalid File Type",
+                                            text: "Only PNG, JPG, JPEG, PDF, and DOC files are allowed.",
+                                        });
+                                    }
+                                }
+                            })}
+                            className={`dropzone-container text-center w-100 ${permitURL ? "border-success" : ""}`}
+                                    >
+                                <input {...getPermitInputProps()} accept="image/png, image/jpeg, image/jpg, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+
+                                {permit ? (
+                                    permit.type.startsWith("image/") ? (
+                                        <img
+                                            src={URL.createObjectURL(permit)}
+                                            alt="Uploaded Preview"
+                                            className="img-fluid mt-2"
+                                            style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
+                                        />
+                                    )  : permit.type === "application/pdf" ? (
+                                            <p className="fw-bold text-muted">
+                                                <FontAwesomeIcon icon={faFilePdf} className="text-danger me-2" />
+                                                PDF Selected: {permit.name}
+                                            </p>
+                                        ) : permit.type === "application/msword" || permit.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? (
+                                            <p className="fw-bold text-muted">
+                                                <FontAwesomeIcon icon={faFileWord} className="text-primary me-2" />
+                                                DOC File Selected: {permit.name}
+                                            </p>
+                                        ) : (
+                                            <p className="fw-bold text-muted">File selected: {permit.name}</p>
+                                        )
+                                    ) :  (
+                                    <p className="text-muted">
+                                        Drag & Drop your{" "}
+                                        {companyData.classification === "peoples organization"
+                                            ? "LGU Accreditation"
+                                            : companyData.classification === "travel agency" || companyData.classification === "service provider"
+                                            ? "Business Permit"
+                                            : "Business Permit / LGU Accreditation"}{" "}
+                                        here or <span className="text-primary text-decoration-underline">Choose File</span>
+                                    </p>
+                                )}
+                            </Container>
+                            <Container className="d-flex justify-content-between mt-2">
+                                    <p className='sub-title'>Supported File: PNG, JPG, JPEG, PDF, DOC, and DOCX</p>
+                                    <p className='sub-title'>Maximum size: 25MB</p>
+                            </Container>
+
+                            {/* Upload & Camera Buttons */}
+                            <Container className="d-flex justify-content-between">
+                                {/* Always show "Use Camera" button */}
+                                <Button className="my-2" variant="outline-secondary" onClick={() => setShowCamera(!showCamera)}>
+                                    <FontAwesomeIcon className="button-icon" icon={faCamera} size="xs" fixedWidth />
+                                    {showCamera ? "Cancel Camera" : "Use Camera"}
                                 </Button>
-                        </InputGroup>
-                        {/* <InputGroup>
-                            <Form.Control type="file" accept="image/*" onChange={handlePermitUpload} />
-                            <Button variant="outline-secondary" onClick={() => setShowCamera(!showCamera)}>
-                                {showCamera ? "Cancel Camera" : "Use Camera"}
-                            </Button>
-                        </InputGroup> */}
+
+                                {/* Show Upload / Reupload button only when a file is selected */}
+                                {permit && (
+                                    !permitURL ? (
+                                        <Button className="my-2" variant="outline-success" onClick={uploadPermit}>
+                                            <FontAwesomeIcon className="button-icon" icon={faUpload} size="xs" fixedWidth />
+                                            Upload File
+                                        </Button>
+                                    ) : (
+                                        <Button className="my-2" variant="outline-danger" onClick={resetPermit}>
+                                            <FontAwesomeIcon className="button-icon" icon={faCancel} size="xs" fixedWidth />
+                                            Reupload
+                                        </Button>
+                                    )
+                                )}
+                            </Container>
+                            {permit && (
+                                    !permitURL ? ("") : (
+                                        <Container className="d-flex justify-content-center mt-2">
+                                            <p className='sub-title text-success'>Permit/Accreditation Successfully Uploaded!</p>
+                                        </Container>
+                                    )
+                            )}   
                     </Form.Group>
-                    <Form.Group className="text-center my-2">
-                        <Button className="my-2 justify-content-center" variant="outline-secondary" onClick={() => setShowCamera(!showCamera)}>
-                                {showCamera ? "Cancel Camera" : "Use Camera"}
-                        </Button>
-                    </Form.Group>
+
                     <Modal show={showCamera} onHide={() => setShowCamera(false)} centered fullscreen>
                         <Modal.Body className="d-flex flex-column justify-content-center align-items-center">
                             <Webcam
@@ -346,36 +597,8 @@ export default function Login(){
                             
                         </Modal.Body>
                     </Modal>
-                    {/* {showCamera && (
-                        <Container className="d-flex flex-column text-center my-2 justify-content-center align-items-center">
-                            <Webcam
-                                audio={false}
-                                ref={webcamRef}
-                                screenshotFormat="image/jpeg"
-                                width={300}
-                                height={200}
-                            />
-                            <Button className="mt-3"  variant="outline-primary" onClick={capturePhoto}>Capture</Button>
-                        </Container>
-                    )} */}
-
-                    <Form.Group className="mb-3">
-                        <InputGroup>
-                            <InputGroup.Text id="inputGroupPrepend">
-                                {companyData.permit && (
-                                    <Image src={companyData.permit} alt="Uploaded Permit" fluid style={{ width: "25px", height: "25px" }} />
-                                )}
-                            </InputGroup.Text>
-                            <Form.Control
-                                placeholder="Permit preview"
-                                type="text"
-                                name="permit"
-                                value={companyData.permit || ""}
-                                readOnly
-                            />
-                        </InputGroup>
-                    </Form.Group>
-                    {/* Step 2: Company Details 2 */}
+                    </>
+                    )}
                     {currentStep === 2 && (
                         <>
                             <Form.Group className="my-2">
@@ -385,7 +608,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="country"
+                                    name="address.country"
                                     placeholder='country'
                                     required
                                     value={companyData.address.country}
@@ -394,7 +617,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="region"
+                                    name="address.region"
                                     placeholder='region'
                                     required
                                     value={companyData.address.region}
@@ -403,7 +626,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="province"
+                                    name="address.province"
                                     placeholder='province/city'
                                     required
                                     value={companyData.address.province}
@@ -412,7 +635,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="zip"
+                                    name="address.zip"
                                     placeholder='zip code'
                                     value={companyData.address.zip}
                                     onChange={handleChange}
@@ -420,7 +643,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="town"
+                                    name="address.town"
                                     placeholder='town/city'
                                     required
                                     value={companyData.address.town}
@@ -429,7 +652,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="barangay"
+                                    name="address.barangay"
                                     placeholder='barangay'
                                     value={companyData.address.barangay}
                                     onChange={handleChange}
@@ -437,7 +660,7 @@ export default function Login(){
                                 <Form.Control 
                                 className="my-2"
                                     type="text" 
-                                    name="street"
+                                    name="address.street"
                                     placeholder='street name'
                                     value={companyData.address.street}
                                     onChange={handleChange}
@@ -469,7 +692,7 @@ export default function Login(){
                                 />
                             
                             </Form.Group >
-                            <Form.Group controlId="logo" className="mb-3">
+                            {/* <Form.Group controlId="logo" className="mb-3">
                             <Form.Label className="fw-bold">Upload Logo</Form.Label>
                                 <InputGroup>
                                 <Form.Control 
@@ -498,6 +721,75 @@ export default function Login(){
                                     />
                                     </InputGroup>
                                     
+                            </Form.Group> */}
+                            <Form.Group className="my-2">
+                                <Form.Label className="my-2 fw-bold">
+                                    Upload Official Logo
+                                </Form.Label>
+                                <Container {...getLogoRootProps({
+                                    accept: "image/png, image/jpeg, image/jpg",
+                                    onDrop: (acceptedFiles) => {
+                                        const file = acceptedFiles[0];
+                                        if (file && ["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+                                            setLogo(file);
+                                        } else {
+                                            Swal.fire({
+                                                icon: "error",
+                                                title: "Invalid File Type",
+                                                text: "Only PNG, JPG, and JPEG files are allowed.",
+                                            });
+                                        }
+                                    }
+                                })}
+                                className={`dropzone-container text-center w-100 ${permitURL ? "border-success" : ""}`}
+                                        >
+                                    <input {...getLogoInputProps()} accept="image/png, image/jpeg, image/jpg"/>
+                                    {logo ? (
+                                        logo.type.startsWith("image/") ? (
+                                            <img
+                                                src={URL.createObjectURL(logo)}
+                                                alt="Uploaded Preview"
+                                                className="img-fluid mt-2"
+                                                style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
+                                            />
+                                        ) : (
+                                            <p className="fw-bold text-muted">File selected: {logo.name}</p>
+                                        )
+                                    ) : (
+                                        <p className="text-muted">
+                                            Drag & Drop your logo here or <span className="text-primary text-decoration-underline">Choose File</span>
+                                        </p>
+                                    )}
+                                </Container>
+                                <Container className="d-flex justify-content-between mt-2">
+                                        <p className='sub-title'>Supported File: PNG, JPEG, and JPG</p>
+                                        <p className='sub-title'>Maximum size: 25MB</p>
+                                </Container>
+
+                                {/* Upload & Camera Buttons */}
+                                <Container className="d-flex justify-content-end">
+                                    {/* Show Upload / Reupload button only when a file is selected */}
+                                    {logo && (
+                                        !logoURL ? (
+                                            <Button className="my-2" variant="outline-success" onClick={uploadLogo}>
+                                                <FontAwesomeIcon className="button-icon" icon={faUpload} size="xs" fixedWidth />
+                                                Upload Logo
+                                            </Button>
+                                        ) : (
+                                            <Button className="my-2" variant="outline-danger" onClick={resetLogo}>
+                                                <FontAwesomeIcon className="button-icon" icon={faCancel} size="xs" fixedWidth />
+                                                Reupload
+                                            </Button>
+                                        )
+                                    )}
+                                </Container>
+                                {logo && (
+                                        !logoURL ? ("") : (
+                                            <Container className="d-flex justify-content-center mt-2">
+                                                <p className='sub-title text-success'>Logo Successfully Uploaded!</p>
+                                            </Container>
+                                        )
+                                )}   
                             </Form.Group>
                             
                             

@@ -1,14 +1,15 @@
 class Company {
     constructor({
         company_id = "",
-        address = "",
-        barangay = "",
-        country = "",
-        province = "",
-        region = "",
-        street = "",
-        town = "",
-        zip = "",
+        address = {
+            street: "",
+            barangay: "",
+            town: "",
+            province: "",
+            region: "",
+            country: "",
+            zip: "",
+        },
         classification = "",
         contact = "",
         email = "",
@@ -16,10 +17,11 @@ class Company {
         name = "",
         ownership = "",
         permit = "",
-        proprietor = "",
-        first = "",
-        last = "",
-        middle = "",
+        proprietor = {
+            first: "",
+            middle: "",
+            last: "",
+        },
         status = "",
         type = "",
         year = "",
@@ -28,13 +30,6 @@ class Company {
     }) {
         this.company_id = company_id;
         this.address = address;
-        this.barangay = barangay;
-        this.country = country;
-        this.province = province;
-        this.region = region;
-        this.street = street;
-        this.town = town;
-        this.zip = zip;
         this.classification = classification;
         this.contact = contact;
         this.email = email;
@@ -43,9 +38,6 @@ class Company {
         this.ownership = ownership;
         this.permit = permit;
         this.proprietor = proprietor;
-        this.first = first;
-        this.last = last;
-        this.middle = middle;
         this.status = status;
         this.type = type;
         this.year = year;

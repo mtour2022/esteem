@@ -385,7 +385,24 @@ body {
   color: darkgray !important;
 }
 
+.dropzone-container{
+  background-color: #f7fdff !important;
+  min-height: 250px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-style: dashed !important;
+  cursor: pointer !important;
+  border-radius: 15px !important;
+  padding: 10px !important;
+  border-color: #1F89B2 !important;
+  border-width: 1.5px !important;
+}
 
+.drop-zone-border-success {
+  border-color: #28a745 !important; /* Green border if permit is uploaded */
+  background-color: #b5fbc5 !important;
+}
 
 /* .App {
   text-align: center;
