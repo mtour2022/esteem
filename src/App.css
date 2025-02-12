@@ -107,6 +107,15 @@ body {
   line-height: 20px; /* 142.857% */
 }
 
+.sub-title-center {
+  color: black;
+  text-align: center;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
 .sub-title-blue {
   color: #1F89B2;
   text-align: center;
@@ -126,7 +135,6 @@ body {
 }
 
 .label {
-  font-family: "BARABARA-final";
   font-size: 28px;
   font-weight: bold;
 }
@@ -158,6 +166,19 @@ body {
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
   width: 50%;
 }
+
+.color-blue-button {
+  background: #1F89B2 !important;
+  color: #f7fdff !important;
+}
+
+.color-blue-button:hover {
+  background: #f7fdff !important;
+  color: #1F89B2 !important;
+  border: 1px solid #1F89B2 !important;
+}
+
+
 
 
 .white-button {
@@ -254,7 +275,7 @@ body {
   background-position: center; /* Centers the image */
   background-repeat: no-repeat; /* Prevents image repetition */
   width: 100%; /* Adjust width as needed */
-  height: 100vh; /* Full viewport height */
+  /* height: 100vh; Full viewport height */
   display: flex;
   flex-direction: column;
 }
@@ -338,6 +359,31 @@ body {
   max-width: 100%; /* Adjust width as needed */
 }
 
+/* Center the footer buttons */
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column; /* Stack buttons vertically */
+  text-align: center;
+
+}
+
+/* Style the buttons: small, gray, no underline */
+.footer-button {
+  font-size: 12px !important; /* Make text smaller */
+  color: gray !important;
+  text-decoration: none !important; /* Remove underline */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px
+}
+
+/* Optional: Change color slightly on hover */
+.footer-button:hover {
+  color: darkgray !important;
+}
 
 
 

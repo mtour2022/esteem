@@ -8,6 +8,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { Route, Routes } from 'react-router-dom';
 // Navigrations
 import Home from './pages/Home';
+import Company_Registration from './pages/Company_Registration';
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
       <Router> 
         <Routes>
               <Route path="/" element={<Home />}/>
+              <Route path="/company_registration" element={<Company_Registration />}/>
         </Routes>
       </Router>
     </Container >
