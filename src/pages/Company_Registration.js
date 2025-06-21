@@ -1,4 +1,4 @@
-import { Form, Button, InputGroup, Row, Col, Alert, Container, Image, Modal } from 'react-bootstrap';
+import { Form, Button, Dropdown, InputGroup, Row, Col, Alert, Container, Image, Modal } from 'react-bootstrap';
 import React, { useState, useRef, useCallback } from 'react';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
 import { Navigate } from 'react-router-dom';
@@ -12,6 +12,9 @@ import Webcam from "react-webcam"; // Install with: npm install react-webcam
 import { useDropzone } from "react-dropzone";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faCancel, faCamera, faFileWord, faFilePdf } from '@fortawesome/free-solid-svg-icons';
+import AddressInput from '../components/AddressForm'
+import SaveGroupToCloud from "../components/SaveGroup"; // Adjust the import path if necessary
+
 
 
 
@@ -20,10 +23,71 @@ export default function Login(){
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [inputAddressValue, setInputAddressValue] = useState("");
+    const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+    const [filteredAddressOptions, setFilteredAddressOptions] = useState([]);
 
-    // Initialize Company class
+    
+
+
+    // Initialize Company class 
     const [companyData, setCompanyData] = useState(new Company({}));
+    
     const companyCollectionRef = collection(db, "company");
+
+
+    
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+    
+        try {
+            // Show Swal loading
+            Swal.fire({
+                title: "Uploading...",
+                text: "Please wait while your permit/accreditation is being uploaded.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+    
+            // Ensure companyData is an instance of Company before calling toObject
+            const companyObject = companyData instanceof Company 
+                ? companyData.toObject() 
+                : new Company(companyData).toObject();
+    
+            const docRef = await addDoc(companyCollectionRef, companyObject);
+            const companyDoc = doc(db, "company", docRef.id);
+            await updateDoc(companyDoc, { company_id: docRef.id });
+
+            
+            // setSuccess("Account created successfully!");
+            // setError("");
+            setCompanyData(new Company({})); // Reset with a new instance
+            setPermitURL(""); 
+            setLogoURL("");
+    
+            // Close loading Swal and show success message
+            Swal.fire({ 
+                title: "Success!", 
+                icon: "success", 
+                text: "Company Successfully Created" 
+            });
+    
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            setErrorMessage(error.message);
+    
+            // Close loading Swal and show error message
+            Swal.fire({ 
+                title: "Error!", 
+                icon: "error", 
+                text: "Please Try Again" 
+            });
+        }
+    };
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -45,28 +109,12 @@ export default function Login(){
         });
     };
     
-    
-    
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const docRef = await addDoc(companyCollectionRef, companyData.toObject()); // Convert before saving
-            const companyDoc = doc(db, "company", docRef.id);
-            await updateDoc(companyDoc, { company_id: docRef.id });
-            setCompanyData(new Company({})); // Reset with empty object
-            Swal.fire({ title: "Success!", icon: "success", text: "Company Successfully Created" });
-        } catch (error) {
-            console.error('Error submitting form:', error);
-            setErrorMessage(error.message);
-            Swal.fire({ title: "Error!", icon: "error", text: "Please Try Again" });
-        }
-    };
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
 
+    // DropDownOptions
     const classificationOption = [
         { value: "travel agency", label: "Travel and Tour Agency" },
         { value: "peoples organization", label: "People's Organization (Associations / Cooperative)" },
@@ -82,58 +130,23 @@ export default function Login(){
         { value: "association", label: "Association" },
       ];
 
+    const foreignOrLocalOption = [
+        { value: "local", label: "Local" },
+        { value: "foreign", label: "Foreign" },
+    ];
+
+    // Pagination
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 2; // Adjust this if you add more steps
+    const totalSteps = 3;
 
     const nextStep = () => setCurrentStep((prev) => prev + 1);
     const prevStep = () => setCurrentStep((prev) => prev - 1);
 
-    // const [logo, setLogo] = useState("");
-
-
-    // const handleLogoChange = (e) => {
-    //     const file = e.target.files[0];
-    //     setLogo(file);
-    //   };
-
-    // const uploadLogo = async () => {
-    //     if (!logo) return;
-    
-    //     const filesFolderRef = ref(storage, `company/logos/${logo.name}`);
-    
-    //     try {
-    //       await uploadBytes(filesFolderRef, logo);
-    
-    //       const downloadURL = await getDownloadURL(filesFolderRef);
-    
-    //     setLogo(downloadURL);
-    //         setCompanyData((prevData) => ({
-    //          ...prevData,
-    //          logo: downloadURL,
-    //      }));
-
-         
-    //     } catch (err) {
-    //       console.error(err);
-    //     }
-    //   };
-
-    //Logo Upload
-
-    // Permit Scanner
+    // Logo Upload 
     const [logo, setLogo] = useState(null);
-    const [logoURL, setLogoURL] = useState(""); // Stores the uploaded file's URL
+    const [logoURL, setLogoURL] = useState("");
 
-
-    const handleLogoChange = (e) => {
-        const file = e.target.files[0];
-        setLogo(file);
-      };
-
-    
-
-
-    // Dropzone Logic
+    // Logo Dropzone 
     const onLogoDrop = useCallback((acceptedFiles) => {
         if (acceptedFiles.length > 0) {
             setLogo(acceptedFiles[0]);
@@ -319,30 +332,19 @@ export default function Login(){
     const [showCamera, setShowCamera] = useState(false);
     const webcamRef = useRef(null);
 
-   
-
-    const handlePermitUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleChange({ target: { name: "permit", value: reader.result } });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const capturePhoto = () => {
         const imageSrc = webcamRef.current.getScreenshot();
-        handleChange({ target: { name: "permit", value: imageSrc } });
-
-        setShowCamera(false);
+        fetch(imageSrc)
+            .then(res => res.blob())
+            .then(blob => {
+                const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, "");
+                const fileName = `captured_permit_${timestamp}.jpg`;
+                const file = new File([blob], fileName, { type: "image/jpeg" });
+                setPermit(file);
+                setShowCamera(false);
+            });
+        console.log(imageSrc);
     };
-
-    // Dropzone
-
-    
-
 
     return (
         <>  
@@ -362,14 +364,13 @@ export default function Login(){
             <Col md={6} className="p-0">
                 <Container className="container background-container">
                     <Container className='body-container'>
-                    <Form onSubmit={(e) => handleSubmit(e)} className="custom-form body-container">
+                    <Form className="custom-form body-container">
                     <p className='barabara-label'>REGISTRATION FORM</p> 
                     {/* Step 1: Company Details 1 */}
                     {currentStep === 1 && (
                         <>
-                        
                         <Form.Group className="my-2">
-                            <Form.Label  className="fw-bold">Business Name</Form.Label>
+                            <Form.Label  className="fw-bold mt-2">Business Name</Form.Label>
                             <Form.Control 
                                 type="text" 
                                 name="name"
@@ -380,7 +381,7 @@ export default function Login(){
                             />
                         </Form.Group>
                         <Form.Group className="my-2">
-                            <Form.Label  className="fw-bold">Classification</Form.Label>
+                            <Form.Label  className="fw-bold mt-2">Classification</Form.Label>
                             <Form.Select
                                 name="classification"
                                 value={companyData.classification}
@@ -396,7 +397,7 @@ export default function Login(){
                             </Form.Select>
                         </Form.Group>
                         <Form.Group className="my-2">
-                            <Form.Label  className="fw-bold">Year Established</Form.Label>
+                            <Form.Label  className="fw-bold mt-2">Year Established</Form.Label>
                             <Form.Control 
                                 type="number" 
                                 name="year"
@@ -417,6 +418,22 @@ export default function Login(){
                             >
                                 <option value="">select ownership type</option> {/* Optional default placeholder */}
                                 {ownershipOption.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                        <Form.Group className="my-2">
+                            <Form.Label className="fw-bold">Company Type</Form.Label>
+                            <Form.Select
+                                name="type"
+                                value={companyData.type}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">select company type</option> {/* Optional default placeholder */}
+                                {foreignOrLocalOption.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
@@ -460,21 +477,40 @@ export default function Login(){
                                 onChange={handleChange}
                             />
                         </Form.Group>
-                        <Form.Group className="mt-3 d-flex flex-column flex-md-row justify-content-md-end align-items-end">
-                            <Form.Check
-                                type="checkbox"
-                                label="Is a Foreign Company?"
-                                checked={companyData.type === "foreign"} // Checkbox is checked if type is "foreign"
-                                onChange={(e) =>
-                                    handleChange({
-                                        target: { name: "type", value: e.target.checked ? "foreign" : "local" },
-                                    })
-                                }
-                            />
-                        </Form.Group>
-                        
-                    
-                    {/* Drag and Drop Zone */}
+                        </>
+                    )}
+                     {/* Step 2: Company Details */}
+                    {currentStep === 2 && (
+                        <>
+                        <AddressInput groupData={companyData} setGroupData={setCompanyData}></AddressInput>
+                         
+                         <Form.Group className="my-2">
+                         <Form.Label  className="fw-bold mt-2">Company Email Address</Form.Label>
+                         <Form.Control 
+                             
+                             type="text" 
+                             name="email"
+                             placeholder='company email address'
+                             value={companyData.email}
+                             onChange={handleChange}
+                             required
+                             />
+                         
+                         </Form.Group>
+                         <Form.Group className="my-2">
+                         <Form.Label  className="fw-bold mt-2">Company Contact Number</Form.Label>
+                         <Form.Control 
+                             
+                             type="text" 
+                             name="contact"
+                             placeholder='company telephone/mobile number'
+                             value={companyData.contact}
+                             onChange={handleChange}
+                             required
+                             />
+                         
+                         </Form.Group >
+                         {/* Drag and Drop Zone */}
                     <Form.Group className="my-2">
                             <Form.Label className="my-2 fw-bold">
                                 {companyData.classification === "peoples organization"
@@ -543,11 +579,18 @@ export default function Login(){
                             {/* Upload & Camera Buttons */}
                             <Container className="d-flex justify-content-between">
                                 {/* Always show "Use Camera" button */}
-                                <Button className="my-2" variant="outline-secondary" onClick={() => setShowCamera(!showCamera)}>
-                                    <FontAwesomeIcon className="button-icon" icon={faCamera} size="xs" fixedWidth />
-                                    {showCamera ? "Cancel Camera" : "Use Camera"}
+                                <Button
+                                    className="my-2"
+                                    variant="outline-secondary"
+                                    onClick={() => {
+                                        if (permitURL) {
+                                            resetPermit();
+                                        }
+                                        setShowCamera(!showCamera);
+                                    }}
+                                >
+                                    <FontAwesomeIcon icon={faCamera} /> {permitURL ? "Retake Photo" : showCamera ? "Cancel Camera" : "Use Camera"}
                                 </Button>
-
                                 {/* Show Upload / Reupload button only when a file is selected */}
                                 {permit && (
                                     !permitURL ? (
@@ -584,8 +627,8 @@ export default function Login(){
                                 <Row className="justify-content-center">
                                     <Col xs="auto">
                                         <Button variant="outline-primary" onClick={capturePhoto}>
-                                            Capture
-                                        </Button>
+                                                Capture
+                                        </Button>   
                                     </Col>
                                     <Col xs="auto">
                                         <Button variant="outline-danger" onClick={() => setShowCamera(false)}>
@@ -597,132 +640,14 @@ export default function Login(){
                             
                         </Modal.Body>
                     </Modal>
-                    </>
-                    )}
-                    {currentStep === 2 && (
-                        <>
-                            <Form.Group className="my-2">
-                                <Form.Label className="mt-2 fw-bold">
-                                    Local Office Address
-                                </Form.Label>
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.country"
-                                    placeholder='country'
-                                    required
-                                    value={companyData.address.country}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.region"
-                                    placeholder='region'
-                                    required
-                                    value={companyData.address.region}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.province"
-                                    placeholder='province/city'
-                                    required
-                                    value={companyData.address.province}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.zip"
-                                    placeholder='zip code'
-                                    value={companyData.address.zip}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.town"
-                                    placeholder='town/city'
-                                    required
-                                    value={companyData.address.town}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.barangay"
-                                    placeholder='barangay'
-                                    value={companyData.address.barangay}
-                                    onChange={handleChange}
-                                />
-                                <Form.Control 
-                                className="my-2"
-                                    type="text" 
-                                    name="address.street"
-                                    placeholder='street name'
-                                    value={companyData.address.street}
-                                    onChange={handleChange}
-                                />
-                            </Form.Group>
-                            <Form.Group className="my-2">
-                            <Form.Label  className="fw-bold">Email Address</Form.Label>
-                            <Form.Control 
-                                
-                                type="text" 
-                                name="email"
-                                placeholder='company email address'
-                                value={companyData.email}
-                                onChange={handleChange}
-                                required
-                                />
-                            
-                            </Form.Group>
-                            <Form.Group className="my-2">
-                            <Form.Label  className="fw-bold">Contact Number</Form.Label>
-                            <Form.Control 
-                                
-                                type="text" 
-                                name="contact"
-                                placeholder='company telephone/mobile number'
-                                value={companyData.contact}
-                                onChange={handleChange}
-                                required
-                                />
-                            
-                            </Form.Group >
-                            {/* <Form.Group controlId="logo" className="mb-3">
-                            <Form.Label className="fw-bold">Upload Logo</Form.Label>
-                                <InputGroup>
-                                <Form.Control 
-                                type="file" 
-                                //onClick={uploadFile}
-                                onChange={handleLogoChange} />
-                                <Button variant="outline-secondary" onClick={uploadLogo}>
-                                Upload
-                                </Button>
-                                </InputGroup>
-                            </Form.Group>
-                            <Form.Group className="mb-3" controlId="postal">
-                                    <InputGroup>
-                                    <InputGroup.Text id="inputGroupPrepend">
 
-                                            {companyData.logo && (
-                                        <Image src={companyData.logo} alt="Uploaded Logo" fluid style={{ width: '25px', height: '25px' }} />
-                                    )}
-                                    </InputGroup.Text>
-                                    <Form.Control
-                                        placeholder='wait while your logo is uploading'
-                                        type="text"
-                                        name="postal"
-                                        value={companyData.logo}
-                                        required
-                                    />
-                                    </InputGroup>
-                                    
-                            </Form.Group> */}
-                            <Form.Group className="my-2">
+
+                        </>
+                    )}
+                     {/* Step 3: Company Details */}
+                     {currentStep === 3 && (
+                        <>
+                        <Form.Group className="my-2">
                                 <Form.Label className="my-2 fw-bold">
                                     Upload Official Logo
                                 </Form.Label>
@@ -741,7 +666,7 @@ export default function Login(){
                                         }
                                     }
                                 })}
-                                className={`dropzone-container text-center w-100 ${permitURL ? "border-success" : ""}`}
+                                className={`dropzone-container text-center w-100 ${logoURL ? "border-success" : ""}`}
                                         >
                                     <input {...getLogoInputProps()} accept="image/png, image/jpeg, image/jpg"/>
                                     {logo ? (
@@ -752,14 +677,14 @@ export default function Login(){
                                                 className="img-fluid mt-2"
                                                 style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
                                             />
-                                        ) : (
-                                            <p className="fw-bold text-muted">File selected: {logo.name}</p>
-                                        )
-                                    ) : (
-                                        <p className="text-muted">
-                                            Drag & Drop your logo here or <span className="text-primary text-decoration-underline">Choose File</span>
-                                        </p>
-                                    )}
+                                            ) : (
+                                                <p className="fw-bold text-muted">File selected: {logo.name}</p>
+                                            )
+                                            ) : (
+                                                <p className="text-muted">
+                                                    Drag & Drop your logo here or <span className="text-primary text-decoration-underline">Choose File</span>
+                                                </p>
+                                            )}
                                 </Container>
                                 <Container className="d-flex justify-content-between mt-2">
                                         <p className='sub-title'>Supported File: PNG, JPEG, and JPG</p>
@@ -791,12 +716,35 @@ export default function Login(){
                                         )
                                 )}   
                             </Form.Group>
+                            <Form.Group className="my-2">
+                                
+                            </Form.Group>
                             
-                            
+                            <Form.Group>
+                                <Form.Label className="fw-bold mt-2">Password</Form.Label>
+                                <InputGroup className="mb-3">
+                                    <Form.Control 
+                                                                type={showPassword ? 'text' : 'password'} 
+                                                                placeholder="password"
+                                                                required
+                                                                value={password}
+                                                                onChange={e => {setPassword(e.target.value)}}
+                                                                
+                                                                />
+                                                            <InputGroup.Text
+                                                                onClick={togglePasswordVisibility}
+                                                                style={{ cursor: 'pointer' }}
+                                                            >
+                                                                {showPassword ? (
+                                                                <AiFillEyeInvisible />
+                                                                ) : (
+                                                                <AiFillEye />
+                                                                )}
+                                                            </InputGroup.Text>
+                                                        </InputGroup>
+                            </Form.Group>
                         </>
-                    )}
-                   
-
+                     )}            
                     {/* Pagination Buttons */}
                     <Container className='empty-container'></Container>
                     {/* Page Indicators */}
@@ -811,19 +759,38 @@ export default function Login(){
                         ))}
                     </Container>
                     <Container className="d-flex justify-content-between mt-3">
+                        {/* Previous Button - Show if currentStep > 1 */}
                         {currentStep > 1 && (
-                            <Button variant="secondary " onClick={prevStep}>
+                            <Button variant="secondary" onClick={prevStep}>
                                 Previous
                             </Button>
                         )}
-                        {currentStep < 2 ? (
-                            <Button className="color-blue-button" variant='primary' onClick={nextStep}>
+
+                        {/* Next Button or Save Button on Last Step */}
+                        {currentStep < 3 ? (
+                            <Button className="color-blue-button" variant="primary" onClick={nextStep}>
                                 Next
                             </Button>
                         ) : (
-                            <Button  className="color-blue-button" disabled={!companyData.logo} type="submit">Submit</Button>
+                            <SaveGroupToCloud 
+                                groupData={companyData}
+                                setGroupData={setCompanyData}
+                                password={password}
+                                email={companyData.email}
+                                fileType="Application" 
+                                collectionName="company" 
+                                disabled={!logoURL || !permitURL || !password}
+                                idName="company_id" 
+                                ModelClass={Company} 
+                                onSuccess={() => {
+                                    setLogoURL("");
+                                    setPermitURL("");
+                                    setPassword("");
+                                }} 
+                            />  
                         )}
                     </Container>
+
                     <Container className='empty-container'></Container>
                     
                     {/* Custom Styles for Dots */}
@@ -839,12 +806,12 @@ export default function Login(){
                             }
                         `}
                     </style>
+                                                        
+                            
+                             
+                            
                     </Form> 
-                    
-
                     </Container> 
-                    
-            
                 </Container>
             </Col>
        

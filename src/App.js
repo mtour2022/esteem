@@ -6,38 +6,41 @@ import { Navigate } from 'react-router-dom';
 
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Route, Routes } from 'react-router-dom';
-// Navigrations
-import Home from './pages/Home';
-import Company_Registration from './pages/Company_Registration';
+import NotFound from './pages/NotFound';
 
+// Navigrations
+import Home from './pages/Home.js';
+import Company_Registration from './pages/Company_Registration.js';
+
+import { useState, useContext } from 'react';
+import { AuthProvider, useAuth} from './auth/authentication.js';
+
+
+function PrivateRoute({ element, ...rest }) {
+  const { userLoggedIn } = useAuth();
+
+  return userLoggedIn ? (
+    element
+  ) : (
+    <Navigate to="/*" replace={true} />
+  );
+}
 
 function App() {
   return (
-    <Container fluid >
-      <Router> 
-        <Routes>
-              <Route path="/" element={<Home />}/>
-              <Route path="/company_registration" element={<Company_Registration />}/>
-        </Routes>
+    < AuthProvider>
+      <Router>  
+
+        <Container fluid>
+          <Routes>
+            <Route path="/" element={<Home />}/>
+            <Route path="/company-registration" element={<Company_Registration />}/>
+            <Route path="*" element={<NotFound />}/>
+          </Routes>
+        </Container >
       </Router>
-    </Container >
-    // <div className="App">
-    //   <header className="App-header">
-    //     <img src={logo} className="App-logo" alt="logo" />
-    //     <p>
-    //       Edit <code>src/App.js</code> and save to reload.
-    //     </p>
-    //     <a
-    //       className="App-link"
-    //       href="https://reactjs.org"
-    //       target="_blank"
-    //       rel="noopener noreferrer"
-    //     >
-    //       Learn React
-    //     </a>
-    //   </header>
-    // </div>
-  );
+    </AuthProvider>
+  );  
 }
 
 export default App;

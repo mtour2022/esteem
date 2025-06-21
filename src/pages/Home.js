@@ -9,15 +9,19 @@ import bagongpilipinas from'../assets/images/bagongpilipinas.png';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
 import { collection, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase'
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import { useAuth } from '../auth/authentication.js';
+import { Navigate } from 'react-router-dom';
+import { doSignInWithEmailAndPassword } from '../config/auth';
+
 
 export default function Home() {
+  const { userLoggedIn } = useAuth();
+
   const isDesktop = useMediaQuery({ minWidth: 768 });
   const [selectedOption, setSelectedOption] = useState("");
-
-
-
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -40,25 +44,25 @@ export default function Home() {
                 fetchedData = querySnapshot.docs
                     .map(doc => ({ id: doc.id, ...doc.data() }))
                     .filter(doc => 
-                        (selectedOption === "Travel Agency" && doc.classification === "travel and tour" && doc.status === "approved") ||
+                        (selectedOption === "Travel Agency" && doc.classification === "travel agency" && doc.status === "approved") ||
                         (selectedOption === "Service Provider" && doc.classification === "service provider" && doc.status === "approved") ||
-                        (selectedOption === "People's Organization" && doc.classification === "peoples organization"  && doc.status === "approved")
+                        (selectedOption === "People's Organization" && doc.classification === "peoples organization" && doc.status === "approved")
                     )
-                    .map(doc =>  capitalizeFirstLetter(doc.name)); // Extract only names
+                    .map(doc => capitalizeFirstLetter(doc.name)); // Extract only names
             
             } else if (selectedOption === "Tour Coordinator") {
                 // Fetch from "employee" collection
                 const querySnapshot = await getDocs(collection(db, "employee"));
                 fetchedData = querySnapshot.docs.map(doc => {
-                  const nameData = doc.data().name; // Name is a map
-                  const fullName = `${nameData.first} ${nameData.middle ? nameData.middle + ' ' : ''}${nameData.last}`;
-                  return capitalizeFirstLetter(fullName);
-              });
-            
-              }
-            console.log("Fetched Data:", fetchedData); // PRINT FETCHED DATA TO CONSOLE
+                    const nameData = doc.data().name; // Name is a map
+                    const fullName = `${nameData.first} ${nameData.middle ? nameData.middle + ' ' : ''}${nameData.last}`;
+                    return capitalizeFirstLetter(fullName);
+                });
+            }
 
-            setNameList(fetchedData);
+            console.log("Fetched Names:", fetchedData); // PRINT FETCHED NAMES TO CONSOLE
+            setNameList(fetchedData); // Set only names in state
+
         } catch (error) {
             console.error("Error fetching data:", error);
         }
@@ -69,22 +73,15 @@ export default function Home() {
     } else {
         setNameList([]); // Reset list when no option is selected
     }
-  }, [selectedOption, db]); // Run when selectedOption changes
+}, [selectedOption, db]); // Run when selectedOption changes
 
   
   const handleSelect = (eventKey) => {
     setSelectedOption(eventKey);
     setInputValue(""); // Clear the input field
     setName(""); // Reset selected name
+    setEmail("");
     setNameList([]); // Clear name list until new data is fetched
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const handleRememberMe = () => {
-    setRememberMe(!rememberMe);
   };
 
   const [inputValue, setInputValue] = useState("");
@@ -109,13 +106,44 @@ export default function Home() {
     };
 
     const handleNameSelect = (option) => {
-      setInputValue(option);
-      setName(option); // Reset name when option changes
+      setInputValue(option.name);
+      setName(option.name); // Reset name when option changes
       // setNameList([]); // Clear name list until new data is fetched
+      setEmail(option.email)
+    };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
+
+  const handleRememberMe = () => {
+    setRememberMe(!rememberMe);
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!isSigningIn) {
+      setIsSigningIn(true);
+      try {
+        await doSignInWithEmailAndPassword(email, password);
+        setErrorMessage("");
+        console.log(userLoggedIn);
+      } catch (error) {
+        setErrorMessage(error.message);
+      } finally {
+        setIsSigningIn(false);
+      }
+    }
+  }
+
 
     
   return (
+    // // if logged in proceed to company_dash board
+    // (userLoggedIn) ?
+    //     <Navigate to='/'/>
+    //     :
     <>
       <Container fluid>
         <Row>
@@ -135,7 +163,7 @@ export default function Home() {
                   <h1 className="barabara-title">PROJECT: ESTEEM</h1>
                   <p className="sub-title-blue-start">An <b>E</b>lectronic <b>S</b>ystem for <b>T</b>racking, <b>E</b>valuating, and <b>E</b>xpert <b>M</b>onitoring of Tour Activities in Malay-Boracay</p>
                   <Container className="empty-container"></Container>
-                      <Form onSubmit={()=>{}} className="custom-form body-container">
+                      <Form onSubmit={(e) => onSubmit(e)} className="custom-form body-container">
                         <Container className="empty-container"></Container>
                         <h1 className="barabara-label2">TOUR TICKET GENERATION</h1>  
                         <p className="sub-title">Login to generate QR codes before proceeding to activity areas. QR codes generated are proactively checked during scanning. Track your guests and ensure seamless entry and safety throughout their tour experience.</p>
@@ -252,9 +280,9 @@ export default function Home() {
                     <Container className="empty-container"></Container>
                     {/* <p className="sub-title-center">In accordance with the established guidelines adhering to <b>Municipal Ordinance 341 series of 2015</b>, and <b>SB Resolution no. 010 series of 2024</b>.</p> */}
                     <Container className="button-container">
-                      <Link to="/company_registration" className="btn white-button">
+                      <Link to="/company-registration" className="btn white-button">
                         <FontAwesomeIcon className="button-icon" icon={faUserGroup} size="xs" fixedWidth />
-                        Register Company
+                        Company Registration
                       </Link>
                       <Button className="white-button">
                         <FontAwesomeIcon className="button-icon" icon={faListCheck} size="xs" fixedWidth />See Requirements

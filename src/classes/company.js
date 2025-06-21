@@ -8,7 +8,6 @@ class Company {
             province: "",
             region: "",
             country: "",
-            zip: "",
         },
         classification = "",
         contact = "",
@@ -25,8 +24,9 @@ class Company {
         status = "",
         type = "",
         year = "",
-        employee = 0,
-        ticket = 0
+        employee = [],
+        ticket = [],
+        password = "",
     }) {
         this.company_id = company_id;
         this.address = address;
@@ -43,6 +43,7 @@ class Company {
         this.year = year;
         this.employee = employee;
         this.ticket = ticket;
+        this.password = password;
     }
 
     // Method to get the full name of the proprietor
@@ -52,7 +53,7 @@ class Company {
 
     // Method to get full address
     getFullAddress() {
-        return `${this.street}, ${this.barangay}, ${this.town}, ${this.province}, ${this.region}, ${this.country}, ZIP: ${this.zip}`;
+        return `${this.street}, ${this.barangay}, ${this.town}, ${this.province}, ${this.region}, ${this.country}`;
     }
 
     // Method to check if the company is new
