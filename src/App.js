@@ -1,46 +1,39 @@
-import logo from './logo.svg';
 import './App.css';
 import { Container } from 'react-bootstrap';
+import { Navigate, BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
-import { Navigate } from 'react-router-dom';
-
-import { BrowserRouter as Router } from 'react-router-dom';
-import { Route, Routes } from 'react-router-dom';
-import NotFound from './pages/NotFound';
-
-// Navigrations
+// Pages
 import Home from './pages/Home.js';
-import Company_Registration from './pages/Company_Registration.js';
+import CompanyRegistrationPage from './pages/Company_Registration.js';
+import CompanyDashboardPage from './pages/Company_Dashboard.js';
+import NotFound from './pages/NotFound.js';
 
-import { useState, useContext } from 'react';
-import { AuthProvider, useAuth} from './auth/authentication.js';
+// Auth
+import { AuthProvider, useAuth } from './auth/authentication.js';
 
-
-function PrivateRoute({ element, ...rest }) {
+// Private Route
+function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
-
-  return userLoggedIn ? (
-    element
-  ) : (
-    <Navigate to="/*" replace={true} />
-  );
+  return userLoggedIn ? element : <Navigate to="/" replace />;
 }
 
 function App() {
   return (
-    < AuthProvider>
-      <Router>  
-
+    <AuthProvider>
+      <Router>
         <Container fluid>
           <Routes>
-            <Route path="/" element={<Home />}/>
-            <Route path="/company-registration" element={<Company_Registration />}/>
-            <Route path="*" element={<NotFound />}/>
+            <Route path="/" element={<Home />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/company-registration" element={<CompanyRegistrationPage />} />
+            {/* ✅ Protected Route */}
+            <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
-        </Container >
+        </Container>
       </Router>
     </AuthProvider>
-  );  
+  );
 }
 
 export default App;

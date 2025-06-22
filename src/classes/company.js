@@ -1,6 +1,7 @@
 class Company {
     constructor({
         company_id = "",
+                userUID = "",
         address = {
             street: "",
             barangay: "",
@@ -22,6 +23,7 @@ class Company {
             last: "",
         },
         status = "",
+        status_history = [],
         type = "",
         year = "",
         employee = [],
@@ -29,6 +31,7 @@ class Company {
         password = "",
     }) {
         this.company_id = company_id;
+                this.userUID = userUID; 
         this.address = address;
         this.classification = classification;
         this.contact = contact;
@@ -39,6 +42,7 @@ class Company {
         this.permit = permit;
         this.proprietor = proprietor;
         this.status = status;
+                this.status_history = status_history;
         this.type = type;
         this.year = year;
         this.employee = employee;
