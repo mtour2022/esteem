@@ -27,6 +27,28 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         fetchActivities();
     }, []);
 
+     const updateStartAndEndTimeFromActivities = (activities) => {
+        const startTimes = activities
+            .map(a => new Date(a.activity_date_time_start))
+            .filter(date => !isNaN(date)); // Only valid dates
+    
+        const endTimes = activities
+            .map(a => new Date(a.activity_date_time_end))
+            .filter(date => !isNaN(date));
+    
+        const earliestStart = startTimes.length > 0 ? new Date(Math.min(...startTimes)) : "";
+        const latestEnd = endTimes.length > 0 ? new Date(Math.max(...endTimes)) : "";
+    
+        setGroupData(prev => ({
+            ...prev,
+            start_date_time: earliestStart ? earliestStart.toISOString().slice(0, 16) : "",
+            end_date_time: latestEnd ? latestEnd.toISOString().slice(0, 16) : "",
+        }));
+
+     
+    };
+    
+
     const handleActivityGroupChange = (index, updates) => {
         const updated = [...groupData.activities];
         updated[index] = { ...updated[index], ...updates };
@@ -38,13 +60,15 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
             const unit = parseInt(updated[index].activity_num_unit || 0);
 
             if (selected.activity_sold_by === "pax") {
-                updated[index].expected_payment = price * pax || "";
+                updated[index].activity_expected_price = price * pax || "";
             } else if (selected.activity_sold_by === "unit") {
-                updated[index].expected_payment = price * unit || "";
+                updated[index].activity_expected_price = price * unit || "";
             }
         }
 
         setGroupData({ ...groupData, activities: updated });
+       updateStartAndEndTimeFromActivities(updated); // ✅ Auto-update ticket start/end
+
     };
 
     const handleActivitySelect = (index, selectedOption) => {
@@ -67,14 +91,15 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         // ✅ Reset pax and unit when new activity is selected
         updated[index].activity_num_pax = "";
         updated[index].activity_num_unit = "";
-        updated[index].activity_subtotal = "";
+        updated[index].activity_agreed_price = "";
+        updated[index].activity_expected_price = "";
         updated[index].activity_date_time_start = "";
         updated[index].activity_date_time_end = "";
-         
 
 
-        // Recalculate expected_payment based on reset values
-        updated[index].expected_payment = "";
+
+        // Recalculate activity_expected_price based on reset values
+        updated[index].activity_expected_price = "";
 
         setGroupData({ ...groupData, activities: updated });
     };
@@ -92,8 +117,8 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                     activities_availed: [],
                     activity_num_pax: "",
                     activity_num_unit: "",
-                    activity_subtotal: "",
-                    expected_payment: "",
+                    activity_agreed_price: "",
+                    activity_expected_price: "",
                 },
             ],
         }));
@@ -104,6 +129,8 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         updated.splice(index, 1);
         setGroupData({ ...groupData, activities: updated });
     };
+
+    
 
     return (
         <Container>
@@ -141,39 +168,6 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 ) || null}
                                 onChange={(selectedOption) => handleActivitySelect(index, selectedOption)}
                             />
-                          <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-  Activity Start Date & Time
-</Form.Label>
-<Form.Control
-  type="datetime-local"
-  className="my-2"
-  value={actGroup.activity_date_time_start || ""}
-  onChange={(e) =>
-    handleActivityGroupChange(index, {
-      activity_date_time_start: e.target.value,
-      activity_date_time_end: "", // Reset end time when start time changes
-    })
-  }
-/>
-
-<Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-  Activity End Date & Time
-</Form.Label>
-<Form.Control
-  type="datetime-local"
-  className="my-2"
-  value={actGroup.activity_date_time_end || ""}
-  min={actGroup.activity_date_time_start || ""}
-  disabled={!actGroup.activity_date_time_start}
-  onChange={(e) =>
-    handleActivityGroupChange(index, {
-      activity_date_time_end: e.target.value,
-    })
-  }
-/>
-
-
-
                             {/* ✅ Display activity price (and more if needed) */}
                             {actGroup.activities_availed?.[0] && (
                                 <Form.Label className="mb-2 text-muted" style={{ fontSize: "0.7rem" }}>
@@ -181,7 +175,42 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     for {actGroup.activities_availed[0].activity_duration || ""}
                                 </Form.Label>
                             )}
+                            <br></br>
 
+                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                Activity Start Date & Time
+                            </Form.Label>
+                            <Form.Control
+                                type="datetime-local"
+                                className="my-2"
+                                value={actGroup.activity_date_time_start || ""}
+                                onChange={(e) =>
+                                    handleActivityGroupChange(index, {
+                                        activity_date_time_start: e.target.value,
+                                        activity_date_time_end: "", // Reset end time when start time changes
+                                    })
+                                }
+                            />
+
+                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                Activity End Date & Time
+                            </Form.Label>
+                            <Form.Control
+                                type="datetime-local"
+                                className="my-2"
+                                value={actGroup.activity_date_time_end || ""}
+                                min={actGroup.activity_date_time_start || ""}
+                                disabled={!actGroup.activity_date_time_start}
+                                onChange={(e) =>
+                                    handleActivityGroupChange(index, {
+                                        activity_date_time_end: e.target.value,
+                                    })
+                                }
+                            />
+
+
+
+                            
                             <br></br>
                             {selected?.activity_sold_by === "unit" ? (
                                 <Row className="gap-2">
@@ -281,7 +310,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 type="text"
                                 className="my-2"
                                 placeholder="Expected Pricing"
-                                value={actGroup.expected_payment || ""}
+                                value={actGroup.activity_expected_price || ""}
                                 readOnly
                             />
 
@@ -293,10 +322,10 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 className="my-2"
                                 required
                                 placeholder="Agreed Price"
-                                value={actGroup.activity_subtotal}
+                                value={actGroup.activity_agreed_price}
                                 onChange={(e) =>
                                     handleActivityGroupChange(index, {
-                                        activity_subtotal: e.target.value,
+                                        activity_agreed_price: e.target.value,
                                     })
                                 }
                             />
@@ -304,8 +333,8 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                             {/* ✅ Markup Percentage */}
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
                                 {(() => {
-                                    const agreed = Number(actGroup.activity_subtotal || 0);
-                                    const expected = Number(actGroup.expected_payment || 0);
+                                    const agreed = Number(actGroup.activity_agreed_price || 0);
+                                    const expected = Number(actGroup.activity_expected_price || 0);
 
                                     if (!expected || expected === 0) return "";
 
@@ -316,8 +345,8 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
                             {/* ✅ Markup Warning (30–50% and >50%) */}
                             {(() => {
-                                const agreed = Number(actGroup.activity_subtotal || 0);
-                                const expected = Number(actGroup.expected_payment || 0);
+                                const agreed = Number(actGroup.activity_agreed_price || 0);
+                                const expected = Number(actGroup.activity_expected_price || 0);
                                 const markup = expected > 0 ? ((agreed - expected) / expected) * 100 : 0;
 
                                 if (markup >= 30 && markup <= 50) {
@@ -354,7 +383,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     className="btn btn-light border border-secondary text-secondary mt-2 d-flex align-items-center gap-2"
                                     onClick={() => {
                                         const last = groupData.activities[groupData.activities.length - 1];
-                                        if (!last.activity_subtotal || last.activity_subtotal === "0") {
+                                        if (!last.activity_agreed_price || last.activity_agreed_price === "0") {
                                             alert("Please enter the agreed pricing before adding another activity.");
                                             return;
                                         }

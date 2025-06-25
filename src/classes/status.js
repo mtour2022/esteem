@@ -4,5 +4,6 @@ export class StatusModel {
         this.status = "";
         this.date_updated = "";
         this.remarks = "";
+        this.userId = "";
     }
 }

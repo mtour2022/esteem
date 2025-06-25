@@ -160,7 +160,7 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
                         (parseInt(addr.adults) || 0);
 
                     return (
-                        <>
+                        <React.Fragment key={index}>
                             <div key={index} className="border p-3 mb-4 rounded bg-light">
                                 <Form.Label className="fw-semibold">Address {index + 1}</Form.Label>
 
@@ -452,7 +452,7 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
 
 
                             </div>
-                        </>
+                        </React.Fragment>
                     )
 
                 })}

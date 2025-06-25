@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Container, Row, Col, Button, Card, Spinner, Image, InputGroup } from 'react-bootstrap';
-import { query, where, collection, getDocs } from 'firebase/firestore';
+import { query, where, collection, getDocs, documentId } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../auth/authentication';
 import Company from '../classes/company';
@@ -11,13 +11,32 @@ import TicketAddressForm from '../components/TicketAddressForm'
 import SaveGroupToCloud from "../components/SaveGroup"; // Adjust the import path if necessary
 import TicketModel from '../classes/tickets';
 import TicketActivitiesForm from '../components/TicketActivitiesForm';
+import Select from "react-select";
+import SaveTicketToCloud from '../components/SaveTicket';
+import TicketSummary from '../components/TicketSummary';
+import CompanyDashboardPanel from '../components/CompanyDashBoardPanel';
 
 export default function CompanyDashboardPage() {
+    const [savedTicket, setSavedTicket] = useState(null);
     const { userLoggedIn } = useAuth();
     const [company, setCompany] = useState(null);
     const [loading, setLoading] = useState(true);
     const { currentUser } = useAuth();
-    const [ticketData, setTicketData] = useState(new TicketModel({}));
+    // Initial state (when setting up groupData for the first time)
+    const [ticketData, setTicketData] = useState(new TicketModel({
+        activities: [
+            {
+                activity_area: "",
+                activity_date_time_start: "",
+                activity_date_time_end: "",
+                activities_availed: [],
+                activity_num_pax: "",
+                activity_num_unit: "",
+                activity_agreed_price: "",
+                activity_expected_price: "",
+            },
+        ]
+    }));
     const handleChange = (e) => {
         const { name, value } = e.target;
 
@@ -34,11 +53,28 @@ export default function CompanyDashboardPage() {
                 newData[name] = value;
             }
 
-            return new Company(newData);
+            return new TicketModel(newData);
+
         });
     };
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
 
+    const [employees, setEmployees] = useState([]);
+    const fetchEmployeesByIds = async (ids) => {
+        if (!ids || ids.length === 0) return [];
 
+        const batches = [];
+        for (let i = 0; i < ids.length; i += 10) {
+            const chunk = ids.slice(i, i + 10);
+            const q = query(collection(db, "employee"), where(documentId(), "in", chunk));
+            batches.push(getDocs(q));
+        }
+
+        const results = await Promise.all(batches);
+        return results.flatMap(snapshot =>
+            snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        );
+    };
 
     useEffect(() => {
         const fetchticketData = async () => {
@@ -52,6 +88,12 @@ export default function CompanyDashboardPage() {
                     const ticketData = querySnapshot.docs[0].data();
                     const companyInstance = new Company(ticketData);
                     setCompany(companyInstance);
+                    // 👇 Fetch employees
+                    if (companyInstance.employee && Array.isArray(companyInstance.employee)) {
+                        const employeeData = await fetchEmployeesByIds(companyInstance.employee);
+                        setEmployees(employeeData);
+                    }
+
                 } else {
                     console.warn("No company document found with this UID");
                 }
@@ -65,9 +107,11 @@ export default function CompanyDashboardPage() {
         fetchticketData();
     }, [currentUser]);
 
+
+
     // Pagination
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 3;
+    const totalSteps = 4;
 
     const nextStep = () => setCurrentStep((prev) => prev + 1);
     const prevStep = () => setCurrentStep((prev) => prev - 1);
@@ -91,6 +135,21 @@ export default function CompanyDashboardPage() {
         );
     }
 
+    const isStep3FormValid = () => {
+        return (
+            ticketData.name?.trim() &&
+            ticketData.accommodation?.trim() &&
+            ticketData.employee_id &&
+            Array.isArray(ticketData.address) &&
+            ticketData.address.length > 0 &&
+            Array.isArray(ticketData.activities) &&
+            ticketData.activities.length > 0
+        );
+    };
+
+
+
+
 
     return (
         <Container fluid>
@@ -98,29 +157,7 @@ export default function CompanyDashboardPage() {
 
             <Row>
                 <Col md={7} className="p-0">
-                    <Container className="container" id="toppage">
-                        <Container className='body-container'>
-                            <h1>Welcome, {company.name}</h1>
-                            {company.logo && (
-                                <Image src={company.logo} rounded fluid style={{ maxHeight: 120 }} alt="Company Logo" className="my-3" />
-                            )}
-                            <p><strong>Email:</strong> {company.email}</p>
-                            <p><strong>Contact:</strong> {company.contact}</p>
-                            <p><strong>Classification:</strong> {company.classification}</p>
-                            <p><strong>Status:</strong> {company.status}</p>
-                            <p><strong>Ownership:</strong> {company.ownership}</p>
-                            <p><strong>Type:</strong> {company.type}</p>
-                            <p><strong>Year Established:</strong> {company.year}</p>
-                            <p><strong>Permit:</strong> {company.permit}</p>
-
-                            <p><strong>Proprietor:</strong> {company.proprietor?.first} {company.proprietor?.middle} {company.proprietor?.last}</p>
-
-                            <p><strong>Full Address:</strong> {`${company.address.street}, ${company.address.barangay}, ${company.address.town}, ${company.address.province}, ${company.address.region}, ${company.address.country}`}</p>
-
-                        </Container>
-
-
-                    </Container>
+<CompanyDashboardPanel company={company} employees={employees} />
                 </Col>
 
 
@@ -135,7 +172,7 @@ export default function CompanyDashboardPage() {
                                 {currentStep === 1 && (
                                     <>
                                         <Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Name (Full Name is Optional)</Form.Label>
+                                            <Form.Label className="fw-bold mt-2">Representative's Name (Full Name is Optional)</Form.Label>
                                             <Form.Control
                                                 type="text"
                                                 name="name"
@@ -149,7 +186,7 @@ export default function CompanyDashboardPage() {
                                             <Form.Label className="fw-bold mt-2">Contact Information (Optional)</Form.Label>
                                             <Form.Control
                                                 type="text"
-                                                name="name"
+                                                name="contact"
                                                 placeholder='Email Address, Telephone, or Mobile Number'
                                                 value={ticketData.contact}
                                                 onChange={handleChange}
@@ -159,13 +196,61 @@ export default function CompanyDashboardPage() {
                                             <Form.Label className="fw-bold mt-2">Accommodation Establishment</Form.Label>
                                             <Form.Control
                                                 type="text"
-                                                required
-                                                name="name"
+
+                                                name="accommodation"
                                                 placeholder="Hotel/Resort where the guest is staying"
                                                 value={ticketData.accommodation}
                                                 onChange={handleChange}
+                                                required
                                             />
                                         </Form.Group>
+                                        <Form.Group className="my-3">
+                                            <Form.Label><strong>Assigned To</strong></Form.Label>
+                                            <br />
+                                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                                Select designated employee to assist the guests.
+                                            </Form.Label>
+                                            <Select
+                                                options={employees.map(emp => ({
+                                                    value: emp.employee_id,
+                                                    label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                    contact: emp.contact,
+                                                    raw: emp
+                                                }))}
+                                                placeholder="Select an employee"
+                                                onChange={(selectedOption) => {
+                                                    setTicketData(prev => ({
+                                                        ...prev,
+                                                        employee_id: selectedOption?.value || ""
+                                                    }));
+                                                    setSelectedEmployee(selectedOption ? selectedOption.raw : null);
+                                                }}
+                                                value={
+                                                    employees
+                                                        .map(emp => ({
+                                                            value: emp.employee_id,
+                                                            label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                            contact: emp.contact,
+                                                            raw: emp
+                                                        }))
+                                                        .find(option => option.value === ticketData.employee_id) || null
+                                                }
+                                                isClearable
+                                            />
+
+                                        </Form.Group>
+
+                                        {selectedEmployee && (
+                                            <Form.Group className="mt-2">
+                                                <Form.Label>Assignee's Contact Information</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    value={selectedEmployee.contact || "No contact provided"}
+                                                    readOnly
+                                                />
+                                            </Form.Group>
+                                        )}
+
 
 
 
@@ -198,6 +283,12 @@ export default function CompanyDashboardPage() {
 
                                     </>
                                 )}
+                                {/* Step 4: Ticket Summary */}
+                                {currentStep === 4 && savedTicket && (
+                                    <TicketSummary ticket={savedTicket} />
+                                )}
+
+
                                 {/* Pagination Buttons */}
                                 <Container className='empty-container'></Container>
                                 {/* Page Indicators */}
@@ -211,26 +302,55 @@ export default function CompanyDashboardPage() {
                                         </span>
                                     ))}
                                 </Container>
-                                <Container className="d-flex justify-content-between mt-3">
-                                    {/* Previous Button - Show if currentStep > 1 */}
-                                    {currentStep > 1 && (
-                                        <Button variant="secondary" onClick={prevStep}>
-                                            Previous
+                                {currentStep === 4 ? (
+                                    <Container className="d-flex justify-content-between mt-3">
+                                        <Button
+                                            className="color-blue-button"
+                                            variant="primary"
+                                            onClick={() => {
+                                                window.location.reload(); // refresh the entire screen
+                                            }}
+                                        >
+                                            Generate More
                                         </Button>
-                                    )}
+                                    </Container>
 
-                                    {/* Next Button or Save Button on Last Step */}
-                                    {currentStep < 3 ? (
-                                        <Button className="color-blue-button" variant="primary" onClick={nextStep}>
-                                            Next
-                                        </Button>
-                                    ) : (
-                                        <>
-                                            {/* submit data here */}
-                                        </>
+                                ) : (
+                                    <Container className="d-flex justify-content-between mt-3">
+                                        {/* Previous Button - Show if currentStep > 1 */}
+                                        {currentStep > 1 && (
+                                            <Button variant="secondary" onClick={prevStep}>
+                                                Previous
+                                            </Button>
+                                        )}
 
-                                    )}
-                                </Container>
+                                        {/* Next Button or Save Button on Last Step */}
+                                        {currentStep < 3 ? (
+                                            <Button className="color-blue-button" variant="primary" onClick={nextStep}>
+                                                Next
+                                            </Button>
+                                        ) : (
+                                            <SaveTicketToCloud
+                                                groupData={ticketData}
+                                                setGroupData={setTicketData}
+                                                currentUserUID={currentUser.uid}
+                                                companyID={company.company_id}
+                                                onSuccess={(finalTicket) => {
+                                                    setSavedTicket(finalTicket);
+                                                    setCurrentStep(4);
+                                                }}
+                                                disabled={!isStep3FormValid() && (
+                                                    <div className="text-danger mt-2">
+                                                        Please complete all required fields before saving.
+                                                    </div>
+                                                )}
+                                            // 👈 add this line
+                                            />
+                                        )}
+
+                                    </Container>
+                                )}
+
 
                                 <Container className='empty-container'></Container>
 
@@ -261,22 +381,6 @@ export default function CompanyDashboardPage() {
 
 
 
-            <Row className="mt-4">
-                <Col>
-                    <Card>
-                        <Card.Body>
-                            <Card.Title>Company Summary</Card.Title>
-                            <Card.Text>
-                                You're logged in as <strong>{company.classification}</strong>, status: <strong>{company.status}</strong>.
-                            </Card.Text>
-                            <Card.Text>
-                                Total Employees: <strong>{company.employee.length}</strong> <br />
-                                Total Tickets Issued: <strong>{company.ticket.length}</strong>
-                            </Card.Text>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
         </Container>
     );
 }

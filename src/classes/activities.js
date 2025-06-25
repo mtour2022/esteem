@@ -8,7 +8,7 @@ export class ActivityModel {
         this.activity_maxpax = "";
         this.activity_price = "";
         this.activity_sold_by = "";
-                        this.activity_duration = "";
+        this.activity_duration = "";
 
     }
 }

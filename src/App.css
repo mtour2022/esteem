@@ -70,6 +70,28 @@ body {
   letter-spacing: 0.36px;
 
 }
+/* Apply to your scroll wrapper */
+.custom-scroll-wrapper {
+  overflow-x: auto;
+  scrollbar-width: thin;           /* For Firefox */
+  scrollbar-color: #ccc transparent; /* Optional: color */
+}
+
+/* WebKit Browsers (Chrome, Safari, Edge) */
+.custom-scroll-wrapper::-webkit-scrollbar {
+  height: 6px; /* Thin scrollbar */
+}
+
+.custom-scroll-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: #999;
+  border-radius: 4px;
+}
+
+
 
 .barabara-label2 {
   color: black !important;
