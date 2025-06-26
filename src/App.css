@@ -91,6 +91,10 @@ body {
   border-radius: 4px;
 }
 
+th {
+  user-select: none;
+}
+
 
 
 .barabara-label2 {

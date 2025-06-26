@@ -4,58 +4,25 @@ import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import download from "downloadjs";
 import Swal from "sweetalert2";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase"; // adjust based on your project structure
 import { useEffect, useState } from "react";
+import useResolvedActivities from "../services/GetActivitiesDetails";
+import useResolvedProviders from "../services/GetProvidersDetails"
+import useCompanyInfo from "../services/GetCompanyDetails";
+import useEmployeeInfo from "../services/GetEmployeesDetails";
+
 
 const sumField = (array, field) =>
   array.reduce((total, item) => total + parseInt(item[field] || "0"), 0);
 
 const TicketSummary = ({ ticket }) => {
   const exportRef = useRef();
-  const [companyInfo, setCompanyInfo] = useState(null); // ✅ always called
-  const [employeeInfo, setEmployeeInfo] = useState(null); // ✅ always called
+   const companyInfo = useCompanyInfo(ticket?.company_id);
+  const resolvedActivities = useResolvedActivities(ticket);
+  const employeeInfo = useEmployeeInfo(ticket?.employee_id);
 
-  useEffect(() => {
-    const fetchCompany = async () => {
-      if (!ticket?.company_id) return;
-      try {
-        const docRef = doc(db, "company", ticket.company_id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setCompanyInfo(docSnap.data());
-        } else {
-          console.warn("No such company!");
-        }
-      } catch (error) {
-        console.error("Error fetching company:", error);
-      }
-    };
 
-    fetchCompany();
-  }, [ticket?.company_id]); // ✅ always called
-
-  // Fetch Employee Info
-  useEffect(() => {
-    const fetchEmployee = async () => {
-      if (!ticket?.employee_id) return;
-      try {
-        const docRef = doc(db, "employee", ticket.employee_id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setEmployeeInfo(docSnap.data());
-        } else {
-          console.warn("No such employee!");
-        }
-      } catch (error) {
-        console.error("Error fetching employee:", error);
-      }
-    };
-
-    fetchEmployee();
-  }, [ticket?.employee_id]);
-
-  if (!ticket) return null; // ✅ placed AFTER the hooks
   const {
     ticket_id,
     name,
@@ -74,6 +41,11 @@ const TicketSummary = ({ ticket }) => {
     activities = [],
     address = [],
   } = ticket;
+
+const resolvedProviders = useResolvedProviders(activities);
+    
+    if (!ticket) return null; // ✅ placed AFTER the hooks
+
 
   const totalLocals = sumField(address, "locals");
   const totalForeigns = sumField(address, "foreigns");
@@ -145,6 +117,13 @@ const TicketSummary = ({ ticket }) => {
   };
 
 
+  const getActivityDetails = (id) => {
+    return resolvedActivities.find(a => a.id === id);
+  };
+
+  const getProviderName = id => {
+    return resolvedProviders.find(p => p.id === id)?.name;
+  };
 
 
   return (
@@ -213,14 +192,34 @@ const TicketSummary = ({ ticket }) => {
           <div key={i} className="mb-3">
             <Row className="row">
               <Col md={6} className="col">
-                <p className="m-1"><strong>Activity:</strong> {a.activities_availed?.[0]?.activity_name}</p>
-                <p className="m-1"><strong>Area:</strong> {a.activity_area}</p>
+                {a.activities_availed?.map((id, idx) => {
+                  const activity = getActivityDetails(id);
+                  return (
+                    <div key={idx}>
+                      <p className="m-1"><strong>Activity:</strong> {activity?.activity_name || "Loading..."}</p>
+                      <p className="m-1"><strong>Duration:</strong> {activity?.activity_duration || "-"} mins</p>
+                    </div>
+                  );
+                })}
                 <p className="m-1"><strong>For:</strong> {a.activity_num_pax} pax</p>
+                <p className="m-1"><strong>Area:</strong> {a.activity_area}</p>
+
+
               </Col>
+
               <Col md={6} className="col">
-                <p className="m-1" ><strong>Start:</strong> {a.activity_date_time_start}</p>
-                <p className="m-1"><strong>End:</strong> {a.activity_date_time_end}</p>
-                <p className="m-1"><strong>Duration:</strong> {a.activities_availed?.[0]?.activity_duration}</p>
+                <p className="m-1"><strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}</p>
+                <p className="m-1"><strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}</p>
+                {/* ✅ Render selected providers */}
+                {a.activity_selected_providers?.length > 0 && (
+                  <p className="m-1">
+                    <strong>Providers:</strong>{' '}
+                    {a.activity_selected_providers
+                      .map(id => getProviderName(id) || 'Loading...')
+                      .join(', ')}
+                  </p>
+                )}
+
               </Col>
             </Row>
           </div>

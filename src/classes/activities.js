@@ -9,6 +9,7 @@ export class ActivityModel {
         this.activity_price = "";
         this.activity_sold_by = "";
         this.activity_duration = "";
-
+        this.activity_base_price = "";
+        this.activity_providers = [];
     }
 }

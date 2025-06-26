@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { collection, addDoc, doc, updateDoc, arrayUnion  } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import Swal from "sweetalert2";
 import { db } from "../config/firebase";
 import { Button } from "react-bootstrap";
@@ -11,8 +11,8 @@ const SaveTicketToCloud = ({
   groupData,
   setGroupData,
   onSuccess,
-  currentUserUID,     
-  companyID           
+  currentUserUID,
+  companyID
 }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const ticketCollectionRef = collection(db, "tickets");
@@ -53,12 +53,12 @@ const SaveTicketToCloud = ({
       }, 0) || 0;
       ticket.total_pax = totalLocals + totalForeigns;
       ticket.isSingleGroup =
-  (totalLocals > 0 && totalForeigns === 0) ||
-  (totalForeigns > 0 && totalLocals === 0);
+        (totalLocals > 0 && totalForeigns === 0) ||
+        (totalForeigns > 0 && totalLocals === 0);
 
-ticket.isMixedGroup = totalLocals > 0 && totalForeigns > 0;
-      
-      
+      ticket.isMixedGroup = totalLocals > 0 && totalForeigns > 0;
+
+
       // 🕓 total_duration
       let totalDuration = 0;
       ticket.activities?.forEach(group => {
@@ -67,6 +67,8 @@ ticket.isMixedGroup = totalLocals > 0 && totalForeigns > 0;
           totalDuration += isNaN(duration) ? 0 : duration;
         });
       });
+
+
       ticket.total_duration = totalDuration; // raw number in minutes
       // Format to "X hr Y min"
       const formatDuration = (minutes) => {
@@ -77,7 +79,7 @@ ticket.isMixedGroup = totalLocals > 0 && totalForeigns > 0;
         if (hrs > 0) return `${hrs} hr${hrs > 1 ? 's' : ''}`;
         return `${mins} min${mins !== 1 ? 's' : ''}`;
       };
-ticket.total_duration_readable = formatDuration(totalDuration);
+      ticket.total_duration_readable = formatDuration(totalDuration);
       // 💰 total_expected_payment
       let totalExpected = 0;
       ticket.activities?.forEach(group => {
@@ -103,8 +105,11 @@ ticket.total_duration_readable = formatDuration(totalDuration);
       ticket.company_id = companyID;
       ticket.activities = ticket.activities?.map(group => ({
         ...group,
-        activities_availed: group.activities_availed?.map(act => ({ ...act }))
+        activities_availed: group.activities_availed?.map(act =>
+          typeof act === "string" ? act : act.activity_id
+        )
       }));
+
       // ✅ Convert to plain object
       const ticketObject = ticket.toObject({
         ticket_id: ticket.ticket_id,
@@ -134,16 +139,25 @@ ticket.total_duration_readable = formatDuration(totalDuration);
 
 
       // 🔥 Save to Firestore
-const docRef = await addDoc(ticketCollectionRef, ticketObject);
-await updateDoc(doc(ticketCollectionRef, docRef.id), {
-  ticket_id: docRef.id,
-});
+      const docRef = await addDoc(ticketCollectionRef, ticketObject);
+      await updateDoc(doc(ticketCollectionRef, docRef.id), {
+        ticket_id: docRef.id,
+      });
 
-// ✅ Also update company's ticket array
-const companyDocRef = doc(db, "company", companyID);
-await updateDoc(companyDocRef, {
-  ticket: arrayUnion(docRef.id),
-});
+      // ✅ Also update company's ticket array
+      const companyDocRef = doc(db, "company", companyID);
+      await updateDoc(companyDocRef, {
+        ticket: arrayUnion(docRef.id),
+      });
+
+      // ✅ Also update employee's ticket array
+if (ticket.employee_id) {
+  const employeeDocRef = doc(db, "employee", ticket.employee_id);
+  await updateDoc(employeeDocRef, {
+    tickets: arrayUnion(docRef.id),
+  });
+}
+
 
 
       setGroupData(new TicketModel({}));

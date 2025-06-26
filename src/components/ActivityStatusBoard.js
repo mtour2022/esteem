@@ -13,7 +13,7 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { useMemo } from 'react';
-
+import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
 
 
 const useMouseDragScroll = (ref) => {
@@ -152,6 +152,8 @@ const getStatusBadgeVariant = (status) => {
 
 const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
+  const [sortField, setSortField] = useState("");
+  const [sortDirection, setSortDirection] = useState("asc"); // or 'desc'
 
   const [tickets, setTickets] = useState([]);
   const [filteredTickets, setFilteredTickets] = useState([]);
@@ -214,32 +216,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     fetchTickets();
   }, [ticket_ids]);
 
-  // Filtering logic
-  // useEffect(() => {
-  //   let result = [...tickets];
 
-  //   if (searchText.trim()) {
-  //     const lower = searchText.toLowerCase();
-  //     result = result.filter((t) =>
-  //       t.name?.toLowerCase().includes(lower) || t.contact?.toLowerCase().includes(lower)
-  //     );
-  //   }
+  useEffect(() => {
+    handleSearch(); // ensure sorting applies after initial fetch
+  }, [tickets]);
 
-  //   if (startDate && endDate) {
-  //     const start = new Date(startDate);
-  //     const end = new Date(endDate);
-  //     end.setHours(23, 59, 59, 999); // extend to end of day
-
-  //     result = result.filter((t) => {
-  //       const tDate = new Date(t.start_date_time);
-  //       return tDate >= start && tDate <= end;
-  //     });
-  //   }
-
-
-  //   setFilteredTickets(result);
-  //   setCurrentPage(1);
-  // }, [tickets, searchText, startDate, endDate]);
   const handleSearch = () => {
     setIsLoading(true);
 
@@ -262,6 +243,44 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           return tDate >= start && tDate <= end;
         });
       }
+
+      if (sortField) {
+        result.sort((a, b) => {
+          const getVal = (obj, key) => {
+            switch (key) {
+              case "start_date_time":
+              case "end_date_time":
+                return new Date(obj[key]);
+              case "total_duration":
+              case "total_pax":
+              case "total_expected_payment":
+              case "total_payment":
+                return Number(obj[key]) || 0;
+              case "name":
+              case "scanned_by":
+                return (obj[key] || "").toLowerCase();
+              case "assigned_to":
+                const empA = employeeMap[obj.employee_id];
+                const empB = employeeMap[b.employee_id];
+                const nameA = empA ? `${empA.name?.first || ""} ${empA.name?.last || ""}`.toLowerCase() : "";
+                const nameB = empB ? `${empB.name?.first || ""} ${empB.name?.last || ""}`.toLowerCase() : "";
+                return nameA.localeCompare(nameB);
+              default:
+                // dynamic demographic fields like "locals", "males", etc.
+                const sum = (obj, key) => obj.address?.reduce((acc, addr) => acc + (Number(addr[key]) || 0), 0) || 0;
+                return sum(obj, key);
+            }
+          };
+
+          const aVal = getVal(a, sortField);
+          const bVal = getVal(b, sortField);
+
+          if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        });
+      }
+
 
       setFilteredTickets(result);
       setSearchText(searchTextInput);
@@ -287,6 +306,29 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     fetchEmployees();
   }, []);
 
+  const renderSortIcon = (field) => {
+    if (sortField !== field) return null;
+
+    return (
+      <FontAwesomeIcon
+        icon={sortDirection === "asc" ? faArrowUp : faArrowDown}
+        className="ms-1"
+        style={{ fontSize: "0.65rem", color: "#6c757d" }}
+      />
+    );
+  };
+
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Toggle direction
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+    handleSearch(); // reapply filtering + sorting
+  };
 
 
   return (
@@ -376,34 +418,74 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
               <thead>
                 <tr>
                   <th>Status</th>
-                  <th>Ticket ID</th>
-                  <th>Name</th>
+                  <th onClick={() => handleSort("id")}>Ticket ID</th>
+                  <th onClick={() => handleSort("name")} style={{ cursor: "pointer" }}>
+                    Name {renderSortIcon("name")}
+                  </th>
                   <th>Contact</th>
-                  <th>Start Time</th>
-                  <th>End Time</th>
-                  <th>Total Pax</th>
-                  <th>Locals</th>
-                  <th>Foreigns</th>
-                  <th>Males</th>
-                  <th>Females</th>
-                  <th>Prefer Not To Say</th>
-                  <th>Kids</th>
-                  <th>Teens</th>
-                  <th>Adults</th>
-                  <th>Seniors</th>
-                  <th>Assigned To</th>
+                  <th onClick={() => handleSort("start_date_time")} style={{ cursor: "pointer" }}>
+                    Start Time {renderSortIcon("start_date_time")}
+                  </th>
+                  <th onClick={() => handleSort("end_date_time")} style={{ cursor: "pointer" }}>
+                    End Time {renderSortIcon("end_date_time")}
+                  </th>
+                  <th onClick={() => handleSort("total_pax")} style={{ cursor: "pointer" }}>
+                    Total Pax {renderSortIcon("total_pax")}
+                  </th>
+                  <th onClick={() => handleSort("locals")} style={{ cursor: "pointer" }}>
+                    Locals{renderSortIcon("locals")}
+                  </th>
+                  <th onClick={() => handleSort("foreigns")} style={{ cursor: "pointer" }}>
+                    Foreigns{renderSortIcon("foreigns")}
+                  </th>
+                  <th onClick={() => handleSort("males")} style={{ cursor: "pointer" }}>
+                    Males{renderSortIcon("males")}
+                  </th>
+                  <th onClick={() => handleSort("females")} style={{ cursor: "pointer" }}>
+                    Females{renderSortIcon("females")}
+                  </th>
+                  <th onClick={() => handleSort("prefer_not_to_say")} style={{ cursor: "pointer" }}>
+                    Prefer Not To Say{renderSortIcon("prefer_not_to_say")}
+                  </th>
+                  <th onClick={() => handleSort("kids")} style={{ cursor: "pointer" }}>
+                    Kids{renderSortIcon("kids")}
+                  </th>
+                  <th onClick={() => handleSort("teens")} style={{ cursor: "pointer" }}>
+                    Teens{renderSortIcon("teens")}
+                  </th>
+                  <th onClick={() => handleSort("adults")} style={{ cursor: "pointer" }}>
+                    Adults{renderSortIcon("adults")}
+                  </th>
+                  <th onClick={() => handleSort("seniors")} style={{ cursor: "pointer" }}>
+                    Seniors{renderSortIcon("seniors")}
+                  </th>
+                  <th onClick={() => handleSort("assigned_to")} style={{ cursor: "pointer" }}>
+                    Assigned To {renderSortIcon("assigned_to")}
+                  </th>
+
                   <th>Assignee's Contact</th>
                   <th>Activity Names</th>
-                  <th>Total Duration</th>
-                  <th>Expected Payment</th>
-                  <th>Total Payment</th>
-                  <th>Scanned By</th>
+                  <th onClick={() => handleSort("total_duration")} style={{ cursor: "pointer" }}>
+                    Total Duration{renderSortIcon("total_duration")}
+                  </th>
+                  <th onClick={() => handleSort("total_expected_payment")} style={{ cursor: "pointer" }}>
+                    Expected Payment{renderSortIcon("total_expected_payment")}
+                  </th>
+                  <th onClick={() => handleSort("total_payment")} style={{ cursor: "pointer" }}>
+                    Total Payment{renderSortIcon("total_payment")}
+                  </th>
+                  <th>Mark Up %</th>
+                  <th>Expected Sale</th>
+                  <th onClick={() => handleSort("scanned_by")} style={{ cursor: "pointer" }}>
+                    Scanned By{renderSortIcon("scanned_by")}
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
                 {currentTickets.map((t) => {
                   const status = computeStatus(t);
-                  const locals = t.address?.reduce((sum, addr) => sum + (addr.locals || 0), 0) || 0;
+                  const locals = t.address?.reduce((sum, addr) => sum +  (Number(addr.locals) || 0), 0) || 0;
                   const foreigns = t.address?.reduce((sum, addr) => sum + (Number(addr.foreigns) || 0), 0) || 0;
                   const males = t.address?.reduce((sum, addr) => sum + (Number(addr.males) || 0), 0) || 0;
                   const females = t.address?.reduce((sum, addr) => sum + (Number(addr.females) || 0), 0) || 0;
@@ -416,7 +498,16 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   const employee = employeeMap[t.employee_id];
                   const employeeName = employee ? `${employee.name?.first || ""} ${employee.name?.last || ""}` : "-";
                   const employeeContact = employee?.contact || "-";
+                  const totalPayment = Number(t.total_payment || 0);
+                  const expectedPayment = Number(t.total_expected_payment || 0);
 
+                  // Markup percentage
+                  const markup = expectedPayment > 0
+                    ? ((totalPayment - expectedPayment) / expectedPayment) * 100
+                    : 0;
+
+                  // Custom Expected Sale formula
+                  const expectedSale = (totalPayment * (markup / 100)) - expectedPayment + totalPayment;
 
                   const activityNames = Array.isArray(t.activities)
                     ? t.activities
@@ -455,6 +546,21 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       <td>{t.total_duration || 0} min</td>
                       <td>₱ {t.total_expected_payment?.toLocaleString() || "0.00"}</td>
                       <td>₱ {t.total_payment?.toLocaleString() || "0.00"}</td>
+                      <td>
+                        <span
+                          className={
+                            markup > 50
+                              ? "text-danger"
+                              : markup >= 30
+                                ? "text-warning"
+                                : ""
+                          }
+                        >
+                          {markup.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td>₱ {expectedSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+
                       <td>{scannedBy || "-"}</td>
                     </tr>
                   );

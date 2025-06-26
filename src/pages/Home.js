@@ -195,7 +195,7 @@ const onSubmit = async (e) => {
                 </Container>
                 <Container className="empty-container"></Container>
                 <h1 className="barabara-title">PROJECT: ESTEEM</h1>
-                <p className="sub-title-blue-start">An <b>E</b>lectronic <b>S</b>ystem for <b>T</b>racking, <b>E</b>valuating, and <b>E</b>xpert <b>M</b>onitoring of Tour Activities in Malay-Boracay</p>
+                <p className="sub-title-blue-start">An <b>E</b>lectronic <b>S</b>ystem for <b>T</b>racking, <b>E</b>valuating, and <b>E</b>xpert <b>M</b>onitoring of Tourism Information in Malay-Boracay</p>
                 <Container className="empty-container"></Container>
                 <Form onSubmit={(e) => onSubmit(e)} className="custom-form body-container">
                   <Container className="empty-container"></Container>

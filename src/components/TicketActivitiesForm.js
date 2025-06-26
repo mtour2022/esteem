@@ -3,11 +3,13 @@ import { Form, Container, Row, Col } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCirclePlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../config/firebase"; // adjust as needed
 import { ActivityModel } from "../classes/activities";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
 
 const TicketActivitiesForm = ({ groupData, setGroupData }) => {
+
+
     const [activityOptions, setActivityOptions] = useState([]);
 
     useEffect(() => {
@@ -27,27 +29,31 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         fetchActivities();
     }, []);
 
-     const updateStartAndEndTimeFromActivities = (activities) => {
+    const [providerOptions, setProviderOptions] = useState([]);
+
+
+
+    const updateStartAndEndTimeFromActivities = (activities) => {
         const startTimes = activities
             .map(a => new Date(a.activity_date_time_start))
             .filter(date => !isNaN(date)); // Only valid dates
-    
+
         const endTimes = activities
             .map(a => new Date(a.activity_date_time_end))
             .filter(date => !isNaN(date));
-    
+
         const earliestStart = startTimes.length > 0 ? new Date(Math.min(...startTimes)) : "";
         const latestEnd = endTimes.length > 0 ? new Date(Math.max(...endTimes)) : "";
-    
+
         setGroupData(prev => ({
             ...prev,
             start_date_time: earliestStart ? earliestStart.toISOString().slice(0, 16) : "",
             end_date_time: latestEnd ? latestEnd.toISOString().slice(0, 16) : "",
         }));
 
-     
+
     };
-    
+
 
     const handleActivityGroupChange = (index, updates) => {
         const updated = [...groupData.activities];
@@ -67,11 +73,10 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         }
 
         setGroupData({ ...groupData, activities: updated });
-       updateStartAndEndTimeFromActivities(updated); // ✅ Auto-update ticket start/end
+        updateStartAndEndTimeFromActivities(updated); // ✅ Auto-update ticket start/end
 
     };
-
-    const handleActivitySelect = (index, selectedOption) => {
+    const handleActivitySelect = async (index, selectedOption) => {
         const data = selectedOption.data;
         const newActivity = new ActivityModel();
 
@@ -83,26 +88,50 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         newActivity.activity_maxpax = data.activity_maxpax;
         newActivity.activity_sold_by = data.activity_sold_by;
         newActivity.activity_duration = data.activity_duration;
+        newActivity.activity_base_price = data.activity_base_price;
+        newActivity.activity_providers = data.activity_providers || [];
 
+        // 🔁 Fetch provider names from Firestore
+        const providerIds = data.activity_providers || [];
+        const providerChunks = [];
 
+        for (let i = 0; i < providerIds.length; i += 10) {
+            providerChunks.push(providerIds.slice(i, i + 10));
+        }
+
+        const fetchedProviders = [];
+
+        for (const chunk of providerChunks) {
+            const q = query(collection(db, "providers"), where("__name__", "in", chunk));
+            const snapshot = await getDocs(q);
+            snapshot.forEach((doc) => {
+                const providerData = doc.data();
+                fetchedProviders.push({
+                    label: providerData.provider_name || "Unnamed",
+                    value: doc.id,
+                });
+            });
+        }
+
+        setProviderOptions(fetchedProviders); // ✅ Now providerOptions will populate the Select
+
+        // Update groupData with new selected activity
         const updated = [...groupData.activities];
         updated[index].activities_availed = [newActivity];
-
-        // ✅ Reset pax and unit when new activity is selected
         updated[index].activity_num_pax = "";
         updated[index].activity_num_unit = "";
         updated[index].activity_agreed_price = "";
         updated[index].activity_expected_price = "";
         updated[index].activity_date_time_start = "";
         updated[index].activity_date_time_end = "";
+        updated[index].activity_area = "";
+        updated[index].activity_selected_providers = []; // ✅ <-- reset here!
 
 
-
-        // Recalculate activity_expected_price based on reset values
-        updated[index].activity_expected_price = "";
 
         setGroupData({ ...groupData, activities: updated });
     };
+
 
 
     const handleAddActivityGroup = () => {
@@ -119,6 +148,9 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                     activity_num_unit: "",
                     activity_agreed_price: "",
                     activity_expected_price: "",
+                    activity_selected_providers: "", // ✅ Add this line
+                    activity_base_price: "", // ✅ Add this line
+
                 },
             ],
         }));
@@ -130,7 +162,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         setGroupData({ ...groupData, activities: updated });
     };
 
-    
+
 
     return (
         <Container>
@@ -142,6 +174,29 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                     return (
                         <div key={index} className="border p-3 mb-4 rounded bg-light">
                             <Form.Label className="fw-semibold">Activity Set {index + 1}</Form.Label>
+                            <br></br>
+                            
+                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Activity Name</Form.Label>
+
+                            <Select
+                                className="my-2"
+                                options={activityOptions}
+                                isSearchable
+                                placeholder="Search and select an activity"
+                                value={activityOptions.find(
+                                    (opt) => actGroup.activities_availed?.[0]?.activity_id === opt.value
+                                ) || null}
+                                onChange={(selectedOption) => handleActivitySelect(index, selectedOption)}
+                            />
+
+
+                            {/* ✅ Display activity price (and more if needed) */}
+                            {actGroup.activities_availed?.[0] && (
+                                <Form.Label className="mb-2 text-muted" style={{ fontSize: "0.7rem" }}>
+                                    SRP Php {Number(actGroup.activities_availed[0].activity_price || 0).toLocaleString()} sold by {actGroup.activities_availed[0].activity_sold_by}, up to {actGroup.activities_availed[0].activity_maxpax} pax
+                                    for {actGroup.activities_availed[0].activity_duration || ""}
+                                </Form.Label>
+                            )}
                             <br></br>
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Activity Area</Form.Label>
                             <Form.Select
@@ -156,26 +211,30 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 <option value="Boracay Island">Boracay Island</option>
                                 <option value="Nearby Malay">Nearby Malay</option>
                             </Form.Select>
-                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Activity Name</Form.Label>
+                            {/* ✅ Provider Select */}
+                            {selected?.activity_providers?.length > 0 && (
+                                <>
+                                    <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                        Select Provider
+                                    </Form.Label>
+                                    <Select
+                                        options={providerOptions}
+                                        isMulti
+                                        value={providerOptions.filter(opt =>
+                                            actGroup.activity_selected_providers?.includes(opt.value)
+                                        )}
+                                        onChange={(selectedOptions) => {
+                                            const selectedIds = selectedOptions.map((opt) => opt.value);
+                                            handleActivityGroupChange(index, {
+                                                activity_selected_providers: selectedIds,
+                                            });
+                                        }}
+                                    />
 
-                            <Select
-                                className="my-2"
-                                options={activityOptions}
-                                isSearchable
-                                placeholder="Search and select an activity"
-                                value={activityOptions.find(
-                                    (opt) => actGroup.activities_availed?.[0]?.activity_id === opt.value
-                                ) || null}
-                                onChange={(selectedOption) => handleActivitySelect(index, selectedOption)}
-                            />
-                            {/* ✅ Display activity price (and more if needed) */}
-                            {actGroup.activities_availed?.[0] && (
-                                <Form.Label className="mb-2 text-muted" style={{ fontSize: "0.7rem" }}>
-                                    SRP Php {Number(actGroup.activities_availed[0].activity_price || 0).toLocaleString()} sold by {actGroup.activities_availed[0].activity_sold_by}, up to {actGroup.activities_availed[0].activity_maxpax} pax
-                                    for {actGroup.activities_availed[0].activity_duration || ""}
-                                </Form.Label>
+
+                                </>
                             )}
-                            <br></br>
+
 
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
                                 Activity Start Date & Time
@@ -210,7 +269,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
 
 
-                            
+
                             <br></br>
                             {selected?.activity_sold_by === "unit" ? (
                                 <Row className="gap-2">
@@ -234,20 +293,17 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     </Col>
 
                                     <Col>
-                                        <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-                                            Number of Pax
-                                        </Form.Label>
                                         <Form.Control
                                             type="number"
                                             className="my-2"
                                             min="0"
                                             required
                                             placeholder={`Number of Pax (Max ${selected.activity_maxpax * (parseInt(actGroup.activity_num_unit || "0") || 1)})`}
-                                            value={actGroup.activity_num_pax}
+                                            value={actGroup.activity_num_pax || ""}
                                             onChange={(e) => {
-                                                const input = parseInt(e.target.value || "0");
-                                                const baseMax = parseInt(selected.activity_maxpax || "0");
-                                                const unit = parseInt(actGroup.activity_num_unit || "0");
+                                                const input = parseInt(e.target.value || "0", 10);
+                                                const baseMax = parseInt(selected.activity_maxpax || "0", 10);
+                                                const unit = parseInt(actGroup.activity_num_unit || "0", 10);
                                                 const dynamicMax = baseMax * (unit || 1);
 
                                                 if (input < 0) {
@@ -257,15 +313,18 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
                                                 if (input <= dynamicMax) {
                                                     handleActivityGroupChange(index, {
-                                                        activity_num_pax: input,
+                                                        activity_num_pax: isNaN(input) ? "" : input,
                                                     });
                                                 } else {
                                                     alert(`You cannot exceed the maximum allowed pax of ${dynamicMax}.`);
                                                 }
                                             }}
                                         />
+
                                     </Col>
                                 </Row>
+
+
                             ) : (
                                 selected?.activity_sold_by === "pax" && (
                                     <>
@@ -352,13 +411,13 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 if (markup >= 30 && markup <= 50) {
                                     return (
                                         <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
-                                            ⚠️ Markup beyond 30–50% may attract scrutiny or complaints, especially if there's public necessity or price manipulation.
+                                            ⚠️ Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
                                         </Form.Label>
                                     );
                                 } else if (markup > 50) {
                                     return (
                                         <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
-                                            ⚠️ Markup above 50% may be subject to penalties under the <strong>Price Act (RA No. 7581)</strong> and other consumer protection laws in the Philippines.
+                                            ⚠️ Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
                                         </Form.Label>
                                     );
                                 }
