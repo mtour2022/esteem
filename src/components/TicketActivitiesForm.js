@@ -150,7 +150,6 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                     activity_expected_price: "",
                     activity_selected_providers: "", // ✅ Add this line
                     activity_base_price: "", // ✅ Add this line
-
                 },
             ],
         }));
@@ -404,26 +403,36 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
                             {/* ✅ Markup Warning (30–50% and >50%) */}
                             {(() => {
-                                const agreed = Number(actGroup.activity_agreed_price || 0);
-                                const expected = Number(actGroup.activity_expected_price || 0);
-                                const markup = expected > 0 ? ((agreed - expected) / expected) * 100 : 0;
+  const price = Number(actGroup.activity_agreed_price || 0); // Final/agreed price
+  const base = Number(actGroup.activity_expected_price || 0); // Base/original price
+  const ticketTotal = Number(groupData?.total_payment || 0);     // Total payment from ticket
 
-                                if (markup >= 30 && markup <= 50) {
-                                    return (
-                                        <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
-                                            ⚠️ Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
-                                        </Form.Label>
-                                    );
-                                } else if (markup > 50) {
-                                    return (
-                                        <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
-                                            ⚠️ Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
-                                        </Form.Label>
-                                    );
-                                }
+  // Calculate individual markup percentage
+  const markupPercentage = base > 0 ? ((price - base) / base) * 100 : 0;
 
-                                return null;
-                            })()}
+  // Additional markup as difference from ticket total
+  const extraMarkup = price - ticketTotal;
+
+  // Sum both for total markup
+  const totalMarkup = markupPercentage + (extraMarkup > 0 ? extraMarkup : 0);
+
+  if (totalMarkup >= 30 && totalMarkup <= 50) {
+    return (
+      <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
+        ⚠️ Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
+      </Form.Label>
+    );
+  } else if (totalMarkup > 50) {
+    return (
+      <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
+        ⚠️ Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
+      </Form.Label>
+    );
+  }
+
+  return null;
+})()}
+
 
 
                             <div className="d-flex justify-content-between">

@@ -95,6 +95,13 @@ th {
   user-select: none;
 }
 
+.download-mode {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  visibility: hidden;
+}
+
 
 
 .barabara-label2 {

@@ -22,6 +22,8 @@ class TicketModel {
     total_pax = 0,
     total_duration = 0,
     total_expected_payment = 0,
+    total_markup = 0,
+    total_expected_sale = 0,
     total_payment = 0,
   } = {}) {
     Object.assign(this, {
@@ -47,6 +49,8 @@ class TicketModel {
       total_pax,
       total_duration,
       total_expected_payment,
+      total_markup,
+      total_expected_sale,
       total_payment,
     });
   }

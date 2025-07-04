@@ -156,12 +156,12 @@ export default function CompanyDashboardPage() {
             <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
 
             <Row>
-                <Col md={7} className="p-0">
+                <Col md={12} className="p-0">
 <CompanyDashboardPanel company={company} employees={employees} />
                 </Col>
 
 
-                <Col md={5} className="p-0">
+                <Col md={12} className="p-0">
                     <Container className="container custom-container">
                         <Container className='body-container'>
                             <Form className="custom-form ">

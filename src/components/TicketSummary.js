@@ -21,8 +21,6 @@ const TicketSummary = ({ ticket }) => {
    const companyInfo = useCompanyInfo(ticket?.company_id);
   const resolvedActivities = useResolvedActivities(ticket);
   const employeeInfo = useEmployeeInfo(ticket?.employee_id);
-
-
   const {
     ticket_id,
     name,
@@ -203,10 +201,7 @@ const resolvedProviders = useResolvedProviders(activities);
                 })}
                 <p className="m-1"><strong>For:</strong> {a.activity_num_pax} pax</p>
                 <p className="m-1"><strong>Area:</strong> {a.activity_area}</p>
-
-
               </Col>
-
               <Col md={6} className="col">
                 <p className="m-1"><strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}</p>
                 <p className="m-1"><strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}</p>

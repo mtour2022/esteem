@@ -142,7 +142,7 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
     return (
         <Container>
             <Form.Group className="my-3">
-                <Form.Label className="fw-bold">Office Address/es</Form.Label>
+                <Form.Label className="fw-bold">Address/es</Form.Label>
 
                 {groupData.address?.map((addr, index) => {
 

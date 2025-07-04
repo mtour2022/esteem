@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import { db } from "../config/firebase";
 import { Button } from "react-bootstrap";
 import TicketModel from "../classes/tickets";
+import useResolvedActivities from "../services/GetActivitiesDetails";
 
 const SaveTicketToCloud = ({
   fileType = "ticket",
@@ -16,8 +17,33 @@ const SaveTicketToCloud = ({
 }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const ticketCollectionRef = collection(db, "tickets");
+
+  // ✅ Prepare ticket and sanitize activities_availed BEFORE passing to hook
+  const rawTicket = groupData instanceof TicketModel
+    ? groupData
+    : new TicketModel(groupData);
+
+  rawTicket.activities = rawTicket.activities?.map(group => ({
+    ...group,
+    activities_availed: group.activities_availed?.map(act =>
+      typeof act === "string" ? act : act.activity_id
+    )
+  }));
+
+  const resolvedActivities = useResolvedActivities(rawTicket);
+
+  const getActivityDetails = (id) => {
+    return resolvedActivities.find(a => a.activity_id === id);
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+
+    if (!resolvedActivities || resolvedActivities.length === 0) {
+      Swal.fire("Please wait", "Activities are still loading...", "info");
+      return;
+    }
+
     try {
       Swal.fire({
         title: "Saving...",
@@ -25,92 +51,112 @@ const SaveTicketToCloud = ({
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-      // Use TicketModel instance to ensure class methods
-      const ticket = groupData instanceof TicketModel
-        ? groupData
-        : new TicketModel(groupData);
+
+      const ticket = rawTicket;
       const now = new Date();
       const oneMonthLater = new Date();
       oneMonthLater.setMonth(now.getMonth() + 1);
-      // ⏱ Assign default values before saving
+
       ticket.status = "created";
       ticket.date_created = now.toISOString();
       ticket.valid_until = oneMonthLater.toISOString();
-      ticket.scan_logs = [
-        {
-          status: "created",
-          date_updated: now.toISOString(),
-          remarks: "",
-          userId: currentUserUID || "", // make sure userUID is already set
-        }
-      ];
-      // 👥 total_pax
-      const totalLocals = ticket.address?.reduce((sum, addr) => {
-        return sum + (parseInt(addr.locals || "0") || 0);
-      }, 0) || 0;
-      const totalForeigns = ticket.address?.reduce((sum, addr) => {
-        return sum + (parseInt(addr.foreigns || "0") || 0);
-      }, 0) || 0;
-      ticket.total_pax = totalLocals + totalForeigns;
-      ticket.isSingleGroup =
-        (totalLocals > 0 && totalForeigns === 0) ||
-        (totalForeigns > 0 && totalLocals === 0);
+      ticket.scan_logs = [{
+        status: "created",
+        date_updated: now.toISOString(),
+        remarks: "",
+        userId: currentUserUID || "",
+      }];
 
+      // 👥 Pax totals
+      const totalLocals = ticket.address?.reduce((sum, addr) => sum + (parseInt(addr.locals || "0") || 0), 0) || 0;
+      const totalForeigns = ticket.address?.reduce((sum, addr) => sum + (parseInt(addr.foreigns || "0") || 0), 0) || 0;
+      ticket.total_pax = totalLocals + totalForeigns;
+      ticket.isSingleGroup = (totalLocals > 0 && totalForeigns === 0) || (totalForeigns > 0 && totalLocals === 0);
       ticket.isMixedGroup = totalLocals > 0 && totalForeigns > 0;
 
-
-      // 🕓 total_duration
+      // 🕓 Total duration
       let totalDuration = 0;
       ticket.activities?.forEach(group => {
-        group.activities_availed?.forEach(act => {
-          const duration = parseInt(act.activity_duration || "0"); // in minutes
+        group.activities_availed?.forEach(id => {
+          const act = getActivityDetails(id);
+          const duration = parseInt(act?.activity_duration || "0");
           totalDuration += isNaN(duration) ? 0 : duration;
         });
       });
+      ticket.total_duration = totalDuration;
 
-
-      ticket.total_duration = totalDuration; // raw number in minutes
-      // Format to "X hr Y min"
       const formatDuration = (minutes) => {
         const hrs = Math.floor(minutes / 60);
         const mins = minutes % 60;
-
         if (hrs > 0 && mins > 0) return `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins > 1 ? 's' : ''}`;
         if (hrs > 0) return `${hrs} hr${hrs > 1 ? 's' : ''}`;
         return `${mins} min${mins !== 1 ? 's' : ''}`;
       };
+
       ticket.total_duration_readable = formatDuration(totalDuration);
-      // 💰 total_expected_payment
+
+      // 💰 Expected and agreed payment
       let totalExpected = 0;
-      ticket.activities?.forEach(group => {
-        const expected = parseFloat(group.activity_expected_price || "0");
-        totalExpected += isNaN(expected) ? 0 : expected;
-      });
-      ticket.total_expected_payment = totalExpected;
-      // 💵 total_payment (agreed)
       let totalAgreed = 0;
       ticket.activities?.forEach(group => {
-        const agreed = parseFloat(group.activity_agreed_price || "0");
-        totalAgreed += isNaN(agreed) ? 0 : agreed;
+        totalExpected += parseFloat(group.activity_expected_price || "0") || 0;
+        totalAgreed += parseFloat(group.activity_agreed_price || "0") || 0;
       });
+
+      ticket.total_expected_payment = totalExpected;
       ticket.total_payment = totalAgreed;
-      // 🕑 Determine start_date_time and end_date_time
+
+      // 🕑 Start/End timestamps
       const starts = ticket.activities.map(a => new Date(a.activity_date_time_start || null)).filter(Boolean);
       const ends = ticket.activities.map(a => new Date(a.activity_date_time_end || null)).filter(Boolean);
       ticket.start_date_time = starts.length > 0 ? new Date(Math.min(...starts)).toISOString() : "";
       ticket.end_date_time = ends.length > 0 ? new Date(Math.max(...ends)).toISOString() : "";
-      // ✅ Convert to plain object
-      // Sanitize nested models
+
+      // 💵 Markup calculations
+      let baseTotal = 0;
+      let expectedSRP = 0;
+      let agreedTotal = 0;
+
+      ticket.activities?.forEach(group => {
+  const pax = parseInt(group.activity_num_pax || "1"); // default to 1 if missing
+  const agreed = parseFloat(group.activity_agreed_price || "0");
+  if (!isNaN(agreed)) agreedTotal += agreed;
+
+  group.activities_availed?.forEach(id => {
+    const activity = getActivityDetails(id);
+
+    if (!activity) {
+      console.warn(`Missing activity for ID: ${id}`);
+      return;
+    }
+
+    const price = parseFloat(activity.activity_price || "0");
+    const basePrice = parseFloat(activity.activity_base_price || "0");
+
+    if (!isNaN(basePrice)) baseTotal += basePrice * pax;
+    if (!isNaN(price)) expectedSRP += price * pax;
+  });
+});
+
+  // ✅ Total expected sale (no negative)
+ticket.total_expected_sale = Math.max(agreedTotal - baseTotal, 0);
+
+// ✅ Markup % calculation (safe divide)
+ticket.total_markup =
+  baseTotal > 0 ? (ticket.total_expected_sale / baseTotal) * 100 : 0;
+
+
+      // 🔍 Final logs for verification
+      console.log("✔ Base total:", baseTotal);
+      console.log("✔ Expected SRP:", expectedSRP);
+      console.log("✔ Agreed total (payment):", agreedTotal);
+      console.log("✔ Total Expected Sale:", ticket.total_expected_sale);
+      console.log("✔ Markup %:", ticket.total_markup.toFixed(2) + "%");
+
+      // Prepare for Firestore
       ticket.userUID = currentUserUID;
       ticket.company_id = companyID;
-      ticket.activities = ticket.activities?.map(group => ({
-        ...group,
-        activities_availed: group.activities_availed?.map(act =>
-          typeof act === "string" ? act : act.activity_id
-        )
-      }));
 
-      // ✅ Convert to plain object
       const ticketObject = ticket.toObject({
         ticket_id: ticket.ticket_id,
         userUID: ticket.userUID,
@@ -125,6 +171,8 @@ const SaveTicketToCloud = ({
         total_duration: ticket.total_duration_readable,
         total_expected_payment: ticket.total_expected_payment,
         total_payment: ticket.total_payment,
+        total_expected_sale: ticket.total_expected_sale,
+        total_markup: ticket.total_markup,
         start_date_time: ticket.start_date_time,
         end_date_time: ticket.end_date_time,
         name: ticket.name,
@@ -136,29 +184,18 @@ const SaveTicketToCloud = ({
         employee_id: ticket.employee_id,
       });
 
-
-
-      // 🔥 Save to Firestore
       const docRef = await addDoc(ticketCollectionRef, ticketObject);
-      await updateDoc(doc(ticketCollectionRef, docRef.id), {
-        ticket_id: docRef.id,
-      });
+      await updateDoc(doc(ticketCollectionRef, docRef.id), { ticket_id: docRef.id });
 
-      // ✅ Also update company's ticket array
-      const companyDocRef = doc(db, "company", companyID);
-      await updateDoc(companyDocRef, {
+      await updateDoc(doc(db, "company", companyID), {
         ticket: arrayUnion(docRef.id),
       });
 
-      // ✅ Also update employee's ticket array
-if (ticket.employee_id) {
-  const employeeDocRef = doc(db, "employee", ticket.employee_id);
-  await updateDoc(employeeDocRef, {
-    tickets: arrayUnion(docRef.id),
-  });
-}
-
-
+      if (ticket.employee_id) {
+        await updateDoc(doc(db, "employee", ticket.employee_id), {
+          tickets: arrayUnion(docRef.id),
+        });
+      }
 
       setGroupData(new TicketModel({}));
 
@@ -169,22 +206,15 @@ if (ticket.employee_id) {
       });
 
       if (onSuccess) {
-        onSuccess({ ...ticketObject, ticket_id: docRef.id }); // Pass saved ticket data
+        onSuccess({ ...ticketObject, ticket_id: docRef.id });
       }
-
 
     } catch (error) {
       console.error("Error saving ticket:", error);
       setErrorMessage(error.message);
-
-      Swal.fire({
-        title: "Error!",
-        icon: "error",
-        text: "Something went wrong. Please try again."
-      });
+      Swal.fire("Error!", "Something went wrong. Please try again.", "error");
     }
   };
-
 
   return (
     <div>
