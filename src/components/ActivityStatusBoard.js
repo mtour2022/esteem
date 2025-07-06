@@ -12,12 +12,13 @@ import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import useDeleteTicket from "../services/DeleteTicket"; // adjust path
 
 import {
   faMagnifyingGlass,
   faDownload,
   faPrint,
-  faFilter,
+  faFilter,faTrash,
   faLayerGroup, faCalendarDays, faColumns
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -154,6 +155,40 @@ const getStatusBadgeVariant = (status) => {
 };
 
 const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
+  const allColumns = [
+        { key: "actions", label: "Actions" },
+
+    { key: "status", label: "Status" },
+    { key: "ticketId", label: "Ticket ID" },
+    { key: "name", label: "Name" },
+    { key: "contact", label: "Contact" },
+    { key: "address", label: "Address" },
+    { key: "startTime", label: "Start Time" },
+    { key: "endTime", label: "End Time" },
+    { key: "totalPax", label: "Total Pax" },
+    { key: "locals", label: "Locals" },
+    { key: "foreigns", label: "Foreigns" },
+    { key: "males", label: "Males" },
+    { key: "females", label: "Females" },
+    { key: "preferNotToSay", label: "Prefer Not To Say" },
+    { key: "kids", label: "Kids" },
+    { key: "teens", label: "Teens" },
+    { key: "adults", label: "Adults" },
+    { key: "seniors", label: "Seniors" },
+    { key: "assignedTo", label: "Assigned To" },
+    { key: "assigneeContact", label: "Assignee's Contact" },
+    { key: "activityNames", label: "Activity Names" },
+    { key: "totalDuration", label: "Total Duration" },
+    { key: "expectedPayment", label: "Expected Payment" },
+    { key: "totalPayment", label: "Total Payment" },
+    { key: "markup", label: "Total Markup %" },
+    { key: "expectedSale", label: "Total Expected Sale %" },
+    { key: "scannedBy", label: "Scanned By" },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(allColumns.map(col => col.key));
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+
   const [isDownloading, setIsDownloading] = useState(false);
   const tableRef = useRef();
   const [tickets, setTickets] = useState([]);
@@ -167,11 +202,19 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [searchTextInput, setSearchTextInput] = useState("");
   const scrollRef = useRef();
   useMouseDragScroll(scrollRef);
+  const now = new Date();
 
-  const rowsPerPage = 10;
+  const sortedTickets = [...tickets].sort((a, b) => {
+    const aTime = new Date(a.start_date_time);
+    const bTime = new Date(b.start_date_time);
+    return Math.abs(aTime - now) - Math.abs(bTime - now);
+  });
+
+
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const dataToRender = filteredTickets.length > 0 ? filteredTickets : tickets;
+  const dataToRender = filteredTickets.length > 0 ? filteredTickets : sortedTickets;
   const totalPages = Math.ceil(dataToRender.length / rowsPerPage);
   const currentTickets = dataToRender.slice(indexOfFirstRow, indexOfLastRow);
   const [showDateSearchDropdown, setShowDateSearchDropdown] = useState(false);
@@ -218,7 +261,29 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     fetchTickets();
   }, [ticket_ids]);
 
+  const { deleteTicket } = useDeleteTicket();
 
+const handleDeleteTicket = async (ticketId) => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This will permanently delete the ticket.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it!",
+  });
+
+  if (result.isConfirmed) {
+    const res = await deleteTicket(ticketId);
+    if (res.success) {
+      Swal.fire("Deleted!", "Ticket has been deleted.", "success");
+      // Optionally trigger a refetch or remove from state
+    } else {
+      Swal.fire("Error", res.error?.message || "Delete failed", "error");
+    }
+  }
+};
+
+  const ticketsToRender = isDownloading ? dataToRender : currentTickets;
 
   const [employeeMap, setEmployeeMap] = useState({});
   useEffect(() => {
@@ -392,7 +457,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }, 0);
   };
 
-  const ticketsToRender = isDownloading ? dataToRender : currentTickets;
   const handleDownloadTable = async () => {
     try {
       setIsDownloading(true);
@@ -444,6 +508,76 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }
   };
 
+  function total(addresses, key) {
+    return addresses?.reduce((sum, addr) => sum + (Number(addr[key]) || 0), 0) || 0;
+  }
+  function getEmployeeName(t) {
+    const emp = employeeMap[t.employee_id];
+    return emp ? `${emp.name?.first} ${emp.name?.last}` : "-";
+  }
+  function getEmployeeContact(t) {
+    return employeeMap[t.employee_id]?.contact || "-";
+  }
+  function renderActivities(t) {
+    return (
+      <div style={{ minWidth: "400px", whiteSpace: "normal", wordBreak: "break-word" }}>
+        {Array.isArray(t.activities) &&
+          t.activities.map((a, i) => (
+            <div key={i} className="mb-2">
+              {Array.isArray(a.activities_availed) &&
+                a.activities_availed.map((id, idx) => {
+                  const activity = getActivityDetails(id);
+                  const providerNames = Array.isArray(a.activity_selected_providers)
+                    ? a.activity_selected_providers.map(pid => getProviderName(pid)).filter(Boolean).join(", ")
+                    : "N/A";
+
+                  return activity ? (
+                    <div key={idx}>
+                      <strong>{activity.activity_name}</strong> –{" "}
+                      {a.activity_num_pax || 0} pax / {a.activity_num_unit || 0} unit(s) –{" "}
+                      {activity.activity_duration} – BP ₱{Number(activity.activity_base_price).toLocaleString()} | SRP ₱{Number(activity.activity_price).toLocaleString()} – provider(s): {providerNames}
+                    </div>
+                  ) : (
+                    <div key={idx} className="text-muted">Loading activity...</div>
+                  );
+                })}
+            </div>
+          ))}
+      </div>
+    );
+  }
+  function renderAddress(t) {
+    return (
+      <div style={{ minWidth: "300px", whiteSpace: "normal", wordBreak: "break-word" }}>
+        {Array.isArray(t.address) && t.address.length > 0 ? (
+          t.address.map((addr, i) => {
+            const locals = parseInt(addr.locals || "0", 10);
+            const foreigns = parseInt(addr.foreigns || "0", 10);
+
+            if (foreigns > 0 && locals === 0) {
+              return (
+                <div key={i}>
+                  <strong>Foreign:</strong> {addr.country || "-"}
+                </div>
+              );
+            } else if (locals > 0 && foreigns === 0) {
+              return (
+                <div key={i}>
+                  <strong>Local:</strong> {[addr.country, addr.town].filter(Boolean).join(", ")}
+                </div>
+              );
+            } else {
+              return null; // skip mixed or zero
+            }
+          })
+        ) : (
+          <div className="text-muted">No address data</div>
+        )}
+      </div>
+    );
+  }
+
+
 
   const exportToExcel = () => {
     const exportData = (filteredTickets.length > 0 ? filteredTickets : tickets).map(t => {
@@ -467,6 +601,23 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         TicketID: t.id,
         Name: t.name,
         Contact: t.contact,
+        Address: Array.isArray(t.address)
+          ? t.address
+            .map(addr => {
+              const locals = parseInt(addr.locals || "0", 10);
+              const foreigns = parseInt(addr.foreigns || "0", 10);
+
+              if (foreigns > 0 && locals === 0) {
+                return addr.country || "";
+              } else if (locals > 0 && foreigns === 0) {
+                return [addr.country, addr.town].filter(Boolean).join(", ");
+              } else {
+                return null; // mixed or zero pax, ignore
+              }
+            })
+            .filter(Boolean)
+            .join(", ")
+          : "-",
         StartTime: new Date(t.start_date_time).toLocaleString(),
         EndTime: new Date(t.end_date_time).toLocaleString(),
         TotalPax: t.total_pax,
@@ -480,31 +631,32 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         Adults: adults,
         Seniors: seniors,
         "Assigned To": employeeName,
-       "Activities Availed": Array.isArray(t.activities)
-  ? t.activities.map((a) => {
-      const providerNames = Array.isArray(a.activity_selected_providers)
-        ? a.activity_selected_providers
-            .map(pid => getProviderName(pid))
-            .filter(Boolean)
-            .join(", ")
-        : "N/A";
+        "Assignee's Contact": employeeContact,
+        "Activities Availed": Array.isArray(t.activities)
+          ? t.activities.map((a) => {
+            const providerNames = Array.isArray(a.activity_selected_providers)
+              ? a.activity_selected_providers
+                .map(pid => getProviderName(pid))
+                .filter(Boolean)
+                .join(", ")
+              : "N/A";
 
-      if (!Array.isArray(a.activities_availed)) return null;
+            if (!Array.isArray(a.activities_availed)) return null;
 
-      return a.activities_availed.map((id) => {
-        const activity = getActivityDetails(id);
-        if (!activity) return "Loading activity...";
+            return a.activities_availed.map((id) => {
+              const activity = getActivityDetails(id);
+              if (!activity) return "Loading activity...";
 
-        return `${activity.activity_name} – ${a.activity_num_pax || 0} pax / ${a.activity_num_unit || 0} unit(s) – ${activity.activity_duration} – BP ₱${Number(activity.activity_base_price).toLocaleString()} | SRP ₱${Number(activity.activity_price).toLocaleString()} – provider(s): ${providerNames}`;
-      }).join("\n");
-    }).filter(Boolean).join("\n\n")
-  : "-"
+              return `${activity.activity_name} – ${a.activity_num_pax || 0} pax / ${a.activity_num_unit || 0} unit(s) – ${activity.activity_duration} – BP ₱${Number(activity.activity_base_price).toLocaleString()} | SRP ₱${Number(activity.activity_price).toLocaleString()} – provider(s): ${providerNames}`;
+            }).join("\n");
+          }).filter(Boolean).join("\n\n")
+          : "-"
 
-,
+        ,
         // duration
         ExpectedPayment: t.total_expected_payment || 0,
         ActualPayment: t.total_payment || 0,
-        Markup: `${t.total_markup.toFixed(2)}%`,
+        "Total Markup": `${t.total_markup.toFixed(2)}%`,
         ScannedBy: scannedBy,
 
       };
@@ -539,26 +691,75 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         t.id,
         t.name,
         t.contact,
+        Array.isArray(t.address)
+          ? t.address
+            .map(addr => {
+              const locals = parseInt(addr.locals || "0", 10);
+              const foreigns = parseInt(addr.foreigns || "0", 10);
+
+              if (foreigns > 0 && locals === 0) {
+                return addr.country || "";
+              } else if (locals > 0 && foreigns === 0) {
+                return [addr.country, addr.town].filter(Boolean).join(", ");
+              } else {
+                return null; // mixed or zero pax, ignore
+              }
+            })
+            .filter(Boolean)
+            .join(", ")
+          : "-",
         new Date(t.start_date_time).toLocaleString(),
         new Date(t.end_date_time).toLocaleString(),
         t.total_pax,
         locals,
         foreigns,
-        employeeName,
-        scannedBy,
+        males,
+        females,
+        preferNotToSay, kids, teens, adults, seniors,
+        employeeName, employeeContact,
+        Array.isArray(t.activities)
+          ? t.activities.map((a) => {
+            const providerNames = Array.isArray(a.activity_selected_providers)
+              ? a.activity_selected_providers
+                .map(pid => getProviderName(pid))
+                .filter(Boolean)
+                .join(", ")
+              : "N/A";
+
+            if (!Array.isArray(a.activities_availed)) return null;
+
+            return a.activities_availed.map((id) => {
+              const activity = getActivityDetails(id);
+              if (!activity) return "Loading activity...";
+
+              return `${activity.activity_name} – ${a.activity_num_pax || 0} pax / ${a.activity_num_unit || 0} unit(s) – ${activity.activity_duration} – BP ₱${Number(activity.activity_base_price).toLocaleString()} | SRP ₱${Number(activity.activity_price).toLocaleString()} – provider(s): ${providerNames}`;
+            }).join("\n");
+          }).filter(Boolean).join("\n\n")
+          : "-"
+
+        ,
         `₱${t.total_expected_payment?.toLocaleString() || "0"}`,
         `₱${t.total_payment?.toLocaleString() || "0"}`,
-        `${t.total_markup.toFixed(2)}%`
+        `${t.total_markup.toFixed(2)}%`,
+        scannedBy,
+
       ];
     });
 
     autoTable(doc, {
       head: [[
-        "Status", "Ticket ID", "Name", "Contact", "Start Time", "End Time", "Pax",
-        "Locals", "Foreigns", "Employee", "Scanned By", "Expected", "Actual", "Markup"
+        "Status", "TicketID", "Name", "Contact", "Addresses", "Start Time", "End Time", "Total Pax",
+        "Locals", "Foreigns", "Males", "Females", "Prefered Not To Say",
+        "Kids", "Teens", "Adults", "Seniors", "Assigned To", "Asignee's Contact", "Activities Availed",
+        , "Expected Payment", "Actual Payment", "Total Markup", "Scanned By"
       ]],
       body: exportData,
-      styles: { fontSize: 7 },
+      styles: { fontSize: 7, cellPadding: 1 },
+      columnStyles: {
+        4: { cellWidth: 25, overflow: 'linebreak' },
+        19: { cellWidth: 50, overflow: 'linebreak' }
+      },
+      startY: 10,
     });
 
     doc.save("tourist-activity-status-board.pdf");
@@ -583,7 +784,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
           {/* RIGHT SIDE: Icon Buttons */}
-          <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2">
+          <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2 me-0 pe-0">
             <Dropdown show={showSearchDropdown} onToggle={() => setShowSearchDropdown(!showSearchDropdown)}>
               <Dropdown.Toggle variant="outline-secondary" as={Button}>
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
@@ -752,9 +953,53 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
               </Dropdown.Menu>
             </Dropdown>
 
-            <Button variant="outline-secondary" title="Column Filter">
-              <FontAwesomeIcon icon={faColumns} />
-            </Button>
+            <Dropdown show={showColumnDropdown} onToggle={() => setShowColumnDropdown(!showColumnDropdown)}>
+              <Dropdown.Toggle variant="outline-secondary" title="Customize Columns">
+                <FontAwesomeIcon icon={faColumns} />
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}>
+                <div className="d-flex justify-content-between mb-2">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0"
+                    onClick={() => setVisibleColumns(allColumns.map(col => col.key))}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0"
+                    onClick={() => setVisibleColumns([])}
+                  >
+                    Unselect All
+                  </Button>
+                </div>
+
+                <Form>
+                  {allColumns.map(col => (
+                    <Form.Check
+                      key={col.key}
+                      type="checkbox"
+                      id={`toggle-${col.key}`}
+                      label={col.label}
+                      checked={visibleColumns.includes(col.key)}
+                      onChange={() => {
+                        setVisibleColumns(prev =>
+                          prev.includes(col.key)
+                            ? prev.filter(k => k !== col.key)
+                            : [...prev, col.key]
+                        );
+                      }}
+                    />
+                  ))}
+                </Form>
+              </Dropdown.Menu>
+            </Dropdown>
+
+
             <Button variant="outline-secondary" title="Group Filter">
               <FontAwesomeIcon icon={faLayerGroup} />
             </Button>
@@ -772,145 +1017,113 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
               <Table bordered hover style={{ minWidth: "1400px" }}>
                 <thead>
                   <tr>
-                    <th>Status</th>
-                    <th>Ticket ID</th>
-                    <th>Name</th>
-                    <th>Contact</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Total Pax</th>
-                    <th>Locals</th>
-                    <th>Foreigns</th>
-                    <th>Males</th>
-                    <th>Females</th>
-                    <th>Prefer Not To Say</th>
-                    <th>Kids</th>
-                    <th>Teens</th>
-                    <th>Adults</th>
-                    <th>Seniors</th>
-                    <th>Assigned To</th>
-                    <th>Assignee's Contact</th>
-                    <th>Activity Names</th>
-                    <th>Total Duration</th>
-                    <th>Expected Payment</th>
-                    <th>Total Payment</th>
-                    <th>Total Markup %</th>
-                    <th>Total Expected Sale %</th>
-                    <th>Scanned By</th>
+                    {allColumns.map(col =>
+                      visibleColumns.includes(col.key) && (
+                        <th key={col.key}>{col.label}</th>
+                      )
+                    )}
                   </tr>
                 </thead>
-
                 <tbody>
-                  {currentTickets.length === 0 ? (
+                  {ticketsToRender.length === 0 ? (
                     <tr>
-                      <td colSpan="25" className="text-center text-muted">
-                        No results found for the selected filters.
+                      <td colSpan={visibleColumns.length} className="text-center text-muted">
+                        No results found for today.
                       </td>
                     </tr>
                   ) : (
-                    ticketsToRender.map((t) => {
-                      const status = computeStatus(t);
-                      const locals = t.address?.reduce((sum, addr) => sum + (Number(addr.locals) || 0), 0) || 0;
-                      const foreigns = t.address?.reduce((sum, addr) => sum + (Number(addr.foreigns) || 0), 0) || 0;
-                      const males = t.address?.reduce((sum, addr) => sum + (Number(addr.males) || 0), 0) || 0;
-                      const females = t.address?.reduce((sum, addr) => sum + (Number(addr.females) || 0), 0) || 0;
-                      const preferNotToSay = t.address?.reduce((sum, addr) => sum + (Number(addr.prefer_not_to_say) || 0), 0) || 0;
-                      const kids = t.address?.reduce((sum, addr) => sum + (Number(addr.kids) || 0), 0) || 0;
-                      const teens = t.address?.reduce((sum, addr) => sum + (Number(addr.teens) || 0), 0) || 0;
-                      const adults = t.address?.reduce((sum, addr) => sum + (Number(addr.adults) || 0), 0) || 0;
-                      const seniors = t.address?.reduce((sum, addr) => sum + (Number(addr.seniors) || 0), 0) || 0;
-                      const employee = employeeMap[t.employee_id];
-                      const employeeName = employee ? `${employee.name?.first || ""} ${employee.name?.last || ""}` : "-";
-                      const employeeContact = employee?.contact || "-";
-                      const scannedBy = t.scan_logs?.find((log) => log.status === "scanned")?.updated_by || "";
+                    ticketsToRender.map(t => {
+                      const rowData = {
+                        actions: (
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={() => handleDeleteTicket(t.id)}
+      >
+                        <FontAwesomeIcon icon={faTrash} />
+
+      </Button>
+    ),
+                        status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
+                        
+                        ticketId: t.id,
+                        name: t.name,
+                        contact: t.contact,
+                        address: renderAddress(t),
+
+                        startTime: new Date(t.start_date_time).toLocaleString(),
+                        endTime: new Date(t.end_date_time).toLocaleString(),
+                        totalPax: t.total_pax,
+                        locals: total(t.address, 'locals'),
+                        foreigns: total(t.address, 'foreigns'),
+                        males: total(t.address, 'males'),
+                        females: total(t.address, 'females'),
+                        preferNotToSay: total(t.address, 'prefer_not_to_say'),
+                        kids: total(t.address, 'kids'),
+                        teens: total(t.address, 'teens'),
+                        adults: total(t.address, 'adults'),
+                        seniors: total(t.address, 'seniors'),
+                        assignedTo: getEmployeeName(t),
+                        assigneeContact: getEmployeeContact(t),
+                        activityNames: renderActivities(t),
+                        totalDuration: `${t.total_duration || 0} min`,
+                        expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                        totalPayment: `₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                        markup: `${t.total_markup.toFixed(2)}%`,
+                        expectedSale: `₱${t.total_expected_sale?.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`,
+                        scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
+                      };
 
                       return (
                         <tr key={t.id}>
-                          <td><Badge bg={getStatusBadgeVariant(status)}>{status}</Badge></td>
-                          <td>{t.id}</td>
-                          <td>{t.name}</td>
-                          <td>{t.contact}</td>
-                          <td>{new Date(t.start_date_time).toLocaleString()}</td>
-                          <td>{new Date(t.end_date_time).toLocaleString()}</td>
-                          <td>{t.total_pax}</td>
-                          <td>{locals}</td>
-                          <td>{foreigns}</td>
-                          <td>{males}</td>
-                          <td>{females}</td>
-                          <td>{preferNotToSay}</td>
-                          <td>{kids}</td>
-                          <td>{teens}</td>
-                          <td>{adults}</td>
-                          <td>{seniors}</td>
-                          <td>{employeeName}</td>
-                          <td>{employeeContact}</td>
-                          <td style={{ minWidth: "400px", whiteSpace: "normal", wordBreak: "break-word" }}>
-                            {Array.isArray(t.activities) &&
-                              t.activities.map((a, i) => {
-                                const providerNames = Array.isArray(a.activity_selected_providers)
-                                  ? a.activity_selected_providers
-                                    .map(pid => getProviderName(pid))
-                                    .filter(Boolean)
-                                    .join(", ")
-                                  : "N/A";
-
-                                return (
-                                  <div key={i} className="mb-2">
-                                    {Array.isArray(a.activities_availed) &&
-                                      a.activities_availed.map((id, idx) => {
-                                        const activity = getActivityDetails(id);
-
-                                        return activity ? (
-                                          <div key={idx}>
-                                            <strong>{activity.activity_name}</strong> –{" "}
-                                            {a.activity_num_pax || 0} pax / {a.activity_num_unit || 0} unit(s) –{" "}
-                                            {activity.activity_duration} – BP ₱{Number(activity.activity_base_price).toLocaleString()} | SRP ₱{Number(activity.activity_price).toLocaleString()} – provider(s): {providerNames}
-                                          </div>
-                                        ) : (
-                                          <div key={idx} className="text-muted">Loading activity...</div>
-                                        );
-                                      })}
-                                  </div>
-                                );
-                              })}
-                          </td>
-                          <td>{t.total_duration || 0} min</td>
-                          <td>₱ {t.total_expected_payment?.toLocaleString() || "0.00"}</td>
-                          <td>₱ {t.total_payment?.toLocaleString() || "0.00"}</td>
-                          <td>
-                            <span
-                              className={
-                                t.total_markup >= 50
-                                  ? "text-danger"
-                                  : t.total_markup >= 31
-                                    ? "text-warning"
-                                    : t.total_markup >= 10
-                                      ? "text-success"
-                                      : ""
-                              }
-                            >
-                              {t.total_markup.toFixed(2)}%
-                            </span>
-                          </td>
-                          <td>₱ {t.total_expected_sale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td>{scannedBy || "-"}</td>
+                          {allColumns.map(col =>
+                            visibleColumns.includes(col.key) && (
+                              <td key={col.key}>{rowData[col.key]}</td>
+                            )
+                          )}
                         </tr>
                       );
                     })
                   )}
                 </tbody>
-
               </Table>
             </div>
           </div>
         )}
       </Card.Body>
 
-      <div className="d-flex justify-content-between align-items-center mt-3 px-2">
-        <div>
-          Page {currentPage} of {totalPages}
+      <div className="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-3">
+        <div className="d-flex align-items-center gap-3">
+
+
+          {/* ⬇️ Rows per Page Selector */}
+          <Form.Group className="d-flex align-items-center gap-2 mb-0">
+            <Form.Label className="mb-0 small">Rows per page</Form.Label>
+            <Form.Select
+              style={{ width: "auto" }}
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset to first page on change
+              }}
+            >
+              {[5, 10, 20, 50, 100].map(num => (
+                <option key={num} value={num}>{num}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
         </div>
+
+
+
+
         <div>
+          <span className="me-3">
+            Page {currentPage} of {totalPages}
+          </span>
           <button
             className="btn btn-sm btn-outline-primary me-2"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}

@@ -5,6 +5,8 @@ import { Navigate, BrowserRouter as Router, Route, Routes } from 'react-router-d
 // Pages
 import Home from './pages/Home.js';
 import CompanyRegistrationPage from './pages/Company_Registration.js';
+import EmployeeRegistrationForm from './pages/Employee_Registration.js';
+
 import CompanyDashboardPage from './pages/Company_Dashboard.js';
 import NotFound from './pages/NotFound.js';
 
@@ -26,6 +28,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/home" element={<Home />} />
             <Route path="/company-registration" element={<CompanyRegistrationPage />} />
+            <Route path="/employee-registration" element={<EmployeeRegistrationForm />} />
+
             {/* ✅ Protected Route */}
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
             <Route path="*" element={<NotFound />} />

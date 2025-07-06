@@ -327,34 +327,52 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                             ) : (
                                 selected?.activity_sold_by === "pax" && (
                                     <>
-                                        <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-                                            Number of Pax
-                                        </Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            className="my-2"
-                                            min="0"
-                                            required
-                                            placeholder={`Number of Pax (Max ${selected.activity_maxpax})`}
-                                            value={actGroup.activity_num_pax}
-                                            onChange={(e) => {
-                                                const input = parseInt(e.target.value || "0");
-                                                const max = parseInt(selected.activity_maxpax || "0");
+                                      <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+    Number of Pax
+</Form.Label>
+<Form.Control
+    type="number"
+    className="my-2"
+    min="0"
+    required
+    placeholder={`Number of Pax (Max ${selected.activity_maxpax})`}
+    value={actGroup.activity_num_pax || ""}
+    onChange={(e) => {
+        const input = parseInt(e.target.value || "0");
+        const max = parseInt(selected.activity_maxpax || "0");
 
-                                                if (input < 0) {
-                                                    alert("Pax cannot be negative.");
-                                                    return;
-                                                }
+        if (input < 0) {
+            alert("Pax cannot be negative.");
+            return;
+        }
 
-                                                if (input <= max) {
-                                                    handleActivityGroupChange(index, {
-                                                        activity_num_pax: input,
-                                                    });
-                                                } else {
-                                                    alert(`You cannot exceed the maximum allowed pax of ${max}.`);
-                                                }
-                                            }}
-                                        />
+        // 🔍 Compute declared pax from groupData.address
+        const totalDeclaredPax = (groupData.address || []).reduce((sum, addr) => {
+            const locals = parseInt(addr.locals || "0");
+            const foreigns = parseInt(addr.foreigns || "0");
+            return sum + locals + foreigns;
+        }, 0);
+
+        // 🛑 Check declared pax limit
+        if (input > totalDeclaredPax) {
+            alert(
+                `The number of pax (${input}) cannot exceed the total declared pax (${totalDeclaredPax}) from the address/es.`
+            );
+            return;
+        }
+
+        // ✅ Check max pax limit
+        if (input <= max) {
+            handleActivityGroupChange(index, {
+                activity_num_pax: input,
+            });
+        } else {
+            alert(`You cannot exceed the maximum allowed pax of ${max}.`);
+        }
+    }}
+/>
+
+
                                     </>
                                 )
                             )}

@@ -1,22 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Container, Row, Col, Button, Card, Spinner, Image, InputGroup } from 'react-bootstrap';
+import { Form, Container, Row, Col, Button, Card, Spinner, Image, InputGroup, Dropdown } from 'react-bootstrap';
 import { query, where, collection, getDocs, documentId } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../auth/authentication';
 import Company from '../classes/company';
 import FooterCustomized from '../components/Footer';
 import AppNavBar from "../components/AppNavBar";
-import Webcam from "react-webcam"; // Install with: npm install react-webcam
 import TicketAddressForm from '../components/TicketAddressForm'
-import SaveGroupToCloud from "../components/SaveGroup"; // Adjust the import path if necessary
 import TicketModel from '../classes/tickets';
 import TicketActivitiesForm from '../components/TicketActivitiesForm';
 import Select from "react-select";
 import SaveTicketToCloud from '../components/SaveTicket';
 import TicketSummary from '../components/TicketSummary';
 import CompanyDashboardPanel from '../components/CompanyDashBoardPanel';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faExpand, faCompress, faBars } from '@fortawesome/free-solid-svg-icons';
 
 export default function CompanyDashboardPage() {
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const [savedTicket, setSavedTicket] = useState(null);
     const { userLoggedIn } = useAuth();
     const [company, setCompany] = useState(null);
@@ -156,207 +157,238 @@ export default function CompanyDashboardPage() {
             <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
 
             <Row>
-                <Col md={12} className="p-0">
-<CompanyDashboardPanel company={company} employees={employees} />
+                <Col md={isFullScreen ? 12 : 8} className="p-0">
+                    {/* Control Bar Row */}
+<div className="d-flex justify-content-end align-items-center gap-2 p-3 me-0 me-md-4 mt-4">
+                        <Button
+                            variant="outline-secondary"
+                            onClick={() => setIsFullScreen((prev) => !prev)}
+                            title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                        >
+                            {isFullScreen ? "Collapse" : "Expand"}
+                            <FontAwesomeIcon className="ms-2" icon={isFullScreen ? faCompress : faExpand} />
+                        </Button>
+
+                        <Dropdown align="end">
+                            <Dropdown.Toggle
+                                as={Button}
+                                variant="outline-secondary"
+                                id="dropdown-custom-button"
+                            >
+                                <FontAwesomeIcon icon={faBars} />
+                            </Dropdown.Toggle>
+
+                            <Dropdown.Menu>
+                                <Dropdown.Item>Profile</Dropdown.Item>
+                                <Dropdown.Item>Log Out</Dropdown.Item>
+                                <Dropdown.Item>Complaint Form</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    </div>
+
+                    {/* Main Dashboard Content */}
+                    <CompanyDashboardPanel company={company} employees={employees} />
                 </Col>
 
 
-                <Col md={12} className="p-0">
-                    <Container className="container custom-container">
-                        <Container className='body-container'>
-                            <Form className="custom-form ">
-                                <p className='barabara-label'>TOURIST ACTIVITY FORM</p>
-                                <p className="sub-title-blue">Fill-out this form to generate <strong>QR code</strong>. Accurate information is vital in ensuring safety, maintaining reliable records, generating tour activity reports, providing immediate response in case of emergency, investigating complaints, and optimizing overall service quality.</p>
 
-                                {/* Step 1: Company Details 1 */}
-                                {currentStep === 1 && (
-                                    <>
-                                        <Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Representative's Name (Full Name is Optional)</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                name="name"
-                                                placeholder='Business Name Registered Under DTI'
-                                                value={ticketData.name}
-                                                onChange={handleChange}
-                                                required
-                                            />
-                                        </Form.Group>
-                                        <Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Contact Information (Optional)</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                name="contact"
-                                                placeholder='Email Address, Telephone, or Mobile Number'
-                                                value={ticketData.contact}
-                                                onChange={handleChange}
-                                            />
-                                        </Form.Group>
-                                        <Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Accommodation Establishment</Form.Label>
-                                            <Form.Control
-                                                type="text"
+                {!isFullScreen && (
+                    <Col md={4} className="p-0">
+                        <Container className="container custom-container">
+                            <Container className='body-container'>
+                                <Form className="custom-form mt-4">
+                                    <p className='barabara-label'>TOURIST ACTIVITY FORM</p>
+                                    <p className="sub-title-blue">Fill-out this form to generate <strong>QR code</strong>. Accurate information is vital in ensuring safety, maintaining reliable records, generating tour activity reports, providing immediate response in case of emergency, investigating complaints, and optimizing overall service quality.</p>
 
-                                                name="accommodation"
-                                                placeholder="Hotel/Resort where the guest is staying"
-                                                value={ticketData.accommodation}
-                                                onChange={handleChange}
-                                                required
-                                            />
-                                        </Form.Group>
-                                        <Form.Group className="my-3">
-                                            <Form.Label><strong>Assigned To</strong></Form.Label>
-                                            <br />
-                                            <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-                                                Select designated employee to assist the guests.
-                                            </Form.Label>
-                                            <Select
-                                                options={employees.map(emp => ({
-                                                    value: emp.employee_id,
-                                                    label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
-                                                    contact: emp.contact,
-                                                    raw: emp
-                                                }))}
-                                                placeholder="Select an employee"
-                                                onChange={(selectedOption) => {
-                                                    setTicketData(prev => ({
-                                                        ...prev,
-                                                        employee_id: selectedOption?.value || ""
-                                                    }));
-                                                    setSelectedEmployee(selectedOption ? selectedOption.raw : null);
-                                                }}
-                                                value={
-                                                    employees
-                                                        .map(emp => ({
-                                                            value: emp.employee_id,
-                                                            label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
-                                                            contact: emp.contact,
-                                                            raw: emp
-                                                        }))
-                                                        .find(option => option.value === ticketData.employee_id) || null
-                                                }
-                                                isClearable
-                                            />
-
-                                        </Form.Group>
-
-                                        {selectedEmployee && (
-                                            <Form.Group className="mt-2">
-                                                <Form.Label>Assignee's Contact Information</Form.Label>
+                                    {/* Step 1: Company Details 1 */}
+                                    {currentStep === 1 && (
+                                        <>
+                                            <Form.Group className="my-2">
+                                                <Form.Label className="fw-bold mt-2">Representative's Name (Full Name is Optional)</Form.Label>
                                                 <Form.Control
                                                     type="text"
-                                                    value={selectedEmployee.contact || "No contact provided"}
-                                                    readOnly
+                                                    name="name"
+                                                    placeholder='Business Name Registered Under DTI'
+                                                    value={ticketData.name}
+                                                    onChange={handleChange}
+                                                    required
                                                 />
                                             </Form.Group>
-                                        )}
+                                            <Form.Group className="my-2">
+                                                <Form.Label className="fw-bold mt-2">Contact Information (Optional)</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="contact"
+                                                    placeholder='Email Address, Telephone, or Mobile Number'
+                                                    value={ticketData.contact}
+                                                    onChange={handleChange}
+                                                />
+                                            </Form.Group>
+                                            <Form.Group className="my-2">
+                                                <Form.Label className="fw-bold mt-2">Accommodation Establishment</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+
+                                                    name="accommodation"
+                                                    placeholder="Hotel/Resort where the guest is staying"
+                                                    value={ticketData.accommodation}
+                                                    onChange={handleChange}
+                                                    required
+                                                />
+                                            </Form.Group>
+                                            <Form.Group className="my-3">
+                                                <Form.Label><strong>Assigned To</strong></Form.Label>
+                                                <br />
+                                                <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                                    Select designated employee to assist the guests.
+                                                </Form.Label>
+                                                <Select
+                                                    options={employees.map(emp => ({
+                                                        value: emp.employee_id,
+                                                        label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                        contact: emp.contact,
+                                                        raw: emp
+                                                    }))}
+                                                    placeholder="Select an employee"
+                                                    onChange={(selectedOption) => {
+                                                        setTicketData(prev => ({
+                                                            ...prev,
+                                                            employee_id: selectedOption?.value || ""
+                                                        }));
+                                                        setSelectedEmployee(selectedOption ? selectedOption.raw : null);
+                                                    }}
+                                                    value={
+                                                        employees
+                                                            .map(emp => ({
+                                                                value: emp.employee_id,
+                                                                label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                                contact: emp.contact,
+                                                                raw: emp
+                                                            }))
+                                                            .find(option => option.value === ticketData.employee_id) || null
+                                                    }
+                                                    isClearable
+                                                />
+
+                                            </Form.Group>
+
+                                            {selectedEmployee && (
+                                                <Form.Group className="mt-2">
+                                                    <Form.Label>Assignee's Contact Information</Form.Label>
+                                                    <Form.Control
+                                                        type="text"
+                                                        value={selectedEmployee.contact || "No contact provided"}
+                                                        readOnly
+                                                    />
+                                                </Form.Group>
+                                            )}
 
 
 
 
-                                    </>
-                                )}
-                                {/* Step 2: Company Details */}
-                                {currentStep === 2 && (
-                                    <>
-                                        <TicketAddressForm
-                                            groupData={ticketData}
-                                            setGroupData={setTicketData}
-                                            ifForeign={true} // or false depending on what default you want
-                                        />
-
-
-
-
-
-
-                                    </>
-                                )}
-                                {/* Step 3: Company Details */}
-                                {currentStep === 3 && (
-                                    <>
-                                        <TicketActivitiesForm
-                                            groupData={ticketData}
-                                            setGroupData={setTicketData}
-                                        />
-
-
-                                    </>
-                                )}
-                                {/* Step 4: Ticket Summary */}
-                                {currentStep === 4 && savedTicket && (
-                                    <TicketSummary ticket={savedTicket} />
-                                )}
-
-
-                                {/* Pagination Buttons */}
-                                <Container className='empty-container'></Container>
-                                {/* Page Indicators */}
-                                <Container className="d-flex justify-content-center my-1">
-                                    {Array.from({ length: totalSteps }, (_, index) => (
-                                        <span
-                                            key={index}
-                                            className={`mx-1 step-indicator ${currentStep === index + 1 ? "active" : ""}`}
-                                        >
-                                            ●
-                                        </span>
-                                    ))}
-                                </Container>
-                                {currentStep === 4 ? (
-                                    <Container className="d-flex justify-content-between mt-3">
-                                        <Button
-                                            className="color-blue-button"
-                                            variant="primary"
-                                            onClick={() => {
-                                                window.location.reload(); // refresh the entire screen
-                                            }}
-                                        >
-                                            Generate More
-                                        </Button>
-                                    </Container>
-
-                                ) : (
-                                    <Container className="d-flex justify-content-between mt-3">
-                                        {/* Previous Button - Show if currentStep > 1 */}
-                                        {currentStep > 1 && (
-                                            <Button variant="secondary" onClick={prevStep}>
-                                                Previous
-                                            </Button>
-                                        )}
-
-                                        {/* Next Button or Save Button on Last Step */}
-                                        {currentStep < 3 ? (
-                                            <Button className="color-blue-button" variant="primary" onClick={nextStep}>
-                                                Next
-                                            </Button>
-                                        ) : (
-                                            <SaveTicketToCloud
+                                        </>
+                                    )}
+                                    {/* Step 2: Company Details */}
+                                    {currentStep === 2 && (
+                                        <>
+                                            <TicketAddressForm
                                                 groupData={ticketData}
                                                 setGroupData={setTicketData}
-                                                currentUserUID={currentUser.uid}
-                                                companyID={company.company_id}
-                                                onSuccess={(finalTicket) => {
-                                                    setSavedTicket(finalTicket);
-                                                    setCurrentStep(4);
-                                                }}
-                                                disabled={!isStep3FormValid() && (
-                                                    <div className="text-danger mt-2">
-                                                        Please complete all required fields before saving.
-                                                    </div>
-                                                )}
-                                            // 👈 add this line
+                                                ifForeign={true} // or false depending on what default you want
                                             />
-                                        )}
 
+
+
+
+
+
+                                        </>
+                                    )}
+                                    {/* Step 3: Company Details */}
+                                    {currentStep === 3 && (
+                                        <>
+                                            <TicketActivitiesForm
+                                                groupData={ticketData}
+                                                setGroupData={setTicketData}
+                                            />
+
+
+                                        </>
+                                    )}
+                                    {/* Step 4: Ticket Summary */}
+                                    {currentStep === 4 && savedTicket && (
+                                        <TicketSummary ticket={savedTicket} />
+                                    )}
+
+
+                                    {/* Pagination Buttons */}
+                                    <Container className='empty-container'></Container>
+                                    {/* Page Indicators */}
+                                    <Container className="d-flex justify-content-center my-1">
+                                        {Array.from({ length: totalSteps }, (_, index) => (
+                                            <span
+                                                key={index}
+                                                className={`mx-1 step-indicator ${currentStep === index + 1 ? "active" : ""}`}
+                                            >
+                                                ●
+                                            </span>
+                                        ))}
                                     </Container>
-                                )}
+                                    {currentStep === 4 ? (
+                                        <Container className="d-flex justify-content-between mt-3">
+                                            <Button
+                                                className="color-blue-button"
+                                                variant="primary"
+                                                onClick={() => {
+                                                    window.location.reload(); // refresh the entire screen
+                                                }}
+                                            >
+                                                Generate More
+                                            </Button>
+                                        </Container>
+
+                                    ) : (
+                                        <Container className="d-flex justify-content-between mt-3">
+                                            {/* Previous Button - Show if currentStep > 1 */}
+                                            {currentStep > 1 && (
+                                                <Button variant="secondary" onClick={prevStep}>
+                                                    Previous
+                                                </Button>
+                                            )}
+
+                                            {/* Next Button or Save Button on Last Step */}
+                                            {currentStep < 3 ? (
+                                                <Button className="color-blue-button" variant="primary" onClick={nextStep}>
+                                                    Next
+                                                </Button>
+                                            ) : (
+                                                <SaveTicketToCloud
+                                                    groupData={ticketData}
+                                                    setGroupData={setTicketData}
+                                                    currentUserUID={currentUser.uid}
+                                                    companyID={company.company_id}
+                                                    onSuccess={(finalTicket) => {
+                                                        setSavedTicket(finalTicket);
+                                                        setCurrentStep(4);
+                                                    }}
+                                                    disabled={!isStep3FormValid() && (
+                                                        <div className="text-danger mt-2">
+                                                            Please complete all required fields before saving.
+                                                        </div>
+                                                    )}
+                                                // 👈 add this line
+                                                />
+                                            )}
+
+                                        </Container>
+                                    )}
 
 
-                                <Container className='empty-container'></Container>
+                                    <Container className='empty-container'></Container>
 
-                                {/* Custom Styles for Dots */}
-                                <style>
-                                    {`
+                                    {/* Custom Styles for Dots */}
+                                    <style>
+                                        {`
                             .step-indicator {
                                 font-size: 1rem;
                                 color: #ccc;
@@ -366,15 +398,17 @@ export default function CompanyDashboardPage() {
                                 color: #1F89B2; /* Bootstrap primary color */
                             }
                         `}
-                                </style>
+                                    </style>
 
 
 
 
-                            </Form>
+                                </Form>
+                            </Container>
                         </Container>
-                    </Container>
-                </Col>
+                    </Col>
+                )}
+
                 <FooterCustomized scrollToId="toppage" />
 
             </Row>

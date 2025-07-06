@@ -4,12 +4,13 @@ import {
   Row,
   Col,
   Image,
-  Dropdown,
+  Dropdown, Button
 } from "react-bootstrap";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import TouristActivityStatusBoard from "./ActivityStatusBoard"; // ⬅️ Import your reusable component
-
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars } from '@fortawesome/free-solid-svg-icons';
 const CompanyDashboardPanel = ({ company }) => {
   const [tickets, setTickets] = useState([]);
 
@@ -34,15 +35,15 @@ const CompanyDashboardPanel = ({ company }) => {
     fetchTickets();
   }, [company]);
 
-    const ticketIds = Array.isArray(company.ticket) ? company.ticket : [];
+  const ticketIds = Array.isArray(company.ticket) ? company.ticket : [];
 
 
   if (!company) return null;
 
   return (
-    <Container className="my-4 body-container" id="toppage">
+    <Container className="body-container" id="toppage">
       <Row className="align-items-center justify-content-between">
-        <Col xs="auto" className="d-flex align-items-center gap-3">
+        <Col xs="auto" className="ps-0 d-flex align-items-center gap-3">
           {company.logo && (
             <Image
               src={company.logo}
@@ -54,23 +55,11 @@ const CompanyDashboardPanel = ({ company }) => {
           )}
           <h2 className="mb-0">{company.name}</h2>
         </Col>
-        <Col xs="auto">
-          <Dropdown align="end">
-            <Dropdown.Toggle variant="link" className="p-0">
-              •••
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              <Dropdown.Item>Profile</Dropdown.Item>
-              <Dropdown.Item>Log Out</Dropdown.Item>
-              <Dropdown.Item>Complaint Form</Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </Col>
-      </Row>
+       
 
+      </Row>
       {/* ⬇️ Reusable Component */}
       <TouristActivityStatusBoard ticket_ids={ticketIds} />
-
     </Container>
   );
 };

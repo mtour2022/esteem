@@ -130,47 +130,47 @@ export default function Home() {
     setRememberMe(!rememberMe);
   };
 
-const onSubmit = async (e) => {
-  e.preventDefault();
+  const onSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!isSigningIn) {
-    setIsSigningIn(true);
+    if (!isSigningIn) {
+      setIsSigningIn(true);
 
-    // ✅ Show loading modal
-    Swal.fire({
-      title: "Signing in...",
-      text: "Please wait while we verify your account.",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
-
-    try {
-      const userCredential = await doSignInWithEmailAndPassword(email, password);
-      const user = userCredential.user;
-      console.log("Logged in user ID:", user.uid);
-      setErrorMessage("");
-
-      // ✅ Close the loading modal
-      Swal.close();
-
-      // ✅ Navigate after login
-      navigate("/company-dashboard");
-    } catch (error) {
-      setErrorMessage(error.message);
-
-      // ❌ Show error modal
+      // ✅ Show loading modal
       Swal.fire({
-        title: "Login Failed",
-        text: error.message,
-        icon: "error"
+        title: "Signing in...",
+        text: "Please wait while we verify your account.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
       });
-    } finally {
-      setIsSigningIn(false);
+
+      try {
+        const userCredential = await doSignInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        console.log("Logged in user ID:", user.uid);
+        setErrorMessage("");
+
+        // ✅ Close the loading modal
+        Swal.close();
+
+        // ✅ Navigate after login
+        navigate("/company-dashboard");
+      } catch (error) {
+        setErrorMessage(error.message);
+
+        // ❌ Show error modal
+        Swal.fire({
+          title: "Login Failed",
+          text: error.message,
+          icon: "error"
+        });
+      } finally {
+        setIsSigningIn(false);
+      }
     }
-  }
-};
+  };
 
 
   return (
@@ -301,15 +301,22 @@ const onSubmit = async (e) => {
                 <p className="sub-title-blue">Register and Acquire your Tourism Endorsement and Recommendation
                   certifications by simply registering and complying to requirements online!</p>
 
-                <Container className="image-container">
-                  <Container className="image-box">
-                    <p className="barabara-subtitle-white">LOCAL</p>
-                  </Container>
-                  <Container className="image-box">
-                    <p className="barabara-subtitle-white">FOREIGN</p>
-                  </Container>
+              <Container className="image-container">
+  <Container className="image-box">
+    <Link to="/employee-registration" style={{ textDecoration: 'none' }}>
+      <p className="barabara-subtitle-white">LOCAL</p>
+    </Link>
+  </Container>
 
-                </Container>
+  <Container className="image-box">
+    <Link to="/employee-registration" style={{ textDecoration: 'none' }}>
+      <p className="barabara-subtitle-white">FOREIGN</p>
+    </Link>
+  </Container>
+</Container>
+
+
+
                 <Container className="empty-container"></Container>
                 {/* <p className="sub-title-center">In accordance with the established guidelines adhering to <b>Municipal Ordinance 341 series of 2015</b>, and <b>SB Resolution no. 010 series of 2024</b>.</p> */}
                 <Container className="button-container">

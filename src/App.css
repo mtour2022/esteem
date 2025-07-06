@@ -309,8 +309,11 @@ th {
 .custom-container {
   background: linear-gradient(180deg, rgba(4, 157, 217, 0.66) 0%, rgba(255, 255, 255, 0.00) 34.4%);
 }
+.blue-container {
+  background: rgba(4, 157, 217, 0.66) !important}
 
 .background-container {
+  min-height: 100vh;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 50%), 
               url('assets/images/background.png'); /* Image path */
   background-size: cover; /* Ensures the image covers the entire container */
@@ -394,6 +397,8 @@ th {
 }
 
 .custom-form {
+    min-height: 90vh;
+
   border-radius: 15px !important;
   background: #FFF !important;
   box-shadow: 0px 5px 10px 0px rgba(0, 0, 0, 0.15) !important;

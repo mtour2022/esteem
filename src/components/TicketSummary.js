@@ -18,9 +18,17 @@ const sumField = (array, field) =>
 
 const TicketSummary = ({ ticket }) => {
   const exportRef = useRef();
-   const companyInfo = useCompanyInfo(ticket?.company_id);
+
+  // Move all hooks to the top before any return
+  const companyInfo = useCompanyInfo(ticket?.company_id);
   const resolvedActivities = useResolvedActivities(ticket);
   const employeeInfo = useEmployeeInfo(ticket?.employee_id);
+  const createdByCompany = useCompanyInfo(ticket?.company_id);
+  const createdByEmployee = useEmployeeInfo(ticket?.employee_id);
+  const resolvedProviders = useResolvedProviders(ticket?.activities || []);
+
+  if (!ticket) return null; // Now safe ✅
+
   const {
     ticket_id,
     name,
@@ -32,17 +40,16 @@ const TicketSummary = ({ ticket }) => {
     end_date_time,
     total_duration,
     total_payment,
-    status, prefer_not_to_say,
+    status,
+    prefer_not_to_say,
     date_created,
     valid_until,
     total_expected_payment,
     activities = [],
     address = [],
+    userUID,
   } = ticket;
 
-const resolvedProviders = useResolvedProviders(activities);
-    
-    if (!ticket) return null; // ✅ placed AFTER the hooks
 
 
   const totalLocals = sumField(address, "locals");
@@ -146,7 +153,16 @@ const resolvedProviders = useResolvedProviders(activities);
         {/* Basic Details */}
         <Row className="row justify-content-center align-items-center">
           <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Date Created:</strong> {new Date(date_created).toLocaleString()}</p>
+<p className="m-1">
+  <strong>Created By:</strong>{" "}
+  {createdByCompany?.name ||
+    (createdByEmployee?.name?.first && createdByEmployee?.name?.last
+      ? `${createdByEmployee.name.first} ${createdByEmployee.name.last}`
+      : "Unknown")}
+  <br />
+  <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
+</p>
+
             <p className="m-1"><strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}</p>
           </Col>
           <Col md={6} sm={12} className="col">
