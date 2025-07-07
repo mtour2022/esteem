@@ -17,6 +17,34 @@ import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
 import useResolvedActivities from "../services/GetActivitiesDetails";
 import useResolvedProviders from "../services/GetProvidersDetails"
 
+  // useEffect(() => {
+  //   const fetchTickets = async () => {
+  //     if (!ticket_ids || ticket_ids.length === 0) {
+  //       setTickets([]);
+  //       return;
+  //     }
+
+  //     setIsLoading(true);
+  //     const chunks = [];
+  //     for (let i = 0; i < ticket_ids.length; i += 10) {
+  //       chunks.push(ticket_ids.slice(i, i + 10));
+  //     }
+
+  //     const allTickets = [];
+  //     for (const chunk of chunks) {
+  //       const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
+  //       const snapshot = await getDocs(q);
+  //       snapshot.forEach((doc) => {
+  //         allTickets.push({ id: doc.id, ...doc.data() });
+  //       });
+  //     }
+
+  //     setTickets(allTickets);
+  //     setIsLoading(false);
+  //   };
+
+  //   fetchTickets();
+  // }, [ticket_ids]);
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {

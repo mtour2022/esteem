@@ -49,11 +49,17 @@ const SaveGroupEmployee = ({
       const userUID = userCredential.user.uid;
 
       // Step 4: Update Firestore with ID, UID, and status
-      await updateDoc(groupDoc, {
-        [idName]: docRef.id,
-        userUID: userUID,
-        status: "under review"
-      });
+    // Step 4: Update Firestore with ID, UID, and status
+await updateDoc(groupDoc, {
+  [idName]: docRef.id,
+  userUID: userUID,
+  status: "under review",
+  status_history: arrayUnion({
+    date: new Date().toISOString(),
+    status: "under review",
+    changedBy: groupData.employeeId || "system"
+  })
+});
 
       // Step 5: Add employeeId to /company/{companyId}.employees array
       if (groupData.companyId) {

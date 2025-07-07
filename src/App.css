@@ -450,7 +450,10 @@ th {
   /* Light gray border on top */
 }
 
+.table-border{
+    border: 0.5px solid #ddd;
 
+}
 
 .dropzone-container{
   background-color: #f7fdff !important;

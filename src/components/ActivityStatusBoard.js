@@ -13,13 +13,13 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import useDeleteTicket from "../services/DeleteTicket"; // adjust path
-
 import {
   faMagnifyingGlass,
   faDownload,
   faPrint,
-  faFilter,faTrash,
-  faLayerGroup, faCalendarDays, faColumns
+  faFilter, faTrash,
+  faLayerGroup, faCalendarDays, faColumns,
+  faCopy
 } from "@fortawesome/free-solid-svg-icons";
 
 const useMouseDragScroll = (ref) => {
@@ -156,7 +156,7 @@ const getStatusBadgeVariant = (status) => {
 
 const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const allColumns = [
-        { key: "actions", label: "Actions" },
+    { key: "actions", label: "Actions" },
 
     { key: "status", label: "Status" },
     { key: "ticketId", label: "Ticket ID" },
@@ -224,6 +224,82 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [selectedYear, setSelectedYear] = useState("");   // Example: 2024
   const [selectedDateFilter, setSelectedDateFilter] = useState(""); // e.g. "today", "thisMonth", etc.
   const [triggerSearch, setTriggerSearch] = useState(false);
+  const [allFilteredTickets, setAllFilteredTickets] = useState([]);
+
+  useEffect(() => {
+    const today = new Date();
+    const formatDateLocal = (date) => date.toLocaleDateString("en-CA"); // YYYY-MM-DD
+
+    const formatted = formatDateLocal(today);
+    setStartDateInput(formatted);
+    setEndDateInput(formatted);
+
+    // Trigger after both dates are set
+    setTimeout(() => {
+      setTriggerSearch(true);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setTickets([]); // Clear old data
+
+
+      if (!ticket_ids || ticket_ids.length === 0) return;
+
+      Swal.fire({
+        title: "Fetching data...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        setIsLoading(true);
+
+        const chunks = [];
+        for (let i = 0; i < ticket_ids.length; i += 10) {
+          chunks.push(ticket_ids.slice(i, i + 10));
+        }
+
+        const allTickets = [];
+        for (const chunk of chunks) {
+          const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
+          const snapshot = await getDocs(q);
+          snapshot.forEach((doc) => {
+            allTickets.push({ id: doc.id, ...doc.data() });
+          });
+        }
+
+        const start = new Date(startDateInput);
+        const end = new Date(endDateInput);
+        end.setHours(23, 59, 59, 999);
+
+        const filtered = allTickets.filter((t) => {
+          const tStart = new Date(t.start_date_time);
+          return tStart >= start && tStart <= end;
+        });
+
+        setTickets(filtered);
+        setAllFilteredTickets(filtered); // <-- Store all matching tickets for summary use
+
+      } catch (err) {
+        console.error("Error fetching tickets:", err);
+        Swal.fire("Error", "Something went wrong while fetching tickets.", "error");
+      } finally {
+        setIsLoading(false);
+        Swal.close(); // Always close modal
+      }
+    };
+
+    if (triggerSearch) {
+      fetchTickets();
+      setTriggerSearch(false);
+    }
+  }, [triggerSearch, ticket_ids, startDateInput, endDateInput]);
+
+
 
   useEffect(() => {
     if (triggerSearch) {
@@ -232,56 +308,28 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }
   }, [startDateInput, endDateInput, selectedMonth, selectedYear, triggerSearch]);
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      if (!ticket_ids || ticket_ids.length === 0) {
-        setTickets([]);
-        return;
-      }
-
-      setIsLoading(true);
-      const chunks = [];
-      for (let i = 0; i < ticket_ids.length; i += 10) {
-        chunks.push(ticket_ids.slice(i, i + 10));
-      }
-
-      const allTickets = [];
-      for (const chunk of chunks) {
-        const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
-        const snapshot = await getDocs(q);
-        snapshot.forEach((doc) => {
-          allTickets.push({ id: doc.id, ...doc.data() });
-        });
-      }
-
-      setTickets(allTickets);
-      setIsLoading(false);
-    };
-
-    fetchTickets();
-  }, [ticket_ids]);
 
   const { deleteTicket } = useDeleteTicket();
 
-const handleDeleteTicket = async (ticketId) => {
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "This will permanently delete the ticket.",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Yes, delete it!",
-  });
+  const handleDeleteTicket = async (ticketId) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will permanently delete the ticket.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+    });
 
-  if (result.isConfirmed) {
-    const res = await deleteTicket(ticketId);
-    if (res.success) {
-      Swal.fire("Deleted!", "Ticket has been deleted.", "success");
-      // Optionally trigger a refetch or remove from state
-    } else {
-      Swal.fire("Error", res.error?.message || "Delete failed", "error");
+    if (result.isConfirmed) {
+      const res = await deleteTicket(ticketId);
+      if (res.success) {
+        Swal.fire("Deleted!", "Ticket has been deleted.", "success");
+        // Optionally trigger a refetch or remove from state
+      } else {
+        Swal.fire("Error", res.error?.message || "Delete failed", "error");
+      }
     }
-  }
-};
+  };
 
   const ticketsToRender = isDownloading ? dataToRender : currentTickets;
 
@@ -322,6 +370,7 @@ const handleDeleteTicket = async (ticketId) => {
     const day = (`0${date.getDate()}`).slice(-2);
     return `${year}-${month}-${day}`;
   };
+
   const applyQuickFilter = (type) => {
     setSelectedMonth("");
     setSelectedYear("");
@@ -389,21 +438,23 @@ const handleDeleteTicket = async (ticketId) => {
   };
 
 
-
-
   const handleSearch = () => {
     setIsLoading(true);
+    setTriggerSearch(false);
 
     setTimeout(() => {
-      let result = [...tickets]; // <-- THIS LINE is essential
+      let result = [...tickets]; // Safe copy
 
-      // Apply filters (searchTextInput, searchType, etc.)
+      // 🔍 Search Filter
       if (searchTextInput.trim()) {
         const lower = searchTextInput.toLowerCase();
 
         result = result.filter((t) => {
           if (searchType === "name") {
-            return t.name?.toLowerCase().includes(lower) || t.contact?.toLowerCase().includes(lower);
+            return (
+              t.name?.toLowerCase().includes(lower) ||
+              t.contact?.toLowerCase().includes(lower)
+            );
           }
 
           if (searchType === "employeeName") {
@@ -416,6 +467,7 @@ const handleDeleteTicket = async (ticketId) => {
         });
       }
 
+      // 📅 Date Range Filter
       if (startDateInput && endDateInput) {
         const start = new Date(startDateInput);
         const end = new Date(endDateInput);
@@ -427,12 +479,13 @@ const handleDeleteTicket = async (ticketId) => {
         });
       }
 
-      // Filter by selected month
+      // 🗓️ Month Filter
       if (selectedMonth) {
         const [year, month] = selectedMonth.split("-").map(Number);
         const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0);
+        const lastDay = new Date(year, month, 0); // This now correctly gives the last day of the selected month
         lastDay.setHours(23, 59, 59, 999);
+
 
         result = result.filter((t) => {
           const tStart = new Date(t.start_date_time);
@@ -440,7 +493,7 @@ const handleDeleteTicket = async (ticketId) => {
         });
       }
 
-      // Filter by selected year
+      // 📆 Year Filter
       if (selectedYear) {
         result = result.filter((t) => {
           const tStart = new Date(t.start_date_time);
@@ -448,14 +501,14 @@ const handleDeleteTicket = async (ticketId) => {
         });
       }
 
-      // ...continue with your other filters like date, sorting, etc.
-
+      // ✅ Finalize
       setFilteredTickets(result);
       setSearchText(searchTextInput);
       setCurrentPage(1);
       setIsLoading(false);
-    }, 0);
+    }, 0); // No need for second timeout
   };
+
 
   const handleDownloadTable = async () => {
     try {
@@ -513,11 +566,34 @@ const handleDeleteTicket = async (ticketId) => {
   }
   function getEmployeeName(t) {
     const emp = employeeMap[t.employee_id];
-    return emp ? `${emp.name?.first} ${emp.name?.last}` : "-";
+    return emp ? `${emp.firstname} ${emp.surname}` : "-";
   }
   function getEmployeeContact(t) {
     return employeeMap[t.employee_id]?.contact || "-";
   }
+
+  function getActivitiesText(t) {
+    if (!Array.isArray(t.activities)) return '';
+
+    return t.activities.map((a) => {
+      if (!Array.isArray(a.activities_availed)) return '';
+
+      return a.activities_availed.map((id) => {
+        const activity = getActivityDetails(id);
+        const providerNames = Array.isArray(a.activity_selected_providers)
+          ? a.activity_selected_providers
+            .map((pid) => getProviderName(pid))
+            .filter(Boolean)
+            .join(", ")
+          : "N/A";
+
+        if (!activity) return 'Loading activity...';
+
+        return `${activity.activity_name} – ${a.activity_num_pax || 0} pax / ${a.activity_num_unit || 0} unit(s) – ${activity.activity_duration} – BP ₱${Number(activity.activity_base_price).toLocaleString()} | SRP ₱${Number(activity.activity_price).toLocaleString()} – provider(s): ${providerNames}`;
+      }).join("\n");
+    }).join("\n\n");
+  }
+
   function renderActivities(t) {
     return (
       <div style={{ minWidth: "400px", whiteSpace: "normal", wordBreak: "break-word" }}>
@@ -576,11 +652,32 @@ const handleDeleteTicket = async (ticketId) => {
       </div>
     );
   }
+  function renderAddressText(t) {
+    if (!Array.isArray(t.address) || t.address.length === 0) {
+      return "No address data";
+    }
+
+    return t.address
+      .map((addr) => {
+        const locals = parseInt(addr.locals || "0", 10);
+        const foreigns = parseInt(addr.foreigns || "0", 10);
+
+        if (foreigns > 0 && locals === 0) {
+          return `Foreign: ${addr.country || "-"}`;
+        } else if (locals > 0 && foreigns === 0) {
+          return `Local: ${[addr.country, addr.town].filter(Boolean).join(", ")}`;
+        } else {
+          return null; // skip mixed or zero
+        }
+      })
+      .filter(Boolean)
+      .join(" | ");
+  }
 
 
 
   const exportToExcel = () => {
-    const exportData = (filteredTickets.length > 0 ? filteredTickets : tickets).map(t => {
+    const exportData = allFilteredTickets.map(t => {
       const status = computeStatus(t);
       const locals = t.address?.reduce((sum, addr) => sum + (Number(addr.locals) || 0), 0) || 0;
       const foreigns = t.address?.reduce((sum, addr) => sum + (Number(addr.foreigns) || 0), 0) || 0;
@@ -592,7 +689,7 @@ const handleDeleteTicket = async (ticketId) => {
       const adults = t.address?.reduce((sum, addr) => sum + (Number(addr.adults) || 0), 0) || 0;
       const seniors = t.address?.reduce((sum, addr) => sum + (Number(addr.seniors) || 0), 0) || 0;
       const employee = employeeMap[t.employee_id];
-      const employeeName = employee ? `${employee.name?.first || ""} ${employee.name?.last || ""}` : "-";
+      const employeeName = employee ? `${employee.firstname || ""} ${employee.surname || ""}` : "-";
       const employeeContact = employee?.contact || "-";
       const scannedBy = t.scan_logs?.find((log) => log.status === "scanned")?.updated_by || "";
 
@@ -670,7 +767,7 @@ const handleDeleteTicket = async (ticketId) => {
 
   const exportToPDF = () => {
     const doc = new jsPDF("landscape");
-    const exportData = (filteredTickets.length > 0 ? filteredTickets : tickets).map(t => {
+    const exportData = allFilteredTickets.map(t => {
       const status = computeStatus(t);
       const locals = t.address?.reduce((sum, addr) => sum + (Number(addr.locals) || 0), 0) || 0;
       const foreigns = t.address?.reduce((sum, addr) => sum + (Number(addr.foreigns) || 0), 0) || 0;
@@ -682,7 +779,7 @@ const handleDeleteTicket = async (ticketId) => {
       const adults = t.address?.reduce((sum, addr) => sum + (Number(addr.adults) || 0), 0) || 0;
       const seniors = t.address?.reduce((sum, addr) => sum + (Number(addr.seniors) || 0), 0) || 0;
       const employee = employeeMap[t.employee_id];
-      const employeeName = employee ? `${employee.name?.first || ""} ${employee.name?.last || ""}` : "-";
+      const employeeName = employee ? `${employee.firstname || ""} ${employee.surname || ""}` : "-";
       const employeeContact = employee?.contact || "-";
       const scannedBy = t.scan_logs?.find((log) => log.status === "scanned")?.updated_by || "";
 
@@ -756,7 +853,7 @@ const handleDeleteTicket = async (ticketId) => {
       body: exportData,
       styles: { fontSize: 7, cellPadding: 1 },
       columnStyles: {
-        4: { cellWidth: 25, overflow: 'linebreak' },
+        5: { cellWidth: 20, overflow: 'linebreak' },
         19: { cellWidth: 50, overflow: 'linebreak' }
       },
       startY: 10,
@@ -764,7 +861,50 @@ const handleDeleteTicket = async (ticketId) => {
 
     doc.save("tourist-activity-status-board.pdf");
   };
+  const summary = allFilteredTickets.reduce(
+    (acc, t) => {
+      acc.totalTickets += 1;
+      acc.totalPax += t.total_pax || 0;
+      acc.foreigns += total(t.address, 'foreigns');
+      acc.locals += total(t.address, 'locals');
 
+      acc.males += total(t.address, 'males');
+      acc.females += total(t.address, 'females');
+      acc.preferNotToSay += total(t.address, 'prefer_not_to_say');
+
+      acc.kids += total(t.address, 'kids');
+      acc.teens += total(t.address, 'teens');
+      acc.adults += total(t.address, 'adults');
+      acc.seniors += total(t.address, 'seniors');
+
+      acc.expectedPayment += t.total_expected_payment || 0;
+      acc.totalPayment += t.total_payment || 0;
+      acc.totalExpectedSale += t.total_expected_sale || 0;
+      acc.totalMarkup += t.total_markup || 0;
+
+      return acc;
+    },
+    {
+      totalTickets: 0,
+      totalPax: 0,
+      foreigns: 0,
+      locals: 0,
+      males: 0,
+      females: 0,
+      preferNotToSay: 0,
+      kids: 0,
+      teens: 0,
+      adults: 0,
+      seniors: 0,
+      expectedPayment: 0,
+      totalPayment: 0,
+      totalExpectedSale: 0,
+      totalMarkup: 0,
+    }
+  );
+
+  const averageMarkup = summary.totalTickets > 0 ? summary.totalMarkup / summary.totalTickets : 0;
+  const averageSalePerTicket = summary.totalTickets > 0 ? summary.totalExpectedSale / summary.totalTickets : 0;
 
 
   return (
@@ -853,88 +993,74 @@ const handleDeleteTicket = async (ticketId) => {
                 </div>
 
 
+
+
+                {/* Select Month Filter */}
+                <Form.Group className="mb-3">
+                  <Form.Label className="small text-muted">Select Month</Form.Label>
+                  <Form.Control
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(e.target.value);
+
+                      if (e.target.value) {
+                        const [year, month] = e.target.value.split("-");
+                        const start = new Date(year, month - 1, 1);
+                        const end = new Date(year, month, 0); // this gives the last day of the correct month
+                        end.setHours(23, 59, 59, 999);
+
+                        const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
+                        setStartDateInput(formatDateLocal(start));
+                        setEndDateInput(formatDateLocal(end));
+
+                        setSelectedDateFilter("");
+                        setSelectedYear("");
+                      }
+                    }}
+                  />
+                </Form.Group>
+
+                {/* Select Year Filter */}
+                <Form.Group className="mb-3">
+                  <Form.Label className="small text-muted">Select Year</Form.Label>
+                  <Form.Control
+                    type="number"
+                    placeholder="e.g. 2025"
+                    value={selectedYear}
+                    min="2000"
+                    max="2100"
+                    onChange={(e) => {
+                      const input = e.target.value;
+                      setSelectedYear(input);
+
+                      if (input.length === 4 && !isNaN(input)) {
+                        const start = new Date(input, 0, 1);
+                        const end = new Date(input, 11, 31, 23, 59, 59, 999);
+
+                        const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
+                        setStartDateInput(formatDateLocal(start));
+                        setEndDateInput(formatDateLocal(end));
+
+                        setSelectedDateFilter("");
+                        setSelectedMonth("");
+                      }
+                    }}
+                  />
+                </Form.Group>
+
                 <Button
                   variant="primary"
                   size="sm"
                   className="w-100 mt-2 mb-4"
                   onClick={() => {
                     setShowDateSearchDropdown(false);
-                    handleSearch(); // ⬅️ This re-renders the filtered table
+                    setTriggerSearch(true); // ✅ TRIGGERS the fetching based on inputs
                   }}
                 >
                   Apply Date Filter
                 </Button>
 
-                {/* Select Month Filter */}
-                <Form.Group className="mb-3">
-                  <Form.Label className="small text-muted">Select Month</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="month"
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                    />
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => {
-                        if (selectedMonth) {
-                          const [year, month] = selectedMonth.split("-");
-                          const start = new Date(year, month - 1, 1);
-                          const end = new Date(year, month, 0, 23, 59, 59, 999);
-
-                          setStartDateInput(start.toISOString().slice(0, 10));
-                          setEndDateInput(end.toISOString().slice(0, 10));
-                          setSelectedDateFilter("");
-                          setSelectedYear("");
-                          setShowSearchDropdown(false);
-
-                          // ✅ trigger the search after state settles
-                          setTriggerSearch(true);
-                        }
-                      }}
-
-                    >
-                      Apply
-                    </Button>
-
-                  </InputGroup>
-                </Form.Group>
-
-                {/* Select Year Filter */}
-                <Form.Group className="mb-3">
-                  <Form.Label className="small text-muted">Select Year</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="number"
-                      placeholder="e.g. 2025"
-                      value={selectedYear}
-                      min="2000"
-                      max="2100"
-                      onChange={(e) => setSelectedYear(e.target.value)}
-                    />
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => {
-                        if (selectedYear) {
-                          const start = new Date(selectedYear, 0, 1);
-                          const end = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
-
-                          setStartDateInput(start.toISOString().slice(0, 10));
-                          setEndDateInput(end.toISOString().slice(0, 10));
-                          setSelectedDateFilter("");
-                          setSelectedMonth("");
-                          setShowSearchDropdown(false);
-                          setTriggerSearch(true); // ✅
-                        }
-                      }}
-
-                    >
-                      Apply
-                    </Button>
-                  </InputGroup>
-                </Form.Group>
               </Dropdown.Menu>
             </Dropdown>
 
@@ -1012,8 +1138,25 @@ const handleDeleteTicket = async (ticketId) => {
             <p className="mt-2 text-muted">Loading results...</p>
           </div>
         ) : (
-          <div ref={scrollRef} className="custom-scroll-wrapper">
-            <div ref={tableRef}>
+          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+            <div ref={tableRef} className="mt-2">
+              {startDateInput && endDateInput && (
+                <div className="mb-3 text-muted">
+                  Showing data from{" "}
+                  <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}</strong>{" "}
+                  to{" "}
+                  <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}</strong>
+                </div>
+              )}
+
               <Table bordered hover style={{ minWidth: "1400px" }}>
                 <thead>
                   <tr>
@@ -1033,19 +1176,69 @@ const handleDeleteTicket = async (ticketId) => {
                     </tr>
                   ) : (
                     ticketsToRender.map(t => {
+
+                      const getRowText = (t) => {
+                        return [
+                          `ticketId: ${t.id}`,
+                          `name: ${t.name}`,
+                          `contact: ${t.contact}`,
+                          `address: ${renderAddressText(t)}`,
+                          `startTime: ${new Date(t.start_date_time).toLocaleString()}`,
+                          `endTime: ${new Date(t.end_date_time).toLocaleString()}`,
+                          `totalPax: ${t.total_pax}`,
+                          `locals: ${total(t.address, 'locals')}`,
+                          `foreigns: ${total(t.address, 'foreigns')}`,
+                          `males: ${total(t.address, 'males')}`,
+                          `females: ${total(t.address, 'females')}`,
+                          `preferNotToSay: ${total(t.address, 'prefer_not_to_say')}`,
+                          `kids: ${total(t.address, 'kids')}`,
+                          `teens: ${total(t.address, 'teens')}`,
+                          `adults: ${total(t.address, 'adults')}`,
+                          `seniors: ${total(t.address, 'seniors')}`,
+                          `assignedTo: ${getEmployeeName(t)}`,
+                          `assigneeContact: ${getEmployeeContact(t)}`,
+                          `activityAvailed: ${getActivitiesText(t)}`,
+                          `totalDuration: ${t.total_duration || 0}`,
+                          `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                          `totalPayment: ₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                          `markup: ${t.total_markup.toFixed(2)}%`,
+                          `expectedSale: ₱${t.total_expected_sale?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                          `scannedBy: ${t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-'}`,
+                        ].join("\n");
+                      };
+
                       const rowData = {
                         actions: (
-      <Button
-        variant="outline-danger"
-        size="sm"
-        onClick={() => handleDeleteTicket(t.id)}
-      >
-                        <FontAwesomeIcon icon={faTrash} />
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteTicket(t.id)}
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </Button>
 
-      </Button>
-    ),
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => {
+                                const text = getRowText(t);
+                                navigator.clipboard.writeText(text).then(() => {
+                                  Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                                }).catch(() => {
+                                  Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                                });
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faCopy} />
+                            </Button>
+                          </div>
+                        ),
+
+
+
                         status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
-                        
+
                         ticketId: t.id,
                         name: t.name,
                         contact: t.contact,
@@ -1077,6 +1270,8 @@ const handleDeleteTicket = async (ticketId) => {
                         scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
                       };
 
+
+
                       return (
                         <tr key={t.id}>
                           {allColumns.map(col =>
@@ -1090,6 +1285,53 @@ const handleDeleteTicket = async (ticketId) => {
                   )}
                 </tbody>
               </Table>
+              <div className="mt-3">
+                <h6>Summary</h6>
+                <p className="text-muted">
+                  <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
+                  <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric", month: "long", day: "numeric"
+                  })}</strong>{" "}
+                  to{" "}
+                  <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric", month: "long", day: "numeric"
+                  })}</strong>
+                </p>
+                <Row>
+                  <Col md={3}>
+                    <ul>
+                      <li><strong>Total Pax:</strong> {summary.totalPax}</li>
+                      <li><strong>Foreigns:</strong> {summary.foreigns}</li>
+                      <li><strong>Locals:</strong> {summary.locals}</li>
+                    </ul>
+                  </Col>
+                  <Col md={3}>
+                    <ul>
+                      <li><strong>Males:</strong> {summary.males}</li>
+                      <li><strong>Females:</strong> {summary.females}</li>
+                      <li><strong>Prefer not to say:</strong> {summary.preferNotToSay}</li>
+                    </ul>
+                  </Col>
+                  <Col md={3}>
+                    <ul>
+                      <li><strong>Kids:</strong> {summary.kids}</li>
+                      <li><strong>Teens:</strong> {summary.teens}</li>
+                      <li><strong>Adults:</strong> {summary.adults}</li>
+                      <li><strong>Seniors:</strong> {summary.seniors}</li>
+                    </ul>
+                  </Col>
+                  <Col md={3}>
+                    <ul>
+                      <li><strong>Expected Payment:</strong> ₱{summary.expectedPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
+                      <li><strong>Actual Payment:</strong> ₱{summary.totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
+                      <li><strong>Expected Sale:</strong> ₱{summary.totalExpectedSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
+                      <li><strong>Avg. Markup:</strong> {averageMarkup.toFixed(2)}%</li>
+                      <li><strong>Avg. Sale per Ticket:</strong> ₱{averageSalePerTicket.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
+                    </ul>
+                  </Col>
+                </Row>
+              </div>
+
             </div>
           </div>
         )}

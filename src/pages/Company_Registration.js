@@ -182,16 +182,14 @@ export default function CompanyRegistrationPage() {
     };
 
     // Permit Scanner
+    const [permit, setPermit] = useState(null);
+    const [permitURL, setPermitURL] = useState(""); // Stores the uploaded file's URL
+
 
     const handlePermitChange = (e) => {
         const file = e.target.files[0];
         setPermit(file);
     };
-
-        const [permit, setPermit] = useState(null);
-    const [permitURL, setPermitURL] = useState(""); // Stores the uploaded file's URL
-
-
 
     // Dropzone Logic
     const onPermitDrop = useCallback((acceptedFiles) => {

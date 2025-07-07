@@ -72,6 +72,7 @@ export default function CompanyDashboardPage() {
         }
 
         const results = await Promise.all(batches);
+
         return results.flatMap(snapshot =>
             snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         );
@@ -93,6 +94,8 @@ export default function CompanyDashboardPage() {
                     if (companyInstance.employee && Array.isArray(companyInstance.employee)) {
                         const employeeData = await fetchEmployeesByIds(companyInstance.employee);
                         setEmployees(employeeData);
+                        console.log("EMPLOYEES in fetchticket", employeeData);
+
                     }
 
                 } else {
@@ -244,8 +247,8 @@ export default function CompanyDashboardPage() {
                                                 </Form.Label>
                                                 <Select
                                                     options={employees.map(emp => ({
-                                                        value: emp.employee_id,
-                                                        label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                        value: emp.employeeId,
+                                                        label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
                                                         contact: emp.contact,
                                                         raw: emp
                                                     }))}
@@ -260,8 +263,8 @@ export default function CompanyDashboardPage() {
                                                     value={
                                                         employees
                                                             .map(emp => ({
-                                                                value: emp.employee_id,
-                                                                label: `${emp.name.first} ${emp.name.last} — ${emp.designation || "No title"}`,
+                                                                value: emp.employeeId,
+                                                                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
                                                                 contact: emp.contact,
                                                                 raw: emp
                                                             }))

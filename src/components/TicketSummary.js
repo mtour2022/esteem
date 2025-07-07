@@ -156,8 +156,8 @@ const TicketSummary = ({ ticket }) => {
 <p className="m-1">
   <strong>Created By:</strong>{" "}
   {createdByCompany?.name ||
-    (createdByEmployee?.name?.first && createdByEmployee?.name?.last
-      ? `${createdByEmployee.name.first} ${createdByEmployee.name.last}`
+    (createdByEmployee?.firstname && createdByEmployee?.surname
+      ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
       : "Unknown")}
   <br />
   <small className="text-muted">{new Date(date_created).toLocaleString()}</small>

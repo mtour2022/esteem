@@ -612,7 +612,7 @@ export default function EmployeeRegistrationForm() {
                                         />
 
                                         <FileUploader
-                                            label="Diploma or Transcript of Records"
+                                            label="Diploma, Transcript of Records or Certificate of Completion"
                                             fileKey="diploma"
                                             storagePath="employee/diplomas"
                                             formData={formData}
@@ -628,8 +628,8 @@ export default function EmployeeRegistrationForm() {
                                         />
 
 
-<Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Company Email Address</Form.Label>
+                                        <Form.Group className="my-2">
+                                            <Form.Label className="fw-bold mt-2">Email Address</Form.Label>
                                             <Form.Control
 
                                                 type="text"
