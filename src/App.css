@@ -56,6 +56,10 @@ body {
   .body-container {
     padding: 10px 15px !important; /* for md, sm, xs */
   }
+
+  .white-button {
+  width: 80% !important;
+}
 }
 
 /* Page Elements */
@@ -233,7 +237,7 @@ th {
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
   margin-top: 15px;
-  width: 70%;
+  width: 63%;
 }
 
 .white-button:hover {
@@ -338,12 +342,15 @@ th {
   width: 70px !important; /* Adjust size as needed */
   height: 70px !important;
 }
-
 .image-container {
   display: flex;
-  gap: 30px; /* Space between the boxes */
+  justify-content: center; /* Horizontally center */
+  align-items: center;     /* Vertically center if there's height */
+  gap: 30px;
   padding: 0px 10px !important;
+  flex-wrap: wrap; /* Optional: make responsive on small screens */
 }
+
 
 .image-box {
   width: 200px;
@@ -364,13 +371,22 @@ th {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.00) 66.9%, #000 100%);
 }
 
+.image-box.local {
+  background-image: url('assets/images/local.png');
+}
+
+.image-box.foreign {
+  background-image: url('assets/images/foreign.jpg');
+}
+
+/* 
 .image-box:nth-child(1) {
-  background-image: url('assets/images/local.png'); /* Change to your local image */
+  background-image: url('assets/images/local.png'); 
 }
 
 .image-box:nth-child(2) {
-  background-image: url('assets/images/foreign.jpg'); /* Change to your foreign image */
-}
+  background-image: url('assets/images/foreign.jpg'); 
+} */
 
 .barabara-subtitle-white{
   position: absolute;
@@ -406,31 +422,35 @@ th {
   max-width: 100%; /* Adjust width as needed */
 }
 
-/* Center the footer buttons */
 .footer-links {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-direction: column; /* Stack buttons vertically */
+  flex-direction: column; 
   text-align: center;
 
 }
 
-/* Style the buttons: small, gray, no underline */
 .footer-button {
-  font-size: 12px !important; /* Make text smaller */
+  font-size: 12px !important; 
   color: gray !important;
-  text-decoration: none !important; /* Remove underline */
+  text-decoration: none !important; 
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 2px
 }
 
-/* Optional: Change color slightly on hover */
 .footer-button:hover {
   color: darkgray !important;
 }
+
+.footer-component .border-gray {
+  border-top: 1px solid #ddd;
+  /* Light gray border on top */
+}
+
+
 
 .dropzone-container{
   background-color: #f7fdff !important;

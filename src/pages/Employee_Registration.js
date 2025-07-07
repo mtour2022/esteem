@@ -1,58 +1,38 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     Form,
     Button,
-    Dropdown,
     InputGroup,
     Row,
     Col,
     Alert,
     Container,
-    Image,
-    Modal
+
 } from 'react-bootstrap';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
-import { Navigate } from 'react-router-dom';
-import { db, storage } from '../config/firebase';
-import {
-    ref,
-    uploadBytes,
-    getDownloadURL,
-    deleteObject
-} from 'firebase/storage';
+import { db } from '../config/firebase';
 import {
     collection,
-    addDoc,
-    doc,
-    updateDoc,
-    getDoc,
     where,
     query,
     getDocs
 } from 'firebase/firestore';
-import Swal from 'sweetalert2';
-import Company from '../classes/company';
 import AppNavBar from '../components/AppNavBar';
-import Webcam from 'react-webcam';
-import { useDropzone } from 'react-dropzone';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faUpload,
-    faCancel,
-    faCamera,
-    faFileWord,
-    faFilePdf
-} from '@fortawesome/free-solid-svg-icons';
 import AddressRegistrationForm from '../components/AddressRegistration';
-import SaveGroupToCloud from '../components/SaveGroup';
+import SaveGroupEmployee from '../components/SaveGroupEmployee';
 import FooterCustomized from '../components/Footer';
-import FileUploader from '../components/UploadFile';
+// import FileUploader from '../components/UploadFile';
 import useCompanyInfo from '../services/GetCompanyDetails';
 import Employee from '../classes/employee';
 import BirthPlaceForm from '../components/BirthPlaceRegistration copy';
+import Select from "react-select";
+import { useParams } from "react-router-dom";
+import FileUploader from '../components/UploadImageFile';
 
 
 export default function EmployeeRegistrationForm() {
+    const { residency } = useParams();
+
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState({
         classification: '',
@@ -78,7 +58,7 @@ export default function EmployeeRegistrationForm() {
         emergencyContactNumber: '',
         profilePhoto: null,
         trainingCert: null,
-                diploma: null,
+        diploma: null,
 
         additionalRequirement: null,
         password: '',
@@ -95,6 +75,14 @@ export default function EmployeeRegistrationForm() {
 
     const companyInfo = useCompanyInfo(formData.companyId);
 
+    useEffect(() => {
+        if (residency === "local" || residency === "foreign") {
+            setFormData((prev) => ({
+                ...prev,
+                nationality: residency
+            }));
+        }
+    }, [residency]);
     useEffect(() => {
         if (formData.classification) {
             const fetchCompanies = async () => {
@@ -143,62 +131,152 @@ export default function EmployeeRegistrationForm() {
         });
     };
 
+    const companyOptions = companies.map((company) => ({
+        label: company.name,
+        value: company.id
+    }));
+    const designationOptions = {
+        "travel agency": [
+            "Foreign Tour Guide",
+            "Local Tour Coordinator",
+            "Tourist Port Assistance",
+            "Travel Agency Owner",
+            "Hotel Coordinator",
+            "Field Staff",
+            "Office Staff",
+            "Others (Specify)"
+        ],
+        "peoples organization": [
+            "Local Tour Guide",
+            "Stand Up Paddle Board Owner",
+            "Crystal Kayak Owner",
+            "Dive Instructor",
+            "Dive Master",
+            "Instructor (Stand Up Paddle Board)",
+            "Instructor (Crystal Kayak)",
+            "Party Boat Owner",
+            "E-trike Driver",
+            "E-trike Driver (Reliever)",
+            "E-trike Owner",
+            "E-bike Rental Owner",
+            "Tourist Port Assistance",
+            "Photographer",
+            "Hairbraider",
+            "Souvenir Vendor",
+            "Food Vendor",
+            "Peddler",
+            "Massuer",
+            "Manicurist",
+            "Motorbike Rental Owner",
+            "Motorbike Owner (Transit)",
+            "Motorbike Driver",
+            "Porter",
+            "Tricycle Driver",
+            "Tricycle Owner",
+            "Island Hopping Boat Owner",
+            "Island Hopping Boat Captian",
+            "Island Hopping Boatman",
+            "Party Boat Owner",
+            "Party Boat Captain",
+            "Party Boatman",
+            "Yacht Owner",
+            "Yacht Boat Captain",
+            "Yacht Boatman",
+            "Yacht Steward",
+            "Paraw Owner",
+            "Paraw Boatman",
+            "Sand Castle Maker",
+            "Picnican Staff",
+            "Travel Agency Owner",
+            "Muslim Trader",
+            "Muslim Vendor",
+            "Field Staff",
+            "Office Staff",
+            "Others (Specify)"
+        ],
+        "watersports provider": [
+            "Watersports Provider Owner (Service Provider)",
+            "Field Staff",
+            "Office Staff",
+            "Others (Specify)"
+        ]
+    };
+
+
+    const [selectedDesignationOption, setSelectedDesignationOption] = useState(null);
+
+    const handleDesignationSelect = (option) => {
+        setSelectedDesignationOption(option);
+        if (option?.value === "Others (Specify)") {
+            setFormData((prev) => ({ ...prev, designation: "" }));
+        } else {
+            setFormData((prev) => ({ ...prev, designation: option?.value || "" }));
+        }
+    };
+
+    const designationList =
+        designationOptions[formData.classification]?.map((item) => ({
+            label: item,
+            value: item
+        })) || [];
+
+
+
     return (
         <>
             <Row className="justify-content-center">
                 <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
 
                 <Col md={6} className="p-0">
-      <Container className="container" id="toppage">
-        <Container className="body-container">
-          <p className="barabara-label">TOURISM PROFILE ACCOUNT CREATION</p>
-          <p className="sub-title-blue">
-            Prepare your <b>requirements</b> and <b>register</b> now to enjoy the perks of having an electronic system for tracking, evaluating, and expert monitoring of tour activities in Boracay Island, Malay, Aklan!
-          </p>
+                    <Container className="container" id="toppage">
+                        <Container className="body-container">
+                            <p className="barabara-label">TOURISM PROFILE ACCOUNT CREATION</p>
+                            <p className="sub-title-blue">
+                                Prepare your <b>requirements</b> and <b>register</b> now to enjoy the perks of having an electronic system for tracking, evaluating, and expert monitoring of tour activities in Boracay Island, Malay, Aklan!
+                            </p>
 
-          <h6>📄 Documents to Upload:</h6>
-          <ul>
-            <li>Business Permit or LGU Accreditation from the SB Office</li>
-            <li>Company Official Logo</li>
-            <li>Training Certificate (for employee)</li>
-            <li>Diploma (for employee)</li>
-            <li>Profile Photo (for employee)</li>
-          </ul>
+                            <h6>📄 Documents to Upload:</h6>
+                            <ul>
+                                <li>Training Certificate from DOT/LGU</li>
+                                <li>Notarized COE/Signed Endorsement</li>
+                                <li>Diploma (for new applicant)</li>
+                                <li>Profile Photo (for employee)</li>
+                            </ul>
 
-          <h6>📝 Required Information:</h6>
-          <ul>
-           
-            <li>Employee Classification & Designation</li>
-            <li>Full Name (First, Middle, Last, Suffix)</li>
-            <li>Nationality (Local or Foreign)</li>
-            <li>Birth Place and Birthday</li>
-            <li>Present Address</li>
-            <li>Sex, Age, Marital Status, Height, Weight</li>
-            <li>Educational Attainment</li>
-            <li>Emergency Contact Name and Number</li>
-          </ul>
+                            <h6>📝 Required Information:</h6>
+                            <ul>
 
-          <div className="mb-3 p-3 border-start border-4 border-warning bg-light rounded">
-            <strong className="text-danger">Important Reminder:</strong><br />
-            Only tourism enterprises within the <strong>Municipality of Malay</strong> are allowed to register.
-            Businesses from outside the municipality must have a local office within Malay or a partnership with a local enterprise in order to operate.
-            <br /><br />
-            After submitting your registration, please wait up to <strong>24 hours</strong> for verification.
-            Registrations submitted during <strong>weekends</strong> may experience delays in validation.
-            <br /><br />
-            Once your registration is validated, you will receive an email at your <strong>company email address</strong> with next steps.
-          </div>
-        </Container>
-      </Container>
-    </Col>
+                                <li>Employee Classification & Designation</li>
+                                <li>Full Name (First, Middle, Last, Suffix)</li>
+                                <li>Nationality (Local or Foreign)</li>
+                                <li>Birth Place and Birthday</li>
+                                <li>Present Address</li>
+                                <li>Sex, Age, Marital Status, Height, Weight</li>
+                                <li>Educational Attainment</li>
+                                <li>Emergency Contact Name and Number</li>
+                            </ul>
+
+                            <div className="mb-3 p-3 border-start border-4 border-warning bg-light rounded">
+                                <strong className="text-danger">Important Reminder:</strong><br />
+                                Only tourism enterprises within the <strong>Municipality of Malay</strong> are allowed to register.
+                                Businesses from outside the municipality must have a local office within Malay or a partnership with a local enterprise in order to operate.
+                                <br /><br />
+                                After submitting your registration, please wait up to <strong>24 hours</strong> for verification.
+                                Registrations submitted during <strong>weekends</strong> may experience delays in validation.
+                                <br /><br />
+                                Once your registration is validated, you will receive an email at your <strong>company email address</strong> with next steps.
+                            </div>
+                        </Container>
+                    </Container>
+                </Col>
                 <Col md={6} className="p-0">
                     <Container className="container background-container">
                         <Container className='body-container'>
                             <Form className="custom-form ">
                                 <p className='barabara-label'>TOURISM FRONTLINERS PROFILE FORM</p>
-<p className="sub-title-blue mb-5">
-  Fill out this form to register and generate <strong>QR codes for tourist activity</strong>. Accurate information is essential for profiling tourism frontliners in the Municipality of Malay. It supports safety, reliable record-keeping, quick emergency response, effective complaint resolution, activity reporting, and continuous improvement of tourism services.
-</p>
+                                <p className="sub-title-blue mb-5">
+                                    Fill out this form to register and generate <strong>QR codes for tourist activity</strong>. Accurate information is essential for profiling tourism frontliners in the Municipality of Malay. It supports safety, reliable record-keeping, quick emergency response, effective complaint resolution, activity reporting, and continuous improvement of tourism services.
+                                </p>
 
                                 {currentStep === 1 && (
                                     <>
@@ -213,36 +291,58 @@ export default function EmployeeRegistrationForm() {
                                                 <option value="">Select Classification</option>
                                                 <option value="travel agency">Travel and Tour Agency</option>
                                                 <option value="peoples organization">People's Organization (Associations/Cooperatives)</option>
-                                                <option value="service provider">Service Provider (Tour Activity Provider)</option>
+                                                <option value="watersports provider">Watersports Provider</option>
                                             </Form.Select>
                                         </Form.Group>
 
+
+
                                         <Form.Group className="mb-3">
                                             <Form.Label>Current Company *</Form.Label>
-                                            <Form.Select
+                                            <Select
                                                 name="companyId"
-                                                value={formData.companyId}
-                                                onChange={handleChange}
+                                                value={
+                                                    companyOptions.find((option) => option.value === formData.companyId) || null
+                                                }
+                                                onChange={(selectedOption) =>
+                                                    handleChange({
+                                                        target: {
+                                                            name: "companyId",
+                                                            value: selectedOption ? selectedOption.value : ""
+                                                        }
+                                                    })
+                                                }
+                                                options={companyOptions}
+                                                placeholder="Select Company"
+                                                isClearable
                                                 required
-                                            >
-                                                <option value="">Select Company</option>
-                                                {companies.map(company => (
-                                                    <option key={company.id} value={company.id}>{company.name}</option>
-                                                ))}
-                                            </Form.Select>
+                                            />
                                         </Form.Group>
 
                                         <Form.Group className="mb-3">
                                             <Form.Label>Current Designation *</Form.Label>
-                                            <Form.Control
-                                                type="text"
+                                            <Select
                                                 name="designation"
-                                                value={formData.designation}
-                                                onChange={handleChange}
-                                                placeholder="Kasalukuyang Katungkulan"
-                                                required
+                                                value={selectedDesignationOption}
+                                                onChange={handleDesignationSelect}
+                                                options={designationList}
+                                                placeholder="Select Designation"
+                                                isClearable
                                             />
+
+                                            {selectedDesignationOption?.value === "Others (Specify)" && (
+                                                <Form.Control
+                                                    type="text"
+                                                    name="designation"
+                                                    value={formData.designation}
+                                                    onChange={handleChange}
+                                                    placeholder="Please specify your designation"
+                                                    className="mt-2"
+                                                    required
+                                                />
+                                            )}
                                         </Form.Group>
+
                                     </>
                                 )}
 
@@ -294,8 +394,8 @@ export default function EmployeeRegistrationForm() {
                                                 placeholder="e.g. Jr., II, III"
                                             />
                                         </Form.Group>
-                                      
-                                      
+
+
 
 
 
@@ -395,49 +495,49 @@ export default function EmployeeRegistrationForm() {
                                 {/* Step 3: Company Details */}
                                 {currentStep === 3 && (
                                     <>
-                                     <Form.Group className="my-2">
-  <Form.Label>Type of Residency</Form.Label>
-  <Form.Select
-    name="nationality"
-    value={formData.nationality}
-    onChange={(e) =>
-      setFormData((prev) => ({ ...prev, nationality: e.target.value }))
-    }
-    required
-  >
-    <option value="">Select Type</option>
-    <option value="local">Local</option>
-    <option value="foreign">Foreign</option>
-  </Form.Select>
+                                        <Form.Group className="my-2">
+                                            <Form.Label>Type of Residency</Form.Label>
+                                            <Form.Select
+                                                name="nationality"
+                                                value={formData.nationality}
+                                                onChange={(e) =>
+                                                    setFormData((prev) => ({ ...prev, nationality: e.target.value }))
+                                                }
+                                                required
+                                            >
+                                                <option value="">Select Type</option>
+                                                <option value="local">Local</option>
+                                                <option value="foreign">Foreign</option>
+                                            </Form.Select>
 
-  {formData.nationality && (
-    <>
-      <Form.Label className="mt-3">Birth Place (Lugar ng Kapanganakan)</Form.Label>
-      <BirthPlaceForm
-        type={formData.nationality === "foreign" ? "foreign" : "local"}
-        address={formData.birthPlace}
-        onChange={(key, value) =>
-          setFormData((prev) => ({
-            ...prev,
-            birthPlace: { ...prev.birthPlace, [key]: value },
-          }))
-        }
-      />
+                                            {formData.nationality && (
+                                                <>
+                                                    <Form.Label className="mt-3">Birth Place (Lugar ng Kapanganakan)</Form.Label>
+                                                    <BirthPlaceForm
+                                                        type={formData.nationality === "foreign" ? "foreign" : "local"}
+                                                        address={formData.birthPlace}
+                                                        onChange={(key, value) =>
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                birthPlace: { ...prev.birthPlace, [key]: value },
+                                                            }))
+                                                        }
+                                                    />
 
-      <Form.Label className="mt-3">Present Address</Form.Label>
-      <AddressRegistrationForm
-        type={formData.nationality === "foreign" ? "foreign" : "local"}
-        address={formData.presentAddress}
-        onChange={(key, value) =>
-          setFormData((prev) => ({
-            ...prev,
-            presentAddress: { ...prev.presentAddress, [key]: value },
-          }))
-        }
-      />
-    </>
-  )}
-</Form.Group>
+                                                    <Form.Label className="mt-3">Present Address</Form.Label>
+                                                    <AddressRegistrationForm
+                                                        type={formData.nationality === "foreign" ? "foreign" : "local"}
+                                                        address={formData.presentAddress}
+                                                        onChange={(key, value) =>
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                presentAddress: { ...prev.presentAddress, [key]: value },
+                                                            }))
+                                                        }
+                                                    />
+                                                </>
+                                            )}
+                                        </Form.Group>
 
                                         <Form.Group className="mb-3 mt-4">
                                             <Form.Label>Contact Number *</Form.Label>
@@ -460,10 +560,11 @@ export default function EmployeeRegistrationForm() {
                                                 required
                                             >
                                                 <option value="">Highest Educational Attainment</option>
+                                                <option value="elementary">Elementary</option>
                                                 <option value="high school">High School</option>
                                                 <option value="college">College</option>
                                                 <option value="alternative">Alternative Learning</option>
-                                                <option value="others">Others</option>
+                                                <option value="undergraduate">Undergraduate</option>
                                             </Form.Select>
                                         </Form.Group>
 
@@ -495,39 +596,51 @@ export default function EmployeeRegistrationForm() {
                                 {currentStep === 4 && (
                                     <>
                                         <FileUploader
-                                            label="Profile Photo (2x2) Picture in formal attire"
-                                            file={formData.profilePhoto}
-                                            setFile={file => setFormData(prev => ({ ...prev, profilePhoto: file }))}
-                                            folderPath="employee/profile_photos"
-                                            acceptedTypes="image/*"
-                                            fieldName="profilePhoto"
+                                            label="2x2 Profile Photo (Formal Attire)"
+                                            fileKey="profilePhoto"
+                                            storagePath="employee/profile_photos"
+                                            formData={formData}
+                                            setFormData={setFormData}
                                         />
 
                                         <FileUploader
-                                            label="DOT/LGU Training Certificate (FBSE/TOUR GUIDING)"
-                                            file={formData.trainingCert}
-                                            setFile={file => setFormData(prev => ({ ...prev, trainingCert: file }))}
-                                            folderPath="employee/training_certs"
-                                            acceptedTypes="image/*,application/pdf"
-                                            fieldName="trainingCert"
+                                            label="Training Certificate"
+                                            fileKey="trainingCert"
+                                            storagePath="employee/training_certificates"
+                                            formData={formData}
+                                            setFormData={setFormData}
                                         />
 
                                         <FileUploader
-                                            label={formData.classification === 'peoples organization' ? "Endorsement Signed by the Association/Cooperative President" : "Notarized Certificate of Employment (for Travel and Tour Agency only)"}
-                                            file={formData.additionalRequirement}
-                                            setFile={file => setFormData(prev => ({ ...prev, additionalRequirement: file }))}
-                                            folderPath="employee/company_certificates"
-                                            acceptedTypes="image/*,application/pdf"
-                                            fieldName="additionalRequirement"
+                                            label="Diploma or Transcript of Records"
+                                            fileKey="diploma"
+                                            storagePath="employee/diplomas"
+                                            formData={formData}
+                                            setFormData={setFormData}
                                         />
+
                                         <FileUploader
-                                            label="Diploma or Certificate of Completion (Optional)"
-                                            file={formData.trainingCert}
-                                            setFile={file => setFormData(prev => ({ ...prev, trainingCert: file }))}
-                                            folderPath="employee/diploma"
-                                            acceptedTypes="image/*,application/pdf"
-                                            fieldName="diploma"
+                                            label="Other Requirement (if any)"
+                                            fileKey="additionalRequirement"
+                                            storagePath="employee/requirements"
+                                            formData={formData}
+                                            setFormData={setFormData}
                                         />
+
+
+<Form.Group className="my-2">
+                                            <Form.Label className="fw-bold mt-2">Company Email Address</Form.Label>
+                                            <Form.Control
+
+                                                type="text"
+                                                name="email"
+                                                placeholder='Email address'
+                                                value={formData.email}
+                                                onChange={handleChange}
+                                                required
+                                            />
+
+                                        </Form.Group>
                                         <Form.Group className="mb-3">
                                             <Form.Label>Password *</Form.Label>
                                             <InputGroup>
@@ -573,9 +686,6 @@ export default function EmployeeRegistrationForm() {
                                             required
                                         />
                                     </>)}
-
-
-
                                 {/* Pagination Buttons */}
                                 <Container className='empty-container'></Container>
                                 {/* Page Indicators */}
@@ -603,16 +713,21 @@ export default function EmployeeRegistrationForm() {
                                             Next
                                         </Button>
                                     ) : (
-                                        <SaveGroupToCloud
+                                        <SaveGroupEmployee
                                             groupData={formData}
                                             setGroupData={setFormData}
                                             password={formData.password}
                                             email={formData.email}
                                             fileType="Application"
                                             collectionName="employee"
-                                            disabled={!formData.profilePhoto || !formData.trainingCert || !formData.password || !formData.agreed}
+                                            disabled={
+                                                !formData.profilePhoto ||
+                                                !formData.trainingCert ||
+                                                !formData.password ||
+                                                !formData.agreed
+                                            }
                                             idName="employeeId"
-                                            ModelClass={Employee} // You can replace with a proper Employee class if available
+                                            ModelClass={Employee}
                                             onSuccess={() => {
                                                 setFormData(prev => ({
                                                     ...prev,
@@ -624,6 +739,7 @@ export default function EmployeeRegistrationForm() {
                                                 }));
                                             }}
                                         />
+
 
                                     )}
                                 </Container>
@@ -643,17 +759,11 @@ export default function EmployeeRegistrationForm() {
                             }
                         `}
                                 </style>
-
-
-
-
                             </Form>
                         </Container>
                     </Container>
                 </Col>
-
                 <FooterCustomized scrollToId="toppage" />
-
             </Row>
             {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
         </>

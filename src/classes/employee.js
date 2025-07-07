@@ -70,7 +70,6 @@ class Employee {
     this.profilePhoto = profilePhoto;
     this.trainingCert = trainingCert;
         this.diploma = diploma;
-
     this.additionalRequirement = additionalRequirement;
     this.agreed = agreed;
     this.password = password;

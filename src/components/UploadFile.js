@@ -14,7 +14,6 @@ export default function UploadField({
   file,
   setFile,
   fileURL,
-  setFileURL,
   formDataKey,
   setFormData,
   preview = true,
@@ -57,10 +56,11 @@ export default function UploadField({
     try {
       await uploadBytes(fileRef, file);
       const downloadURL = await getDownloadURL(fileRef);
-      setFileURL(downloadURL);
+      
       if (formDataKey && setFormData) {
         setFormData(prev => ({ ...prev, [formDataKey]: downloadURL }));
       }
+
       Swal.fire({ title: 'Upload Complete!', icon: 'success', timer: 2000, showConfirmButton: false });
     } catch (err) {
       console.error(err);
@@ -73,7 +73,6 @@ export default function UploadField({
     try {
       await deleteObject(ref(storage, fileURL));
       setFile(null);
-      setFileURL('');
       if (formDataKey && setFormData) {
         setFormData(prev => ({ ...prev, [formDataKey]: '' }));
       }

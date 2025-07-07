@@ -67,7 +67,7 @@ export default function CompanyRegistrationPage() {
     const classificationOption = [
         { value: "travel agency", label: "Travel and Tour Agency" },
         { value: "peoples organization", label: "People's Organization (Associations / Cooperative)" },
-        { value: "service provider", label: "Service Provider (Tour Activity Providers)" },
+        { value: "watersports provider", label: "Watersports Provider" },
     ];
 
     const ownershipOption = [
@@ -182,14 +182,16 @@ export default function CompanyRegistrationPage() {
     };
 
     // Permit Scanner
-    const [permit, setPermit] = useState(null);
-    const [permitURL, setPermitURL] = useState(""); // Stores the uploaded file's URL
-
 
     const handlePermitChange = (e) => {
         const file = e.target.files[0];
         setPermit(file);
     };
+
+        const [permit, setPermit] = useState(null);
+    const [permitURL, setPermitURL] = useState(""); // Stores the uploaded file's URL
+
+
 
     // Dropzone Logic
     const onPermitDrop = useCallback((acceptedFiles) => {
@@ -491,7 +493,7 @@ export default function CompanyRegistrationPage() {
                                             <Form.Label className="my-2 fw-bold">
                                                 {companyData.classification === "peoples organization"
                                                     ? "Certificate of Accreditation from the Sangguniang Bayan Offfice"
-                                                    : companyData.classification === "travel agency" || companyData.classification === "service provider"
+                                                    : companyData.classification === "travel agency" || companyData.classification === "watersports provider"
                                                         ? "Business Permit/Receipt from the Licensing Office dated in the current year"
                                                         : "Business Permit / LGU Accreditation from the SB Office"}
                                             </Form.Label>
@@ -540,7 +542,7 @@ export default function CompanyRegistrationPage() {
                                                         Drag & Drop your{" "}
                                                         {companyData.classification === "peoples organization"
                                                             ? "LGU Accreditation"
-                                                            : companyData.classification === "travel agency" || companyData.classification === "service provider"
+                                                            : companyData.classification === "travel agency" || companyData.classification === "watersports provider"
                                                                 ? "Business Permit"
                                                                 : "Business Permit / LGU Accreditation"}{" "}
                                                         here or <span className="text-primary text-decoration-underline">Choose File</span>

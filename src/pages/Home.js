@@ -41,14 +41,14 @@ export default function Home() {
       try {
         let fetchedData = [];
 
-        if (selectedOption === "Travel Agency" || selectedOption === "Service Provider" || selectedOption === "People's Organization") {
+        if (selectedOption === "Travel Agency" || selectedOption === "Watersports Provider" || selectedOption === "People's Organization") {
           // Fetch from "company" collection
           const querySnapshot = await getDocs(collection(db, "company"));
           fetchedData = querySnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(doc =>
               (selectedOption === "Travel Agency" && doc.classification === "travel agency" && doc.status === "approved") ||
-              (selectedOption === "Service Provider" && doc.classification === "service provider" && doc.status === "approved") ||
+              (selectedOption === "Watersports Provider" && doc.classification === "watersports Provider" && doc.status === "approved") ||
               (selectedOption === "People's Organization" && doc.classification === "peoples organization" && doc.status === "approved")
             )
             .map(doc => ({
@@ -211,7 +211,7 @@ export default function Home() {
                         <Dropdown.Item eventKey="Travel Agency" disabled={selectedOption === "Travel Agency"}>Travel Agency</Dropdown.Item>
                         <Dropdown.Item eventKey="Tour Coordinator" disabled={selectedOption === "Tour Coordinator"}>Tour Coordinator</Dropdown.Item>
                         <Dropdown.Item eventKey="People's Organization" disabled={selectedOption === "People's Organization"}>People's Organization</Dropdown.Item>
-                        <Dropdown.Item eventKey="Service Provider" disabled={selectedOption === "Service Provider"}>Service Provider</Dropdown.Item>
+                        <Dropdown.Item eventKey="Watersports Provider" disabled={selectedOption === "Watersports Provider"}>Watersports Provider</Dropdown.Item>
                       </Dropdown.Menu>
                     </Dropdown>
                   </Form.Group>
@@ -295,25 +295,24 @@ export default function Home() {
                 {isDesktop ? <AppNavBar bg="dark" variant="dark" title="Right Appbar" /> : null}
               </Row>
 
-              <Container className="body-container">
+              <Container className="body-container mt-5">
                 <h1 className="barabara-subtitle">MALAY-BORACAY<br></br>TOURISM FRONLINERS</h1>
                 <h1 className="barabara-label">PROFILE REGISTRATION</h1>
-                <p className="sub-title-blue">Register and Acquire your Tourism Endorsement and Recommendation
+                <p className="sub-title-blue">Register and Acquire your Tourism Endorsement and Recommendation <br></br>
                   certifications by simply registering and complying to requirements online!</p>
+                <div className="image-container mt-5">
+                  <Link to="/employee-registration/local" className="image-link">
+                    <div className="image-box local">
+                      <p className="barabara-subtitle-white">LOCAL</p>
+                    </div>
+                  </Link>
 
-              <Container className="image-container">
-  <Container className="image-box">
-    <Link to="/employee-registration" style={{ textDecoration: 'none' }}>
-      <p className="barabara-subtitle-white">LOCAL</p>
-    </Link>
-  </Container>
-
-  <Container className="image-box">
-    <Link to="/employee-registration" style={{ textDecoration: 'none' }}>
-      <p className="barabara-subtitle-white">FOREIGN</p>
-    </Link>
-  </Container>
-</Container>
+                  <Link to="/employee-registration/foreign" className="image-link">
+                    <div className="image-box foreign">
+                      <p className="barabara-subtitle-white">FOREIGN</p>
+                    </div>
+                  </Link>
+                </div>
 
 
 

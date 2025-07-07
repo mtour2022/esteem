@@ -29,7 +29,7 @@ function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/company-registration" element={<CompanyRegistrationPage />} />
             <Route path="/employee-registration" element={<EmployeeRegistrationForm />} />
-
+            <Route path="/employee-registration/:residency" element={<EmployeeRegistrationForm />} />
             {/* ✅ Protected Route */}
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
             <Route path="*" element={<NotFound />} />
