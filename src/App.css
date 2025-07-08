@@ -451,7 +451,8 @@ th {
 }
 
 .table-border{
-    border: 0.5px solid #ddd;
+    border-top: 0.5px solid #ddd;
+    border-bottom: 0.5px solid #ddd;
 
 }
 

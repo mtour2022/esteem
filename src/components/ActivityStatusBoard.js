@@ -19,8 +19,10 @@ import {
   faPrint,
   faFilter, faTrash,
   faLayerGroup, faCalendarDays, faColumns,
-  faCopy
+  faCopy,
+  faRefresh
 } from "@fortawesome/free-solid-svg-icons";
+import SummaryPieChart from './PieChart';
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -154,7 +156,21 @@ const getStatusBadgeVariant = (status) => {
   }[status] || "secondary";
 };
 
+
+
 const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
+  const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
+  const [showFullSummary, setShowFullSummary] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSmallScreen(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const allColumns = [
     { key: "actions", label: "Actions" },
 
@@ -162,6 +178,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     { key: "ticketId", label: "Ticket ID" },
     { key: "name", label: "Name" },
     { key: "contact", label: "Contact" },
+    { key: "accommodation", label: "Accommodation" },
     { key: "address", label: "Address" },
     { key: "startTime", label: "Start Time" },
     { key: "endTime", label: "End Time" },
@@ -243,6 +260,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   useEffect(() => {
     const fetchTickets = async () => {
       setTickets([]); // Clear old data
+      setAllFilteredTickets([]); // ✅ Clear here
 
 
       if (!ticket_ids || ticket_ids.length === 0) return;
@@ -453,7 +471,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           if (searchType === "name") {
             return (
               t.name?.toLowerCase().includes(lower) ||
-              t.contact?.toLowerCase().includes(lower)
+              t.contact?.toLowerCase().includes(lower) ||
+              t.accommodation?.toLowerCase().includes(lower) // include this here
             );
           }
 
@@ -461,6 +480,10 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
             const emp = employeeMap[t.employee_id];
             const fullName = `${emp?.name?.first || ""} ${emp?.name?.last || ""}`.toLowerCase();
             return fullName.includes(lower);
+          }
+
+          if (searchType === "accommodation") {
+            return t.accommodation?.toLowerCase().includes(lower);
           }
 
           return false;
@@ -698,6 +721,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         TicketID: t.id,
         Name: t.name,
         Contact: t.contact,
+        Accommodation: t.accommodation,
         Address: Array.isArray(t.address)
           ? t.address
             .map(addr => {
@@ -788,6 +812,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         t.id,
         t.name,
         t.contact,
+        t.accommodation,
         Array.isArray(t.address)
           ? t.address
             .map(addr => {
@@ -845,7 +870,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
     autoTable(doc, {
       head: [[
-        "Status", "TicketID", "Name", "Contact", "Addresses", "Start Time", "End Time", "Total Pax",
+        "Status", "TicketID", "Name", "Contact", "Accommodation", "Addresses", "Start Time", "End Time", "Total Pax",
         "Locals", "Foreigns", "Males", "Females", "Prefered Not To Say",
         "Kids", "Teens", "Adults", "Seniors", "Assigned To", "Asignee's Contact", "Activities Availed",
         , "Expected Payment", "Actual Payment", "Total Markup", "Scanned By"
@@ -854,7 +879,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       styles: { fontSize: 7, cellPadding: 1 },
       columnStyles: {
         5: { cellWidth: 20, overflow: 'linebreak' },
-        19: { cellWidth: 50, overflow: 'linebreak' }
+        20: { cellWidth: 50, overflow: 'linebreak' }
       },
       startY: 10,
     });
@@ -906,6 +931,16 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const averageMarkup = summary.totalTickets > 0 ? summary.totalMarkup / summary.totalTickets : 0;
   const averageSalePerTicket = summary.totalTickets > 0 ? summary.totalExpectedSale / summary.totalTickets : 0;
 
+const statusCounts = tickets.reduce((acc, t) => {
+  const status = computeStatus(t);
+  acc[status] = (acc[status] || 0) + 1;
+  return acc;
+}, {});
+const handleRefresh = () => {
+  setTickets([]);
+  setAllFilteredTickets([]);
+  setTriggerSearch(true);
+};
 
   return (
     <>
@@ -915,7 +950,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       </p>
 
       <Card.Body className="mt-4">
-        <Card.Title><h3><strong>Recent Tickets</strong></h3></Card.Title>
         <Row className="align-items-end mb-3">
           {/* LEFT SIDE: Search Field */}
           <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2">
@@ -925,6 +959,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
           {/* RIGHT SIDE: Icon Buttons */}
           <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2 me-0 pe-0">
+         <Button variant="outline-secondary" title="Refresh Tickets" onClick={handleRefresh}>
+  <FontAwesomeIcon icon={faRefresh} /> Refresh
+</Button>
+
+
             <Dropdown show={showSearchDropdown} onToggle={() => setShowSearchDropdown(!showSearchDropdown)}>
               <Dropdown.Toggle variant="outline-secondary" as={Button}>
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
@@ -1242,6 +1281,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                         ticketId: t.id,
                         name: t.name,
                         contact: t.contact,
+                        accommodation: t.accommodation,
+
                         address: renderAddress(t),
 
                         startTime: new Date(t.start_date_time).toLocaleString(),
@@ -1285,52 +1326,9 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   )}
                 </tbody>
               </Table>
-              <div className="mt-3">
-                <h6>Summary</h6>
-                <p className="text-muted">
-                  <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
-                  <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric", month: "long", day: "numeric"
-                  })}</strong>{" "}
-                  to{" "}
-                  <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric", month: "long", day: "numeric"
-                  })}</strong>
-                </p>
-                <Row>
-                  <Col md={3}>
-                    <ul>
-                      <li><strong>Total Pax:</strong> {summary.totalPax}</li>
-                      <li><strong>Foreigns:</strong> {summary.foreigns}</li>
-                      <li><strong>Locals:</strong> {summary.locals}</li>
-                    </ul>
-                  </Col>
-                  <Col md={3}>
-                    <ul>
-                      <li><strong>Males:</strong> {summary.males}</li>
-                      <li><strong>Females:</strong> {summary.females}</li>
-                      <li><strong>Prefer not to say:</strong> {summary.preferNotToSay}</li>
-                    </ul>
-                  </Col>
-                  <Col md={3}>
-                    <ul>
-                      <li><strong>Kids:</strong> {summary.kids}</li>
-                      <li><strong>Teens:</strong> {summary.teens}</li>
-                      <li><strong>Adults:</strong> {summary.adults}</li>
-                      <li><strong>Seniors:</strong> {summary.seniors}</li>
-                    </ul>
-                  </Col>
-                  <Col md={3}>
-                    <ul>
-                      <li><strong>Expected Payment:</strong> ₱{summary.expectedPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
-                      <li><strong>Actual Payment:</strong> ₱{summary.totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
-                      <li><strong>Expected Sale:</strong> ₱{summary.totalExpectedSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
-                      <li><strong>Avg. Markup:</strong> {averageMarkup.toFixed(2)}%</li>
-                      <li><strong>Avg. Sale per Ticket:</strong> ₱{averageSalePerTicket.toLocaleString(undefined, { minimumFractionDigits: 2 })}</li>
-                    </ul>
-                  </Col>
-                </Row>
-              </div>
+
+
+
 
             </div>
           </div>
@@ -1382,6 +1380,136 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           </button>
         </div>
       </div>
+      <div className="mt-5">
+        <h6>Summary</h6>
+        <p className="text-muted">
+          <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
+          <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+            year: "numeric", month: "long", day: "numeric"
+          })}</strong>{" "}
+          to{" "}
+          <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+            year: "numeric", month: "long", day: "numeric"
+          })}</strong>
+        </p>
+
+
+
+        {(!isSmallScreen || showFullSummary) && (
+          <>
+          
+<Row className="mb-3 g-3">
+  {Object.entries(statusCounts).map(([status, count], idx) => (
+    <Col key={idx} md={2}>
+      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+        <div>
+          <p className="mb-1 fw-semibold">{status}</p>
+          <h6 className="mb-0 text-dark">
+            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+          </h6>
+        </div>
+      </div>
+    </Col>
+  ))}
+</Row>
+            <Row className="mb-2 g-3">
+              {[
+                {
+                  label: "Total Pax",
+                  value: summary.totalPax?.toLocaleString() || "0",
+                },
+                {
+                  label: "Expected Payment",
+                  value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                },
+                {
+                  label: "Actual Payment",
+                  value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                },
+                {
+                  label: "Expected Sale",
+                  value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                },
+                {
+                  label: "Avg. Markup",
+                  value: `${averageMarkup?.toFixed(2)}%`,
+                },
+                {
+                  label: "Avg. Sale per Ticket",
+                  value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                },
+              ].map((item, idx) => (
+                <Col key={idx} md={2}>
+                  <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                    <div>
+                      <p className="mb-1 fw-semibold">{item.label}</p>
+                      <h6 className="mb-0 text-dark">{item.value}</h6>
+                    </div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+
+
+            <Row className="g-3 mt-2">
+              <Col md={4}>
+                <SummaryPieChart
+                  title="Residency Breakdown"
+                  loading={!summary}
+                  data={[
+                    { name: 'Locals', value: summary?.locals || 0 },
+                    { name: 'Foreigns', value: summary?.foreigns || 0 },
+                  ]}
+                />
+              </Col>
+              <Col md={4}>
+                <SummaryPieChart
+                  title="Sex Breakdown"
+                  loading={!summary}
+                  data={[
+                    { name: 'Males', value: summary?.males || 0 },
+                    { name: 'Females', value: summary?.females || 0 },
+                    { name: 'Prefer not to say', value: summary?.preferNotToSay || 0 },
+
+                  ]}
+                />
+              </Col>
+              <Col md={4}>
+                <SummaryPieChart
+                  title="Age Breakdown"
+                  loading={!summary}
+                  data={[
+                    { name: 'Kids', value: summary?.kids || 0 },
+                    { name: 'Teens', value: summary?.teens || 0 },
+                    { name: 'Adults', value: summary?.adults || 0 },
+                    { name: 'Seniors', value: summary?.seniors || 0 },
+
+
+                  ]}
+                />
+              </Col>
+
+
+
+            </Row>
+
+          </>
+        )}
+
+        {isSmallScreen && (
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="link"
+              onClick={() => setShowFullSummary(prev => !prev)}
+            >
+              {showFullSummary ? "Read less" : "Read more"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+
     </>
   );
 };

@@ -160,38 +160,7 @@ export default function CompanyDashboardPage() {
             <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
 
             <Row>
-                <Col md={isFullScreen ? 12 : 8} className="p-0">
-                    {/* Control Bar Row */}
-<div className="d-flex justify-content-end align-items-center gap-2 p-3 me-0 me-md-4 mt-4">
-                        <Button
-                            variant="outline-secondary"
-                            onClick={() => setIsFullScreen((prev) => !prev)}
-                            title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                        >
-                            {isFullScreen ? "Collapse" : "Expand"}
-                            <FontAwesomeIcon className="ms-2" icon={isFullScreen ? faCompress : faExpand} />
-                        </Button>
 
-                        <Dropdown align="end">
-                            <Dropdown.Toggle
-                                as={Button}
-                                variant="outline-secondary"
-                                id="dropdown-custom-button"
-                            >
-                                <FontAwesomeIcon icon={faBars} />
-                            </Dropdown.Toggle>
-
-                            <Dropdown.Menu>
-                                <Dropdown.Item>Profile</Dropdown.Item>
-                                <Dropdown.Item>Log Out</Dropdown.Item>
-                                <Dropdown.Item>Complaint Form</Dropdown.Item>
-                            </Dropdown.Menu>
-                        </Dropdown>
-                    </div>
-
-                    {/* Main Dashboard Content */}
-                    <CompanyDashboardPanel company={company} employees={employees} />
-                </Col>
 
 
 
@@ -411,6 +380,38 @@ export default function CompanyDashboardPage() {
                         </Container>
                     </Col>
                 )}
+                <Col md={isFullScreen ? 12 : 8} className="p-0">
+                    {/* Control Bar Row */}
+                    <div className="d-flex justify-content-end align-items-center gap-2 p-3 me-0 me-md-4 mt-4">
+                        <Button
+                            variant="outline-secondary"
+                            onClick={() => setIsFullScreen((prev) => !prev)}
+                            title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                        >
+                            {isFullScreen ? "Collapse" : "Expand"}
+                            <FontAwesomeIcon className="ms-2" icon={isFullScreen ? faCompress : faExpand} />
+                        </Button>
+
+                        <Dropdown align="end">
+                            <Dropdown.Toggle
+                                as={Button}
+                                variant="outline-secondary"
+                                id="dropdown-custom-button"
+                            >
+                                <FontAwesomeIcon icon={faBars} />
+                            </Dropdown.Toggle>
+
+                            <Dropdown.Menu>
+                                <Dropdown.Item>Profile</Dropdown.Item>
+                                <Dropdown.Item>Log Out</Dropdown.Item>
+                                <Dropdown.Item>Complaint Form</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    </div>
+
+                    {/* Main Dashboard Content */}
+                    <CompanyDashboardPanel company={company} employees={employees} />
+                </Col>
 
                 <FooterCustomized scrollToId="toppage" />
 
