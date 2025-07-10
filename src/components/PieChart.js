@@ -65,7 +65,7 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
                                 dataKey="value"
                                 labelLine={true}
                                 label={({ name, value, percent }) =>
-                                    `${name}: ${value} - ${(percent * 100).toFixed(1)}%`
+                                    `${name}: ${(percent * 100).toFixed(1)}%`
                                 }
                             >
                                 {validData.map((entry, index) => (

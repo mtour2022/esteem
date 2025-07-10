@@ -247,7 +247,7 @@ const TicketSummary = ({ ticket }) => {
         </Row>
         <div className="text-center mt-2">
           <p className="m-1"><strong>Company:</strong> {companyInfo?.name || "Loading..."}</p>
-          <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.name.first} ${employeeInfo.name.last}` : "Loading..."}</p>
+          <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.firstname} ${employeeInfo.surname}` : "Loading..."}</p>
           <p className="m-1"><strong>Contact:</strong> {employeeInfo ? `${employeeInfo.contact}` : "Loading..."}</p>
         </div>
         <p className="m-1 mt-3 text-muted small text-center">

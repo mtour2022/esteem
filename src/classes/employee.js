@@ -6,6 +6,9 @@ class Employee {
     classification = "",
     companyId = "",
     designation = "",
+    application_type = "",
+    unit_id = "",
+    unit_owner = "",
     surname = "",
     middlename = "",
     firstname = "",
@@ -39,16 +42,25 @@ class Employee {
     trainingCert = "",
     diploma = "",
     additionalRequirement = "",
+    workingPermit = "",
+    passportNumber = "",
     agreed = false,
     password = "",
-    status = "pending",
+    status = "under review",
     status_history = [],
+    work_history = [],
+    company_status = "under review",
+    company_status_history = [],
+
   }) {
     this.employeeId = employeeId;
     this.userUID = userUID;
     this.classification = classification;
     this.companyId = companyId;
     this.designation = designation;
+    this.application_type = application_type;
+    this.unit_id = unit_id;
+    this.unit_owner = unit_owner;
     this.surname = surname;
     this.middlename = middlename;
     this.firstname = firstname;
@@ -69,12 +81,17 @@ class Employee {
     this.emergencyContactNumber = emergencyContactNumber;
     this.profilePhoto = profilePhoto;
     this.trainingCert = trainingCert;
-        this.diploma = diploma;
+    this.diploma = diploma;
     this.additionalRequirement = additionalRequirement;
+    this.workingPermit = workingPermit;
+    this.passportNumber = passportNumber;
     this.agreed = agreed;
     this.password = password;
     this.status = status;
     this.status_history = status_history;
+    this.work_history = work_history;
+    this.company_status = company_status;
+    this.company_status_history = company_status_history;
   }
 
   getFullName() {

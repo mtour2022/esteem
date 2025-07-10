@@ -38,6 +38,7 @@ export default function EmployeeRegistrationForm() {
         classification: '',
         companyId: '',
         designation: '',
+        application_type: '',
         surname: '',
         middlename: '',
         firstname: '',
@@ -59,8 +60,9 @@ export default function EmployeeRegistrationForm() {
         profilePhoto: null,
         trainingCert: null,
         diploma: null,
-
         additionalRequirement: null,
+        workingPermit: null,
+        passportNumber: '',
         password: '',
         confirmPassword: '',
         agreed: false,
@@ -138,10 +140,12 @@ export default function EmployeeRegistrationForm() {
     const designationOptions = {
         "travel agency": [
             "Foreign Tour Guide",
+            "Local Tour Guide",
             "Local Tour Coordinator",
             "Tourist Port Assistance",
             "Travel Agency Owner",
             "Hotel Coordinator",
+            "Foreign Staff",
             "Field Staff",
             "Office Staff",
             "Others (Specify)"
@@ -154,7 +158,6 @@ export default function EmployeeRegistrationForm() {
             "Dive Master",
             "Instructor (Stand Up Paddle Board)",
             "Instructor (Crystal Kayak)",
-            "Party Boat Owner",
             "E-trike Driver",
             "E-trike Driver (Reliever)",
             "E-trike Owner",
@@ -234,28 +237,28 @@ export default function EmployeeRegistrationForm() {
                             <p className="sub-title-blue">
                                 Prepare your <b>requirements</b> and <b>register</b> now to enjoy the perks of having an electronic system for tracking, evaluating, and expert monitoring of tour activities in Boracay Island, Malay, Aklan!
                             </p>
-
                             <h6>📄 Documents to Upload:</h6>
                             <ul>
-                                <li>Training Certificate from DOT/LGU</li>
-                                <li>Notarized COE/Signed Endorsement</li>
-                                <li>Diploma (for new applicant)</li>
+                                <li>Training Certificate from DOT/LGU (FBSE/COMMUNITY TOUR GUIDING)</li>
+                                <li>Notarized Certificate of Employment/ Contract of Service (Foreign only) / Signed Endorsement from Organization</li>
+                                <li>Diploma/ Transcript of Records / Certificate of Completion (For new only)</li>
+                                <li>Special Working Permit from Beareau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign applicant)</li>
+                                <li>Passport Number (for foreign applicant)</li>
                                 <li>Profile Photo (for employee)</li>
                             </ul>
-
                             <h6>📝 Required Information:</h6>
                             <ul>
-
                                 <li>Employee Classification & Designation</li>
+                                <li>Unit ID/Control Number</li>
+                                <li>Unit Owner (Full Name)</li>
                                 <li>Full Name (First, Middle, Last, Suffix)</li>
-                                <li>Nationality (Local or Foreign)</li>
+                                <li>Type of Residency (Local or Foreign)</li>
                                 <li>Birth Place and Birthday</li>
                                 <li>Present Address</li>
                                 <li>Sex, Age, Marital Status, Height, Weight</li>
                                 <li>Educational Attainment</li>
                                 <li>Emergency Contact Name and Number</li>
                             </ul>
-
                             <div className="mb-3 p-3 border-start border-4 border-warning bg-light rounded">
                                 <strong className="text-danger">Important Reminder:</strong><br />
                                 Only tourism enterprises within the <strong>Municipality of Malay</strong> are allowed to register.
@@ -342,6 +345,71 @@ export default function EmployeeRegistrationForm() {
                                                 />
                                             )}
                                         </Form.Group>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Type of Application *</Form.Label>
+                                            <Form.Select
+                                                name="application_type"
+                                                value={formData.application_type}
+                                                onChange={handleChange}
+                                                required
+                                            >
+                                                <option value="">Uri ng Aplikasyon</option>
+                                                <option value="new">New</option>
+                                                <option value="renewal">Renewal</option>
+                                            </Form.Select>
+                                        </Form.Group>
+                                        {[
+                                            "E-trike Driver",
+                                            "E-trike Driver (Reliever)",
+                                            "E-trike Owner",
+                                            "E-bike Rental Owner",
+                                            "Motorbike Rental Owner",
+                                            "Motorbike Owner (Transit)",
+                                            "Motorbike Driver",
+                                            "Tricycle Driver",
+                                            "Tricycle Owner",
+                                            "Island Hopping Boat Owner",
+                                            "Island Hopping Boat Captian",
+                                            "Island Hopping Boatman",
+                                            "Party Boat Owner",
+                                            "Party Boat Captain",
+                                            "Party Boatman",
+                                            "Yacht Owner",
+                                            "Yacht Boat Captain",
+                                            "Yacht Boatman",
+                                            "Yacht Steward",
+                                            "Paraw Owner",
+                                            "Paraw Boatman"
+                                        ].includes(formData.designation) && (
+                                                <>
+                                                    <Form.Group className="mb-3">
+                                                        <Form.Label>
+                                                            Unit ID/Control Number (for Boats/E-trike/Motorbikes/E-vehicles)
+                                                        </Form.Label>
+                                                        <Form.Control
+                                                            type="text"
+                                                            name="unit_id"
+                                                            value={formData.unit_id}
+                                                            onChange={handleChange}
+                                                            placeholder=""
+                                                        />
+                                                    </Form.Group>
+
+                                                    <Form.Group className="mb-3">
+                                                        <Form.Label>
+                                                            Unit Owner (Full Name) (for Boats/E-trike/Motorbikes/E-vehicles)
+                                                        </Form.Label>
+                                                        <Form.Control
+                                                            type="text"
+                                                            name="unit_owner"
+                                                            value={formData.unit_owner}
+                                                            onChange={handleChange}
+                                                            placeholder=""
+                                                        />
+                                                    </Form.Group>
+                                                </>
+                                            )}
+
 
                                     </>
                                 )}
@@ -464,7 +532,7 @@ export default function EmployeeRegistrationForm() {
                                         <Row>
                                             <Col md={6}>
                                                 <Form.Group className="mb-3">
-                                                    <Form.Label>Height (ft) *</Form.Label>
+                                                    <Form.Label>Height (ft) (e.g. 5'7")*</Form.Label>
                                                     <Form.Control
                                                         type="text"
                                                         name="height"
@@ -477,7 +545,7 @@ export default function EmployeeRegistrationForm() {
                                             </Col>
                                             <Col md={6}>
                                                 <Form.Group className="mb-3">
-                                                    <Form.Label>Weight (kg) *</Form.Label>
+                                                    <Form.Label>Weight (kg) (e.g. 55)*</Form.Label>
                                                     <Form.Control
                                                         type="text"
                                                         name="weight"
@@ -596,40 +664,93 @@ export default function EmployeeRegistrationForm() {
                                 {currentStep === 4 && (
                                     <>
                                         <FileUploader
-                                            label="2x2 Profile Photo (Formal Attire)"
+                                            label="2x2 Profile Photo (formal attire)"
                                             fileKey="profilePhoto"
                                             storagePath="employee/profile_photos"
                                             formData={formData}
                                             setFormData={setFormData}
                                         />
 
-                                        <FileUploader
-                                            label="Training Certificate"
-                                            fileKey="trainingCert"
-                                            storagePath="employee/training_certificates"
-                                            formData={formData}
-                                            setFormData={setFormData}
-                                        />
 
                                         <FileUploader
-                                            label="Diploma, Transcript of Records or Certificate of Completion"
-                                            fileKey="diploma"
-                                            storagePath="employee/diplomas"
-                                            formData={formData}
-                                            setFormData={setFormData}
-                                        />
-
-                                        <FileUploader
-                                            label="Other Requirement (if any)"
+                                            label="Signed Endorsement from Organization / Certificate of Employment (Notarized) / Contract of Service (for foreign only)"
                                             fileKey="additionalRequirement"
                                             storagePath="employee/requirements"
                                             formData={formData}
                                             setFormData={setFormData}
                                         />
 
+                                        {(() => {
+                                            const isExempted =
+                                                formData.designation === "Field Staff" ||
+                                                formData.designation === "Office Staff" ||
+                                                (formData.designation || "").toLowerCase().includes("owner");
+
+                                            return (
+                                                <>
+                                                    {!isExempted &&
+                                                        (formData.nationality !== "foreign" ||
+                                                            (!formData.nationality && residency !== "foreign")) && (
+                                                            <FileUploader
+                                                                label="Training Certificate from DOT/LGU (2023/2024/2025) (Optional for renewal)"
+                                                                fileKey="trainingCert"
+                                                                storagePath="employee/training_certificates"
+                                                                formData={formData}
+                                                                setFormData={setFormData}
+                                                            />
+                                                        )}
+
+                                                    {!isExempted && formData.application_type === "new" && (
+                                                        formData.designation === "Local Tour Coordinator" && (
+  <FileUploader
+    label="Diploma / Transcript of Records / Certificate of Completion (For new only)"
+    fileKey="diploma"
+    storagePath="employee/diplomas"
+    formData={formData}
+    setFormData={setFormData}
+  />
+)
+
+                                                    )}
+
+                                                    {!isExempted &&
+                                                       (formData.nationality === "foreign" ||
+  (!formData.nationality && residency === "foreign")) &&
+  ["Foreign Tour Guide", "Foreign Staff"].includes(formData.designation) && (
+    <>
+      <Form.Group className="mb-3">
+        <Form.Label className="fw-bold">
+          Passport Number (for foreign only) *
+        </Form.Label>
+        <Form.Control
+          type="text"
+          name="passportNumber"
+          value={formData.passportNumber}
+          onChange={handleChange}
+          placeholder="Passport Number"
+        />
+      </Form.Group>
+
+      <FileUploader
+        label="Special Working Permit from Bureau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign only)"
+        fileKey="workingPermit"
+        storagePath="employee/workingPermit"
+        formData={formData}
+        setFormData={setFormData}
+      />
+    </>
+)
+
+                                                        
+                                                        }
+                                                </>
+                                            );
+                                        })()}
+
+
 
                                         <Form.Group className="my-2">
-                                            <Form.Label className="fw-bold mt-2">Email Address</Form.Label>
+                                            <Form.Label className=" mt-2">Email Address</Form.Label>
                                             <Form.Control
 
                                                 type="text"
@@ -678,6 +799,7 @@ export default function EmployeeRegistrationForm() {
                                         </Form.Group>
 
                                         <Form.Check
+                                            className='mt-4'
                                             type="checkbox"
                                             name="agreed"
                                             checked={formData.agreed}
@@ -685,6 +807,12 @@ export default function EmployeeRegistrationForm() {
                                             label="I agree to the collection, processing, and storage of my data for registration purposes."
                                             required
                                         />
+                                        <div className="mt-4 mb-3 p-3 border-start border-4 border-warning bg-light rounded">
+                                            <strong className="text-danger">Reminder:</strong><br />
+                                            Please double-check that all your uploaded files are correct and complete before submitting.
+                                            <br /><br />
+                                            Incomplete or incorrect files may delay the processing of your application.
+                                        </div>
                                     </>)}
                                 {/* Pagination Buttons */}
                                 <Container className='empty-container'></Container>
@@ -721,24 +849,49 @@ export default function EmployeeRegistrationForm() {
                                             fileType="Application"
                                             collectionName="employee"
                                             disabled={
-                                                !formData.profilePhoto ||
-                                                !formData.trainingCert ||
-                                                !formData.password ||
-                                                !formData.agreed
+                                                (() => {
+                                                    const isExempted =
+                                                        formData.designation === "Field Staff" ||
+                                                        formData.designation === "Office Staff" ||
+                                                        (formData.designation || "").toLowerCase().includes("owner");
+
+                                                    if (isExempted) {
+                                                        return (
+                                                            !formData.profilePhoto ||
+                                                            !formData.additionalRequirement ||
+                                                            !formData.email ||
+                                                            !formData.password ||
+                                                            !formData.agreed
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        !formData.profilePhoto ||
+                                                        !formData.trainingCert ||
+                                                        !formData.additionalRequirement ||
+                                                        !formData.email ||
+                                                        !formData.password ||
+                                                        !formData.agreed
+                                                    );
+                                                })()
                                             }
                                             idName="employeeId"
                                             ModelClass={Employee}
                                             onSuccess={() => {
-                                                setFormData(prev => ({
+                                                setFormData((prev) => ({
                                                     ...prev,
                                                     profilePhoto: null,
                                                     trainingCert: null,
                                                     additionalRequirement: null,
-                                                    password: '',
-                                                    confirmPassword: ''
+                                                    diploma: null,
+                                                    workingPermit: null,
+                                                    email: "",
+                                                    password: "",
+                                                    confirmPassword: "",
                                                 }));
                                             }}
                                         />
+
 
 
                                     )}

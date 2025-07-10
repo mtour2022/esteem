@@ -20,9 +20,15 @@ import {
   faFilter, faTrash,
   faLayerGroup, faCalendarDays, faColumns,
   faCopy,
-  faRefresh
+  faRefresh,
+  faUserGroup,
+  faBarChart,
+  faBarsProgress,
+  faBarsStaggered,
+  faLineChart
 } from "@fortawesome/free-solid-svg-icons";
 import SummaryPieChart from './PieChart';
+import { FaBarsStaggered } from "react-icons/fa6";
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -242,6 +248,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [selectedDateFilter, setSelectedDateFilter] = useState(""); // e.g. "today", "thisMonth", etc.
   const [triggerSearch, setTriggerSearch] = useState(false);
   const [allFilteredTickets, setAllFilteredTickets] = useState([]);
+  const [showGroupFilter, setShowGroupFilter] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterResidency, setFilterResidency] = useState("");
+  const [filterSex, setFilterSex] = useState("");
+  const [filterAgeBracket, setFilterAgeBracket] = useState("");
 
   useEffect(() => {
     const today = new Date();
@@ -316,6 +327,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       setTriggerSearch(false);
     }
   }, [triggerSearch, ticket_ids, startDateInput, endDateInput]);
+
+
 
 
 
@@ -455,15 +468,14 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }
   };
 
-
   const handleSearch = () => {
     setIsLoading(true);
     setTriggerSearch(false);
 
     setTimeout(() => {
-      let result = [...tickets]; // Safe copy
+      let result = [...allFilteredTickets];
 
-      // 🔍 Search Filter
+      // 🔍 Text Search Filter
       if (searchTextInput.trim()) {
         const lower = searchTextInput.toLowerCase();
 
@@ -472,7 +484,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
             return (
               t.name?.toLowerCase().includes(lower) ||
               t.contact?.toLowerCase().includes(lower) ||
-              t.accommodation?.toLowerCase().includes(lower) // include this here
+              t.accommodation?.toLowerCase().includes(lower)
             );
           }
 
@@ -506,9 +518,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       if (selectedMonth) {
         const [year, month] = selectedMonth.split("-").map(Number);
         const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0); // This now correctly gives the last day of the selected month
+        const lastDay = new Date(year, month, 0);
         lastDay.setHours(23, 59, 59, 999);
-
 
         result = result.filter((t) => {
           const tStart = new Date(t.start_date_time);
@@ -524,12 +535,48 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
         });
       }
 
+      // 🧪 Group Filters (Status, Residency, Sex, Age)
+
+      // Status remains the same
+      if (filterStatus) {
+        result = result.filter((t) => computeStatus(t) === filterStatus);
+      }
+
+      // Residency: aggregate over address[]
+      if (filterResidency === "local") {
+        result = result.filter((t) =>
+          (t.address || []).reduce((sum, a) => sum + (a.locals || 0), 0) > 0
+        );
+      }
+
+      if (filterResidency === "foreign") {
+        result = result.filter((t) =>
+          (t.address || []).reduce((sum, a) => sum + (a.foreigns || 0), 0) > 0
+        );
+      }
+
+      // Sex (males, females, prefer_not_to_say)
+      if (filterSex) {
+        result = result.filter((t) =>
+          (t.address || []).reduce((sum, a) => sum + (a[filterSex] || 0), 0) > 0
+        );
+      }
+
+      // Age brackets: kids, teens, adults, seniors
+      if (filterAgeBracket) {
+        result = result.filter((t) =>
+          (t.address || []).reduce((sum, a) => sum + (a[filterAgeBracket] || 0), 0) > 0
+        );
+      }
+
+
+
       // ✅ Finalize
       setFilteredTickets(result);
       setSearchText(searchTextInput);
       setCurrentPage(1);
       setIsLoading(false);
-    }, 0); // No need for second timeout
+    }, 0);
   };
 
 
@@ -931,37 +978,38 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const averageMarkup = summary.totalTickets > 0 ? summary.totalMarkup / summary.totalTickets : 0;
   const averageSalePerTicket = summary.totalTickets > 0 ? summary.totalExpectedSale / summary.totalTickets : 0;
 
-const statusCounts = tickets.reduce((acc, t) => {
-  const status = computeStatus(t);
-  acc[status] = (acc[status] || 0) + 1;
-  return acc;
-}, {});
-const handleRefresh = () => {
-  setTickets([]);
-  setAllFilteredTickets([]);
-  setTriggerSearch(true);
-};
+  const statusCounts = tickets.reduce((acc, t) => {
+    const status = computeStatus(t);
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  const handleRefresh = () => {
+    setTickets([]);
+    setAllFilteredTickets([]);
+    setTriggerSearch(true);
+  };
 
   return (
     <>
+
       <p className="barabara-label text-start mt-5">TOURIST ACTIVITY STATUS BOARD</p>
       <p className="m-1 mt-3 text-muted small text-start">
         A quick overview of all tourist activities, bookings, and group status in real-time.
       </p>
 
-      <Card.Body className="mt-4">
+      <Card.Body className="mt-5">
         <Row className="align-items-end mb-3">
           {/* LEFT SIDE: Search Field */}
-          <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2">
-
+          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
+         
           </Col>
 
 
           {/* RIGHT SIDE: Icon Buttons */}
-          <Col md={6} sm={12} className="d-flex justify-content-end gap-2 mb-2 me-0 pe-0">
-         <Button variant="outline-secondary" title="Refresh Tickets" onClick={handleRefresh}>
-  <FontAwesomeIcon icon={faRefresh} /> Refresh
-</Button>
+          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0">
+            <Button variant="outline-secondary" title="Refresh Tickets" onClick={handleRefresh}>
+              <FontAwesomeIcon icon={faRefresh} /> Refresh
+            </Button>
 
 
             <Dropdown show={showSearchDropdown} onToggle={() => setShowSearchDropdown(!showSearchDropdown)}>
@@ -979,16 +1027,21 @@ const handleRefresh = () => {
                   >
                     <option value="name">Name / Contact</option>
                     <option value="employeeName">Employee Name</option>
+                    <option value="accommodation">Accommodation</option>
                   </Form.Select>
-
                   <FormControl
                     type="text"
-                    placeholder={`Search by ${searchType === "name" ? "name or contact" : "employee name"}`}
+                    placeholder={
+                      searchType === "name"
+                        ? "Search by name or contact"
+                        : searchType === "employeeName"
+                          ? "Search by employee name"
+                          : "Search by accommodation"
+                    }
                     value={searchTextInput}
                     onChange={(e) => setSearchTextInput(e.target.value)}
                     className="mb-2"
                   />
-
                   <Button variant="primary" size="sm" onClick={() => {
                     setShowSearchDropdown(false);
                     handleSearch();
@@ -1164,12 +1217,91 @@ const handleRefresh = () => {
               </Dropdown.Menu>
             </Dropdown>
 
+            <Dropdown show={showGroupFilter} onToggle={() => setShowGroupFilter(!showGroupFilter)}>
+              <Dropdown.Toggle variant="outline-secondary" title="Group Filter">
+                <FontAwesomeIcon icon={faLayerGroup} />
+              </Dropdown.Toggle>
 
-            <Button variant="outline-secondary" title="Group Filter">
-              <FontAwesomeIcon icon={faLayerGroup} />
-            </Button>
+              <Dropdown.Menu style={{ minWidth: "280px", padding: "15px", maxHeight: "400px", overflowY: "auto" }}>
+                <Form>
+                  {/* Status Filter */}
+                  <Form.Group controlId="filter-status" className="mb-3">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="Queued">Queued</option>
+                      <option value="On Time">On Time</option>
+                      <option value="Ongoing">Ongoing</option>
+                      <option value="Done">Done</option>
+                      <option value="Delayed">Delayed</option>
+                      <option value="Canceled">Canceled</option>
+                      <option value="Schedule Change">Schedule Change</option>
+                      <option value="Reassigned">Reassigned</option>
+                      <option value="Relocate">Relocate</option>
+                      <option value="On Emergency">On Emergency</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Residency Filter */}
+                  <Form.Group controlId="filter-residency" className="mb-3">
+                    <Form.Label>Residency</Form.Label>
+                    <Form.Select value={filterResidency} onChange={(e) => setFilterResidency(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="local">Local</option>
+                      <option value="foreign">Foreign</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Sex Filter */}
+                  <Form.Group controlId="filter-sex" className="mb-3">
+                    <Form.Label>Sex</Form.Label>
+                    <Form.Select value={filterSex} onChange={(e) => setFilterSex(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="males">Male</option>
+                      <option value="females">Female</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Age Bracket Filter */}
+                  <Form.Group controlId="filter-age" className="mb-3">
+                    <Form.Label>Age Bracket</Form.Label>
+                    <Form.Select value={filterAgeBracket} onChange={(e) => setFilterAgeBracket(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="kids">Kids</option>
+                      <option value="teens">Teens</option>
+                      <option value="adults">Adults</option>
+                      <option value="seniors">Seniors</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  <div className="d-grid gap-2 mt-3">
+                    <Button variant="primary" onClick={() => handleSearch()}>Apply Filters</Button>
+                    <Button
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setFilterStatus("");
+                        setFilterResidency("");
+                        setFilterSex("");
+                        setFilterAgeBracket("");
+                        setFilteredTickets(allFilteredTickets); // <-- Reset to full original
+                      }}
+                    >
+                      Reset
+                    </Button>
+
+                  </div>
+                </Form>
+              </Dropdown.Menu>
+            </Dropdown>
+
+
           </Col>
         </Row>
+        
+
+        
+
 
         {isLoading ? (
           <div className="text-center my-5">
@@ -1397,21 +1529,21 @@ const handleRefresh = () => {
 
         {(!isSmallScreen || showFullSummary) && (
           <>
-          
-<Row className="mb-3 g-3">
-  {Object.entries(statusCounts).map(([status, count], idx) => (
-    <Col key={idx} md={2}>
-      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-        <div>
-          <p className="mb-1 fw-semibold">{status}</p>
-          <h6 className="mb-0 text-dark">
-            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-          </h6>
-        </div>
-      </div>
-    </Col>
-  ))}
-</Row>
+
+            <Row className="mb-3 g-3">
+              {Object.entries(statusCounts).map(([status, count], idx) => (
+                <Col key={idx} md={2}>
+                  <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                    <div>
+                      <p className="mb-1 fw-semibold">{status}</p>
+                      <h6 className="mb-0 text-dark">
+                        <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                      </h6>
+                    </div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
             <Row className="mb-2 g-3">
               {[
                 {
@@ -1508,6 +1640,12 @@ const handleRefresh = () => {
           </div>
         )}
       </div>
+      <p className="mt-5 mb-5 text-muted small text-center">
+        <strong>Reminder:</strong> All information displayed is handled in compliance with the
+        <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
+        Please ensure that personal data is accessed and used only for authorized and lawful purposes.
+      </p>
+
 
 
     </>

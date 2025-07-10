@@ -14,7 +14,7 @@ import SaveTicketToCloud from '../components/SaveTicket';
 import TicketSummary from '../components/TicketSummary';
 import CompanyDashboardPanel from '../components/CompanyDashBoardPanel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faExpand, faCompress, faBars } from '@fortawesome/free-solid-svg-icons';
+import { faExpand, faCompress, faBars, faUserGroup, faLineChart } from '@fortawesome/free-solid-svg-icons';
 
 export default function CompanyDashboardPage() {
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -215,12 +215,15 @@ export default function CompanyDashboardPage() {
                                                     Select designated employee to assist the guests.
                                                 </Form.Label>
                                                 <Select
-                                                    options={employees.map(emp => ({
-                                                        value: emp.employeeId,
-                                                        label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                                                        contact: emp.contact,
-                                                        raw: emp
-                                                    }))}
+                                                    options={employees
+                                                        .filter(emp => emp.status?.toLowerCase() === "approved") // ✅ Only approved
+                                                        .map(emp => ({
+                                                            value: emp.employeeId,
+                                                            label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                                                            contact: emp.contact,
+                                                            raw: emp
+                                                        }))
+                                                    }
                                                     placeholder="Select an employee"
                                                     onChange={(selectedOption) => {
                                                         setTicketData(prev => ({
@@ -231,6 +234,7 @@ export default function CompanyDashboardPage() {
                                                     }}
                                                     value={
                                                         employees
+                                                            .filter(emp => emp.status?.toLowerCase() === "approved") // ✅ Also filter here
                                                             .map(emp => ({
                                                                 value: emp.employeeId,
                                                                 label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
@@ -241,8 +245,8 @@ export default function CompanyDashboardPage() {
                                                     }
                                                     isClearable
                                                 />
-
                                             </Form.Group>
+
 
                                             {selectedEmployee && (
                                                 <Form.Group className="mt-2">
@@ -402,12 +406,14 @@ export default function CompanyDashboardPage() {
                             </Dropdown.Toggle>
 
                             <Dropdown.Menu>
+                                <Dropdown.Item>Advisories</Dropdown.Item>
                                 <Dropdown.Item>Profile</Dropdown.Item>
+                                <Dropdown.Item>Saved Reports</Dropdown.Item>
                                 <Dropdown.Item>Log Out</Dropdown.Item>
-                                <Dropdown.Item>Complaint Form</Dropdown.Item>
                             </Dropdown.Menu>
                         </Dropdown>
                     </div>
+
 
                     {/* Main Dashboard Content */}
                     <CompanyDashboardPanel company={company} employees={employees} />

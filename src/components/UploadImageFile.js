@@ -187,11 +187,14 @@ export default function FileUploader({
       <Modal show={showCamera} onHide={() => setShowCamera(false)} centered fullscreen>
         <Modal.Body className="d-flex flex-column justify-content-center align-items-center">
           <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            className="w-100 h-100"
-          />
+  audio={false}
+  ref={webcamRef}
+  screenshotFormat="image/jpeg"
+  className="w-100 h-100"
+  onUserMedia={() => console.log("Webcam access granted")}
+  onUserMediaError={err => console.error("Webcam error:", err)}
+/>
+
           <Container className="mt-3">
             <Row className="justify-content-center">
               <Col xs="auto">
