@@ -7,12 +7,13 @@ import { toPng } from "html-to-image";
 import download from "downloadjs";
 import useResolvedActivities from "../services/GetActivitiesDetails";
 import useResolvedProviders from "../services/GetProvidersDetails"
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import useDeleteTicket from "../services/DeleteTicket"; // adjust path
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   faMagnifyingGlass,
   faDownload,

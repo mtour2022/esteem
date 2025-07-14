@@ -51,6 +51,8 @@ class Employee {
     work_history = [],
     company_status = "under review",
     company_status_history = [],
+    tourism_certificate = [],
+    tourism_certificate_history = [],
 
   }) {
     this.employeeId = employeeId;
@@ -92,6 +94,8 @@ class Employee {
     this.work_history = work_history;
     this.company_status = company_status;
     this.company_status_history = company_status_history;
+    this.tourism_certificate = tourism_certificate;
+    this.tourism_certificate_history = tourism_certificate_history;
   }
 
   getFullName() {

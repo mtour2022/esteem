@@ -11,6 +11,9 @@ import NotFound from './pages/NotFound.js';
 
 // Auth
 import { AuthProvider, useAuth } from './auth/authentication.js';
+import VerifierRegisterPage from './pages/Verifier_Registration.js';
+import VerifierLoginPage from './pages/Verifier_Login.js';
+import VerifierEmployeeListPage from './pages/Verifier_Employee_List.js';
 
 // Private Route
 function PrivateRoute({ element }) {
@@ -29,6 +32,9 @@ function App() {
             <Route path="/company-registration" element={<CompanyRegistrationPage />} />
             <Route path="/employee-registration" element={<EmployeeRegistrationForm />} />
             <Route path="/employee-registration/:residency" element={<EmployeeRegistrationForm />} />
+            <Route path="/verifier-registration/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierRegisterPage />} />
+            <Route path="/verifier-login/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierLoginPage />} />
+            <Route path="/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierEmployeeListPage />} />
             {/* /quickstatus/:employee_quickstatus_id */}
             {/* ✅ Protected Routes */}
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />

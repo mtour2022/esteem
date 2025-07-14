@@ -189,6 +189,7 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
       Swal.fire("Error", "Failed to update status.", "error");
     }
   };
+  
 
 
 
@@ -204,7 +205,7 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
           <Table bordered hover style={{ minWidth: "1400px" }}>
             <thead>
               <tr>
-                <th>Status</th>
+                <th>Company Status</th>
                 <th>Actions</th>
                                 <th>History</th>
                 <th>Application Type (new/renewal)</th>
@@ -228,6 +229,10 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
                 <th>Diploma</th>
                 <th>Notarized COE / Signed Endorsement</th>
                 <th>Working Permit</th>
+                <th>T.O. Status</th>
+                <th>T.O. Office Status History</th>
+                <th>T.O. Certificate</th>
+                <th>T.O. Certdificate History</th>
               </tr>
             </thead>
             <tbody>

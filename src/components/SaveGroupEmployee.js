@@ -28,6 +28,12 @@ const SaveGroupEmployee = ({
   const [logoLoaded, setLogoLoaded] = useState(false);
   const navigate = useNavigate();
   const qrRef = useRef(null);
+  const dateNow = new Date().toLocaleString("en-PH", {
+  dateStyle: "long",
+  timeStyle: "short",
+  hour12: true,
+});
+
 
   const groupCollectionRef = collection(db, collectionName);
 
@@ -124,8 +130,8 @@ const SaveGroupEmployee = ({
         title: "Success!",
         html: `
           <div id="qr-preview" style="padding: 20px; text-align: center; background: #fff; border: 1px solid #ccc; font-family: Arial;">
-            <img src="${logo}" alt="Logo" height="100" style="margin-bottom: 10px;" />
-            <div style="font-size: 14px; font-weight: bold; line-height: 18px; margin-bottom: 10px;">
+            <img src="${logo}" alt="Logo" height="80" style="margin-bottom: 10px;" />
+            <div style="font-size: 12px; font-weight: bold; line-height: 18px; margin-bottom: 10px;">
               Republic of the Philippines<br />
               Province of Aklan<br />
               Municipality of Malay<br />
@@ -138,8 +144,9 @@ const SaveGroupEmployee = ({
               Scan this QR code to check your application status.<br />
               All information is protected and complies with the Data Privacy Act.
             </p>
-            <p style="font-size: 10px; margin-top: 10px;">
-              Issued by the Municipal Tourism Office, Malay Aklan
+             <p style="font-size: 10px; margin-top: 10px;">
+              Issued by the Municipal Tourism Office, Malay Aklan<br />
+              Registered on: ${dateNow}
             </p>
           </div>
           <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
@@ -154,7 +161,7 @@ const SaveGroupEmployee = ({
           QRCode.toCanvas(
             qrCanvas,
             `https://esteem.com/quickstatus/${docRef.id}`,
-            { width: 200 },
+            { width: 300 },
             (err) => {
               if (err) console.error("QR generation error:", err);
             }
@@ -245,9 +252,11 @@ const SaveGroupEmployee = ({
             Scan this QR code to check your application status.<br />
             All information is protected and complies with the Data Privacy Act.
           </p>
-          <p style={{ fontSize: "10px", marginTop: "10px" }}>
-            Issued by the Municipal Tourism Office, Malay Aklan
-          </p>
+          <p style="font-size: 10px; margin-top: 10px;">
+  Issued by the Municipal Tourism Office, Malay Aklan<br />
+  Registered on: ${dateNow}
+</p>
+
         </div>
       </div>
 
