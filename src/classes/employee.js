@@ -52,6 +52,13 @@ class Employee {
     company_status = "under review",
     company_status_history = [],
     tourism_certificate_ids = [],
+        latest_cert_id = "",
+        latest_cert_summary = {
+      date_Expired: "",
+      date_Issued: "",
+      tourism_cert_id: "",
+      type: ""
+    },
   }) {
     this.employeeId = employeeId;
     this.userUID = userUID;
@@ -93,6 +100,9 @@ class Employee {
     this.company_status = company_status;
     this.company_status_history = company_status_history;
     this.tourism_certificate_ids = tourism_certificate_ids;
+    this.latest_cert_id = latest_cert_id;
+    this.latest_cert_summary = latest_cert_summary;
+
   }
 
   getFullName() {

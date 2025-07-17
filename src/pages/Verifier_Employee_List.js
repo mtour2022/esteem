@@ -90,12 +90,14 @@ const getStatusBadgeVariant = (status) => {
 };
 
 export default function VerifierEmployeeListPage() {
-  
-const navigate = useNavigate();
 
-const handleEditEmployee = (employee) => {
-  navigate(`/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`);
+  const navigate = useNavigate();
+
+ const handleEditEmployee = (employee) => {
+  const url = `/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`;
+  window.open(url, '_blank'); // opens in a new tab
 };
+
   const summaryRef = useRef(null);
 
   const [expandedRows, setExpandedRows] = useState([]);
@@ -119,6 +121,8 @@ const handleEditEmployee = (employee) => {
   const [ageGroupFilter, setAgeGroupFilter] = useState("");
   const [designationFilter, setDesignationFilter] = useState("");
   const [nationalityFilter, setNationalityFilter] = useState("");
+  const [certTypeFilter, setCertTypeFilter] = useState("");
+
   const [documentFilters, setDocumentFilters] = useState({
     profilePhoto: false,
     trainingCert: false,
@@ -137,10 +141,13 @@ const handleEditEmployee = (employee) => {
   // Define all possible columns (match keys with employee object)
   const allColumns = [
     { key: "status", label: "Status" },
-    { key: "tourismCertificate", label: "Tourism Certificate" },
+
     { key: "actions", label: "Actions" },
     { key: "companyStatus", label: "Company Status" },
+    { key: "tourismCertificate", label: "Tourism Certificate" },
+    { key: "tourismCertificateLatestSummary", label: "Latest Certificate Summary" },
     { key: "history", label: "History" },
+
     { key: "applicationType", label: "Application Type" },
     { key: "companyName", label: "Company Name" },
     { key: "fullName", label: "Full Name" },
@@ -232,6 +239,7 @@ const handleEditEmployee = (employee) => {
       setDateFilterType("");
       setSelectedMonth("");
       setSelectedYear("");
+      setCertTypeFilter("");
       setCustomRange({ start: "", end: "" });
       setFilteredEmployees(employeeDocs);
       setCurrentPage(1);
@@ -306,65 +314,62 @@ const handleEditEmployee = (employee) => {
       const updates = {
         status: newStatus,
         status_history: [...(employee.status_history || []), historyEntry],
+        recent_certificate_id: employee.recent_certificate_id || "",
+        recent_certificate_type: employee.recent_certificate_type || "",
       };
 
       const employeeRef = doc(db, "employee", employee.employeeId);
 
       // ✅ Handle certificate creation if approved
 
-if (newStatus.toLowerCase() === "approved") {
-  const dateNow = new Date();
-  const currentYear = dateNow.getFullYear();
-  const oneYearLater = new Date(currentYear, 11, 31);
+      if (newStatus.toLowerCase() === "approved") {
+        const dateNow = new Date();
+        const currentYear = dateNow.getFullYear();
+        const oneYearLater = new Date(currentYear, 11, 31);
 
-  const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
-  let tourismCertId = "";
+        const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
+        let tourismCertId = "";
 
-  // Run transaction to increment counter safely
-  await runTransaction(db, async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    let lastNumber = 0;
+        await runTransaction(db, async (transaction) => {
+          const counterDoc = await transaction.get(counterRef);
+          let lastNumber = 0;
 
-    if (counterDoc.exists()) {
-      lastNumber = counterDoc.data().last_number;
-    }
+          if (counterDoc.exists()) {
+            lastNumber = counterDoc.data().last_number;
+          }
 
-    const nextNumber = lastNumber + 1;
-    const paddedNumber = String(nextNumber).padStart(4, "0");
-    tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
+          const nextNumber = lastNumber + 1;
+          const paddedNumber = String(nextNumber).padStart(4, "0");
+          tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
 
-    transaction.set(counterRef, {
-      year: currentYear,
-      last_number: nextNumber,
-    });
-  });
+          transaction.set(counterRef, {
+            year: currentYear,
+            last_number: nextNumber,
+          });
+        });
 
-  const certRef = doc(db, "tourism_cert", tourismCertId);
+        const certRef = doc(db, "tourism_cert", tourismCertId);
 
-  const cert = {
-    tourism_cert_id: tourismCertId,
-    type: employee.trainingCert ? "Endorsement" : "Recommendation",
-    date_Issued: dateNow.toISOString(),
-    date_Expired: oneYearLater.toISOString(),
-    company_id: employee.companyId,
-    employee_id: employee.employeeId,
-    verifier_id: currentUser?.uid || "system",
-    tourism_cert_history: "",
-  };
+        const cert = {
+          tourism_cert_id: tourismCertId,
+          type: employee.trainingCert ? "Endorsement" : "Recommendation",
+          date_Issued: dateNow.toISOString(),
+          date_Expired: oneYearLater.toISOString(),
+          company_id: employee.companyId,
+          employee_id: employee.employeeId,
+          verifier_id: currentUser?.uid || "system",
+          tourism_cert_history: "",
+        };
 
-  await setDoc(certRef, cert);
+        await setDoc(certRef, cert);
 
-  updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), tourismCertId];
-  updates.latest_cert_id = tourismCertId;
-  updates.latest_cert_summary = {
-    tourism_cert_id: tourismCertId,
-    type: cert.type,
-    date_Issued: cert.date_Issued,
-    date_Expired: cert.date_Expired,
-  };
+        updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), tourismCertId];
+        updates.recent_certificate_id = tourismCertId;
+        updates.recent_certificate_type = cert.type;
 
-  setShowCertificateFor(employee.employeeId);
-}
+        setShowCertificateFor(employee.employeeId);
+      }
+
 
 
       await updateDoc(employeeRef, updates);
@@ -476,8 +481,11 @@ if (newStatus.toLowerCase() === "approved") {
         const end = new Date(customRange.end);
         matchesDate = latestIssued >= start && latestIssued <= end;
       }
+      const matchesCertType =
+        !certTypeFilter ||
+        (e.latest_cert_summary?.type || "").toLowerCase() === certTypeFilter;
 
-      return matchesText && matchesCompany && matchesApplicationType && matchesStatus && matchesCompanyStatus && matchesSex && matchesAgeGroup && matchesDesignation && matchesNationality && matchesDocuments && matchesDate;
+      return matchesText && matchesCompany && matchesApplicationType && matchesStatus && matchesCompanyStatus && matchesSex && matchesAgeGroup && matchesDesignation && matchesNationality && matchesDocuments && matchesDate && matchesCertType;
     });
 
     setFilteredEmployees(filtered);
@@ -500,6 +508,7 @@ if (newStatus.toLowerCase() === "approved") {
     selectedYear,
     customRange.start,
     customRange.end,
+    certTypeFilter,
     applicationTypeFilter, // ✅ Include this
   ]);
 
@@ -745,7 +754,7 @@ if (newStatus.toLowerCase() === "approved") {
       </tr>
     );
   }
-  
+
   const handleDownloadImage = () => {
     if (summaryRef.current === null) return;
 
@@ -997,6 +1006,35 @@ if (newStatus.toLowerCase() === "approved") {
                         }}
                       />
                     </div>
+                    {/* Certificate Type Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Certificate Type (Latest Only)</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Types" },
+                          ...Array.from(
+                            new Set(
+                              employees
+                                .map((e) => e.latest_cert_summary?.type || "")
+                                .filter(Boolean)
+                            )
+                          ).map((type) => ({
+                            value: type.toLowerCase(),
+                            label: type,
+                          })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Certificate Type"
+                        value={
+                          certTypeFilter ? { value: certTypeFilter, label: certTypeFilter } : null
+                        }
+                        onChange={(selected) => {
+                          setCertTypeFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
 
                     {/* Designation Filter */}
                     <div className="mb-3">
@@ -1252,23 +1290,7 @@ if (newStatus.toLowerCase() === "approved") {
 
                           const rowData = {
                             status: <Badge bg={getStatusBadgeVariant(emp.status)}>{emp.status}</Badge>,
-                            tourismCertificate: Array.isArray(emp.tourism_certificate_ids) && emp.tourism_certificate_ids.length > 0 ? (
-                              <div className="d-flex flex-wrap gap-2">
-                                {emp.tourism_certificate_ids.map((certId, index) => (
-                                  <Button
-                                    key={certId}
-                                    variant="outline-secondary"
-                                    size="sm"
-                                    onClick={() => window.open(`/tourism-certificate/${certId}`, "_blank")}
-                                  >
-                                    <FontAwesomeIcon icon={faEye} className="me-1" />
-                                    View {emp.tourism_certificate_ids.length > 1 ? `#${index + 1}` : ""}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted">N/A</span>
-                            ),
+
 
 
                             actions: (
@@ -1310,6 +1332,35 @@ if (newStatus.toLowerCase() === "approved") {
                             ),
 
                             companyStatus: <Badge bg={getStatusBadgeVariant(emp.company_status)}>{emp.company_status || "N/A"}</Badge>,
+                            tourismCertificate: Array.isArray(emp.tourism_certificate_ids) && emp.tourism_certificate_ids.length > 0 ? (
+                              <div className="d-flex flex-wrap gap-2">
+                                {emp.tourism_certificate_ids.map((certId, index) => (
+                                  <Button
+                                    key={certId}
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    onClick={() => window.open(`/tourism-certificate/${certId}`, "_blank")}
+                                  >
+                                    <FontAwesomeIcon icon={faEye} className="me-1" />
+                                    View {emp.tourism_certificate_ids.length > 1 ? `#${index + 1}` : ""}
+                                  </Button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted">N/A</span>
+                            ),
+                            tourismCertificateLatestSummary: emp.latest_cert_summary &&
+                              emp.latest_cert_summary.tourism_cert_id &&
+                              emp.latest_cert_summary.type &&
+                              emp.latest_cert_summary.date_Issued &&
+                              emp.latest_cert_summary.date_Expired ? (
+                              <div className="text-start small">
+                                <div><strong>ID:</strong> {emp.latest_cert_summary.tourism_cert_id}</div>
+                                <div><strong>Type:</strong> {emp.latest_cert_summary.type}</div>
+                                <div><strong>Date Issued:</strong> {new Date(emp.latest_cert_summary.date_Issued).toLocaleDateString()}</div>
+                                <div><strong>Date Expired:</strong> {new Date(emp.latest_cert_summary.date_Expired).toLocaleDateString()}</div>
+                              </div>
+                            ) : null,
                             history: (
                               <button
                                 className="btn btn-sm btn-outline-secondary"
