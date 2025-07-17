@@ -1,7 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Container, Button, Col, Form, Modal, Row } from 'react-bootstrap';
+import { Container, Button, Col, Form, Modal, Row, Image } from 'react-bootstrap';
 import Webcam from 'react-webcam';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -13,6 +13,7 @@ import {
   faBan as faCancel,
 } from '@fortawesome/free-solid-svg-icons';
 import { storage } from '../config/firebase';
+import Spinner from 'react-bootstrap/Spinner'; // Add this to your imports at the top
 
 export default function FileUploader({
   label,
@@ -30,10 +31,24 @@ export default function FileUploader({
   ],
   useCamera = true,
 }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   const [file, setFile] = useState(null);
   const fileURL = formData[fileKey] || "";
   const [showCamera, setShowCamera] = useState(false);
   const webcamRef = useRef(null);
+const [fileType, setFileType] = useState(null);
+
+useEffect(() => {
+  if (fileURL) {
+    fetch(fileURL, { method: "HEAD" })
+      .then((res) => {
+        const type = res.headers.get("Content-Type");
+        setFileType(type);
+      })
+      .catch((err) => console.error("Failed to fetch headers:", err));
+  }
+}, [fileURL]);
 
   const onFileDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -112,34 +127,90 @@ export default function FileUploader({
       });
   };
 
-  const renderPreview = () => {
-    if (!file) return (
+const renderPreview = () => {
+  const displayFile = file || fileURL;
+
+  if (!displayFile) {
+    return (
       <p className="text-muted">
         Drag & Drop your file here or <span className="text-primary text-decoration-underline">Choose File</span>
       </p>
     );
+  }
 
+  // New local file selected
+  if (file) {
     if (file.type.startsWith("image/")) {
       return (
-        <img
+        <Image
           src={URL.createObjectURL(file)}
           alt="Preview"
-          className="img-fluid mt-2"
+          fluid
+          className="mt-2"
           style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
         />
       );
     }
 
     if (file.type === "application/pdf") {
-      return <p className="fw-bold text-muted"><FontAwesomeIcon icon={faFilePdf} className="text-danger me-2" /> PDF: {file.name}</p>;
+      return (
+        <p className="fw-bold text-muted">
+          <FontAwesomeIcon icon={faFilePdf} className="text-danger me-2" /> PDF: {file.name}
+        </p>
+      );
     }
 
-    if (file.type === "application/msword" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      return <p className="fw-bold text-muted"><FontAwesomeIcon icon={faFileWord} className="text-primary me-2" /> DOC: {file.name}</p>;
+    if (
+      file.type === "application/msword" ||
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return (
+        <p className="fw-bold text-muted">
+          <FontAwesomeIcon icon={faFileWord} className="text-primary me-2" /> DOC: {file.name}
+        </p>
+      );
     }
 
     return <p className="fw-bold text-muted">File: {file.name}</p>;
-  };
+  }
+
+  // Already uploaded file URL (image)
+  if (typeof fileURL === "string" && fileURL.match(/\.(jpeg|jpg|png|webp|gif)$/i)) {
+    return (
+      <>
+        {!imgLoaded && (
+          <div className="d-flex justify-content-center align-items-center mt-3" style={{ height: "200px" }}>
+            <Spinner animation="border" variant="primary" />
+          </div>
+        )}
+        <Image
+          src={fileURL}
+          alt="Uploaded"
+          onLoad={() => setImgLoaded(true)}
+          fluid
+          style={{
+            display: imgLoaded ? "block" : "none",
+            maxWidth: "100%",
+            maxHeight: "200px",
+            objectFit: "contain",
+            marginTop: "10px",
+          }}
+        />
+      </>
+    );
+  }
+
+  // Fallback for non-image uploaded file (PDF/DOC/Other)
+  return (
+    <p className="fw-bold text-muted">
+      <a href={fileURL} target="_blank" rel="noopener noreferrer">
+        View Uploaded File
+      </a>
+    </p>
+  );
+};
+
+
 
   return (
     <>
@@ -166,15 +237,16 @@ export default function FileUploader({
             </Button>
           )}
 
-          {file && (!fileURL ? (
+          {file ? (
             <Button variant="outline-success" onClick={uploadFile}>
               <FontAwesomeIcon icon={faUpload} size="xs" fixedWidth /> Upload File
             </Button>
-          ) : (
+          ) : fileURL && (
             <Button variant="outline-danger" onClick={resetFile}>
-              <FontAwesomeIcon icon={faCancel} size="xs" fixedWidth /> Reupload
+              <FontAwesomeIcon icon={faCancel} size="xs" fixedWidth /> Replace File
             </Button>
-          ))}
+          )}
+
         </Container>
 
         {fileURL && (
@@ -187,13 +259,13 @@ export default function FileUploader({
       <Modal show={showCamera} onHide={() => setShowCamera(false)} centered fullscreen>
         <Modal.Body className="d-flex flex-column justify-content-center align-items-center">
           <Webcam
-  audio={false}
-  ref={webcamRef}
-  screenshotFormat="image/jpeg"
-  className="w-100 h-100"
-  onUserMedia={() => console.log("Webcam access granted")}
-  onUserMediaError={err => console.error("Webcam error:", err)}
-/>
+            audio={false}
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            className="w-100 h-100"
+            onUserMedia={() => console.log("Webcam access granted")}
+            onUserMediaError={err => console.error("Webcam error:", err)}
+          />
 
           <Container className="mt-3">
             <Row className="justify-content-center">

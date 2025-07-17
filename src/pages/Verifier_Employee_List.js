@@ -1,19 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Table, Card, Dropdown, Button, Form, Container, Row, Col, InputGroup, FormControl } from "react-bootstrap";
-import { doc, getDoc, addDoc, updateDoc, getDocs, collection, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db } from "../config/firebase";
+import { Table, Card, Dropdown, Button, Form, Container, Row, Col, InputGroup, FormControl, Badge, DropdownButton, ButtonGroup } from "react-bootstrap";
+import { doc, getDoc, addDoc, updateDoc, getDocs, collection, setDoc, deleteDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject, } from "firebase/storage";
+import { db, storage } from "../config/firebase";
 import { useAuth } from '../auth/authentication';
 import Employee from "../classes/employee";
 import Swal from "sweetalert2";
-import { storage } from "../config/firebase";
-import AppNavBar from '../components/AppNavBar';
 import TourismCert from "../components/TourismCert";
-import FooterCustomized from "../components/Footer";
-import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import useCompanyInfo from "../services/GetCompanyDetails";
 import Select from "react-select";
+import SummaryPieChart from '../components/PieChart';
+import TopRankingChart from "../components/RankTable";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { exportToPdf } from "../components/ExportEmployeePdf";
+import TourismCertRow from "../components/TourismCertRow"; // path depends on your structure
+import TourismCertSummaryTable from "../components/SummaryMonthlyTable";
+import { toPng } from "html-to-image";
+import download from "downloadjs";
+import { useNavigate } from "react-router-dom";
 
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
@@ -82,6 +89,14 @@ const getStatusBadgeVariant = (status) => {
 };
 
 export default function VerifierEmployeeListPage() {
+  
+const navigate = useNavigate();
+
+const handleEditEmployee = (employee) => {
+  navigate(`/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`);
+};
+  const summaryRef = useRef(null);
+
   const [expandedRows, setExpandedRows] = useState([]);
   const [showCertificateFor, setShowCertificateFor] = useState(null);
   const tableRef = useRef();
@@ -99,6 +114,73 @@ export default function VerifierEmployeeListPage() {
   const [applicationTypeFilter, setApplicationTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [companyStatusFilter, setCompanyStatusFilter] = useState("");
+  const [sexFilter, setSexFilter] = useState("");
+  const [ageGroupFilter, setAgeGroupFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+  const [nationalityFilter, setNationalityFilter] = useState("");
+  const [documentFilters, setDocumentFilters] = useState({
+    profilePhoto: false,
+    trainingCert: false,
+    diploma: false,
+    additionalRequirement: false,
+    workingPermit: false,
+  });
+  const [dateFilterType, setDateFilterType] = useState(""); // "monthly", "yearly", "custom"
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [customRange, setCustomRange] = useState({ start: "", end: "" });
+  const [showSummary, setShowSummary] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+
+  // Define all possible columns (match keys with employee object)
+  const allColumns = [
+    { key: "status", label: "Status" },
+    { key: "tourismCertificate", label: "Tourism Certificate" },
+    { key: "actions", label: "Actions" },
+    { key: "companyStatus", label: "Company Status" },
+    { key: "history", label: "History" },
+    { key: "applicationType", label: "Application Type" },
+    { key: "companyName", label: "Company Name" },
+    { key: "fullName", label: "Full Name" },
+    { key: "sex", label: "Sex" },
+    { key: "birthday", label: "Birthday" },
+    { key: "age", label: "Age" },
+    { key: "maritalStatus", label: "Marital Status" },
+    { key: "nationality", label: "Type of Residency" }, // you can adjust the key if needed
+    { key: "contact", label: "Contact" },
+    { key: "email", label: "Email" },
+    { key: "designation", label: "Designation" },
+    { key: "education", label: "Education" },
+    { key: "emergencyContact", label: "Emergency Contact" },
+    { key: "presentAddress", label: "Present Address" },
+    { key: "birthPlace", label: "Birth Place" },
+    { key: "height", label: "Height (ft)" },
+    { key: "weight", label: "Weight (kg)" },
+    { key: "profilePhoto", label: "Profile Photo" },
+    { key: "trainingCert", label: "Training Cert" },
+    { key: "diploma", label: "Diploma" },
+    { key: "additionalRequirement", label: "Notarized COE / Signed Endorsement" },
+    { key: "workingPermit", label: "Working Permit (for Foreigns)" },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(
+    allColumns.map(col => col.key) // Default to show all
+  );
+
+
+  const toggleSummary = () => {
+    if (showSummary) {
+      setShowSummary(false);
+    } else {
+      setLoadingSummary(true);
+      setTimeout(() => {
+        setShowSummary(true);
+        setLoadingSummary(false);
+      }, 500); // simulate a short load delay
+    }
+  };
+
 
   useMouseDragScroll(scrollRef);
 
@@ -135,6 +217,21 @@ export default function VerifierEmployeeListPage() {
       setApplicationTypeFilter("");
       setStatusFilter("");
       setCompanyStatusFilter("");
+      setSexFilter("");
+      setAgeGroupFilter("");
+      setDesignationFilter("");
+      setNationalityFilter("");
+      setDocumentFilters({
+        profilePhoto: false,
+        trainingCert: false,
+        diploma: false,
+        additionalRequirement: false,
+        workingPermit: false,
+      });
+      setDateFilterType("");
+      setSelectedMonth("");
+      setSelectedYear("");
+      setCustomRange({ start: "", end: "" });
       setFilteredEmployees(employeeDocs);
       setCurrentPage(1);
     } catch (err) {
@@ -212,45 +309,40 @@ export default function VerifierEmployeeListPage() {
 
       const employeeRef = doc(db, "employee", employee.employeeId);
 
+      // ✅ Handle certificate creation if approved
       if (newStatus.toLowerCase() === "approved") {
         const dateNow = new Date();
         const oneYearLater = new Date(dateNow.getFullYear(), 11, 31);
+
         const certRef = doc(collection(db, "tourism_cert"));
         const certId = certRef.id;
-
-
-        setShowCertificateFor(employee.employeeId);
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const imageBlob = await generateCertificateImageBlob(employee);
-        const pdfBlob = await generateCertificatePdfBlob(employee);
-
-        const imageRef = ref(storage, `certificates/${certId}.png`);
-        const pdfRef = ref(storage, `certificates/${certId}.pdf`);
-
-        await uploadBytes(imageRef, imageBlob);
-        await uploadBytes(pdfRef, pdfBlob);
-
-        // const imageUrl = await getDownloadURL(imageRef);
-        // const pdfUrl = await getDownloadURL(pdfRef);
 
         const cert = {
           tourism_cert_id: certId,
           type: employee.trainingCert ? "Endorsement" : "Recommendation",
           date_Issued: dateNow.toISOString(),
           date_Expired: oneYearLater.toISOString(),
-          // image_link: imageUrl,
-          // pdf_link: pdfUrl,
+          company_id: employee.companyId,
           employee_id: employee.employeeId,
           verifier_id: currentUser?.uid || "system",
           tourism_cert_history: "",
         };
 
+        // 🔒 Save certificate in main collection
         await setDoc(certRef, cert);
 
-        updates.tourism_certificate = [...(employee.tourism_certificate || []), cert];
-        updates.tourism_certificate_history = [...(employee.tourism_certificate_history || []), cert];
+        // 🧠 Reference only in employee document
+        updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), certId];
+        updates.latest_cert_id = certId;
+        updates.latest_cert_summary = {
+          tourism_cert_id: certId,
+          type: cert.type,
+          date_Issued: cert.date_Issued,
+          date_Expired: cert.date_Expired,
+        };
+
+        // 🖼 Optionally: trigger display
+        setShowCertificateFor(employee.employeeId);
       }
 
       await updateDoc(employeeRef, updates);
@@ -260,7 +352,6 @@ export default function VerifierEmployeeListPage() {
       if (newStatus.toLowerCase() === "approved") {
         setShowCertificateFor(employee.employeeId);
       }
-
 
       Swal.fire("Success", "Status updated successfully.", "success");
     } catch (err) {
@@ -316,12 +407,60 @@ export default function VerifierEmployeeListPage() {
       const matchesCompanyStatus =
         !companyStatusFilter || (e.company_status || "").toLowerCase() === companyStatusFilter;
 
+      const matchesSex = !sexFilter || (e.sex || "").toLowerCase() === sexFilter;
 
-      return matchesText && matchesCompany && matchesApplicationType && matchesStatus && matchesCompanyStatus;
+      const matchesAgeGroup = !ageGroupFilter || (() => {
+        const age = Number(e.age);
+        if (isNaN(age)) return false;
+
+        switch (ageGroupFilter) {
+          case "kid":
+            return age >= 0 && age <= 12;
+          case "teen":
+            return age >= 13 && age <= 19;
+          case "adult":
+            return age >= 20 && age <= 59;
+          case "senior":
+            return age >= 60;
+          default:
+            return true;
+        }
+      })();
+
+      const matchesDesignation = !designationFilter ||
+        (e.designation || "").toLowerCase() === designationFilter;
+
+      const matchesNationality = !nationalityFilter || (e.nationality || "").toLowerCase() === nationalityFilter;
+
+      // ✅ Document Filters: if checked, the field must be non-empty
+      const matchesDocuments = Object.entries(documentFilters).every(([field, required]) => {
+        if (!required) return true;
+        const val = e[field];
+        return val && val.trim() !== "";
+      });
+
+      const issuedDates = e.tourism_certificate_history?.map(h => new Date(h.date_Issued)) || [];
+      const latestIssued = issuedDates.length > 0 ? new Date(Math.max(...issuedDates)) : null;
+
+      let matchesDate = true;
+      if (latestIssued && dateFilterType === "monthly" && selectedMonth) {
+        matchesDate = latestIssued.getMonth() + 1 === Number(selectedMonth);
+      }
+      if (latestIssued && dateFilterType === "yearly" && selectedYear) {
+        matchesDate = latestIssued.getFullYear() === Number(selectedYear);
+      }
+      if (latestIssued && dateFilterType === "custom" && customRange.start && customRange.end) {
+        const start = new Date(customRange.start);
+        const end = new Date(customRange.end);
+        matchesDate = latestIssued >= start && latestIssued <= end;
+      }
+
+      return matchesText && matchesCompany && matchesApplicationType && matchesStatus && matchesCompanyStatus && matchesSex && matchesAgeGroup && matchesDesignation && matchesNationality && matchesDocuments && matchesDate;
     });
 
     setFilteredEmployees(filtered);
     setCurrentPage(1);
+
   }, [
     activeSearchText,
     employees,
@@ -329,6 +468,16 @@ export default function VerifierEmployeeListPage() {
     statusFilter,
     companyStatusFilter,
     companyFilter,
+    sexFilter,
+    ageGroupFilter,
+    designationFilter,
+    nationalityFilter,
+    documentFilters,
+    dateFilterType,
+    selectedMonth,
+    selectedYear,
+    customRange.start,
+    customRange.end,
     applicationTypeFilter, // ✅ Include this
   ]);
 
@@ -346,15 +495,267 @@ export default function VerifierEmployeeListPage() {
   };
 
 
+  const handleDeleteEmployee = async (employeeId, employeeData) => {
+    const confirm = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will permanently delete the employee record.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        // Delete documents in Firestore
+        await deleteDoc(doc(db, "employee", employeeId));
+
+        // Delete related files from Firebase Storage
+        const filesToDelete = [
+          employeeData.profilePhoto,
+          employeeData.trainingCert,
+          employeeData.diploma,
+          employeeData.additionalRequirement,
+          employeeData.workingPermit,
+        ];
+
+        await Promise.all(
+          filesToDelete
+            .filter((url) => url?.startsWith("https://")) // only delete if it’s a valid uploaded file
+            .map(async (url) => {
+              try {
+                const decodedUrl = decodeURIComponent(url.split("?")[0]);
+                const pathStartIndex = decodedUrl.indexOf("/o/") + 3;
+                const path = decodedUrl.substring(pathStartIndex).replaceAll("%2F", "/");
+                const fileRef = ref(storage, path);
+                await deleteObject(fileRef);
+              } catch (error) {
+                console.warn("Failed to delete file:", url, error);
+              }
+            })
+        );
+
+        Swal.fire("Deleted!", "Employee has been deleted.", "success");
+
+        // Remove from UI
+        setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+        setFilteredEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+      } catch (error) {
+        console.error("Error deleting employee:", error);
+        Swal.fire("Error", "Failed to delete employee.", "error");
+      }
+    }
+  };
+
+  const exportToExcel = (data, filename = "EmployeeData.xlsx") => {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Employees");
+    XLSX.writeFile(workbook, filename);
+  };
+
+
+  const summary = {
+    males: 0,
+    females: 0,
+    preferNotToSay: 0,
+    kids: 0,
+    teens: 0,
+    adults: 0,
+    seniors: 0,
+    nationalityBreakdown: [],
+    new: 0,
+    renewal: 0,
+  };
+
+  const statusCounts = {};
+  const nationalityMap = {};
+  const companyCounts = {}; // For Top Companies
+  const designationCounts = {}; // For Top Designations
+
+  filteredEmployees.forEach((emp) => {
+    const age = emp.age || 0;
+
+    // Status counts
+    const status = (emp.status || "unknown").toLowerCase();
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+    // Sex counts
+    const sex = (emp.sex || "").toLowerCase();
+    if (sex === "male") summary.males++;
+    else if (sex === "female") summary.females++;
+    else summary.preferNotToSay++;
+
+    // Age Segregation
+    if (age <= 12) summary.kids++;
+    else if (age <= 19) summary.teens++;
+    else if (age <= 59) summary.adults++;
+    else summary.seniors++;
+
+    // Nationality aggregation
+    const nat = emp.nationality?.toLowerCase() || "unknown";
+    nationalityMap[nat] = (nationalityMap[nat] || 0) + 1;
+
+    // Application Type Summary
+    const appType = (emp.application_type || "").toLowerCase();
+    if (appType === "new") summary.new++;
+    else if (appType === "renewal") summary.renewal++;
+
+    // ✅ Top Companies (if company_status === "approved")
+    const companyId = emp.companyId;
+    const companyStatus = emp.company_status?.toLowerCase();
+    if (companyId && companyStatus === "approved") {
+      companyCounts[companyId] = (companyCounts[companyId] || 0) + 1;
+    }
+
+    // ✅ Top Designations
+    const desig = emp.designation?.trim();
+    if (desig) {
+      designationCounts[desig] = (designationCounts[desig] || 0) + 1;
+    }
+  });
+
+  // Convert nationality map to pie data
+  summary.nationalityBreakdown = Object.entries(nationalityMap).map(([nat, count]) => ({
+    name: nat,
+    value: count,
+  }));
+
+  // ✅ Generate Top 10 Companies (sorted descending by count)
+  const topCompanies = Object.entries(companyCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([companyId, count]) => ({
+      name: companyDataMap[companyId]?.name || companyId,
+      value: count,
+    }));
+
+  // ✅ Generate Top 10 Designations
+  const topDesignations = Object.entries(designationCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
+
+
+  function renderExpandedHistory(emp, empData) {
+    return (
+      <tr key={`${emp.id}-expanded`}>
+        <td colSpan={100}>
+          <Card className="bg-light border mb-3">
+            <Card.Body>
+              <p className="fw-bold mb-2">Status History:</p>
+              {empData.status_history?.length > 0 ? (
+                <Table size="sm" bordered className="mb-3">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Remarks</th>
+                      <th>User</th>
+                      <th>Date Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empData.status_history.map((entry, index) => (
+                      <tr key={index}>
+                        <td>{entry.status}</td>
+                        <td>{entry.remarks || "—"}</td>
+                        <td>{entry.userId}</td>
+                        <td>{new Date(entry.date_updated).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <p className="text-muted">No status history available.</p>
+              )}
+
+              <p className="fw-bold mb-2">Company Status History:</p>
+              {empData.company_status_history?.length > 0 ? (
+                <Table size="sm" bordered className="mb-3">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Remarks</th>
+                      <th>User</th>
+                      <th>Date Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empData.company_status_history.map((entry, index) => (
+                      <tr key={index}>
+                        <td>{entry.company_status}</td>
+                        <td>{entry.remarks || "—"}</td>
+                        <td>{entry.userId}</td>
+                        <td>{new Date(entry.date_updated).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <p className="text-muted">No company status history available.</p>
+              )}
+
+              <p className="fw-bold mb-2">Tourism Certificate History:</p>
+              {empData.tourism_certificate_ids?.length > 0 ? (
+                <Table size="sm" bordered>
+                  <thead>
+                    <tr>
+                      <th>Tourism ID</th>
+                      <th>Actions</th>
+                      <th>Type</th>
+                      <th>Date Issued</th>
+                      <th>Date Expired</th>
+                      <th>Verifier</th>
+                      <th>Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empData.tourism_certificate_ids.map((certId, idx) => (
+                      <TourismCertRow key={certId} certId={certId} empId={empData.id} />
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <p className="text-muted">No tourism certificate history available.</p>
+              )}
+            </Card.Body>
+          </Card>
+        </td>
+      </tr>
+    );
+  }
+  const handleDownloadImage = () => {
+    if (summaryRef.current === null) return;
+
+    Swal.fire({
+      title: "Preparing image...",
+      text: "Please wait while we generate your report.",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    toPng(summaryRef.current, { cacheBust: true })
+      .then((dataUrl) => {
+        download(dataUrl, "tourism_summary.png");
+        Swal.close(); // close the loading alert
+      })
+      .catch((err) => {
+        console.error("Image download failed", err);
+        Swal.fire("Error", "Failed to generate the image.", "error");
+      });
+  };
+
+
+
   return (
     <>
-      <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
       <Container>
         <Row className="justify-content-center">
-          <Col xs={12} sm={10}>
-            <Card.Body className="mt-5">
-              <p className="barabara-label text-start mt-5">EMPLOYEE LIST</p>
-              <p className="m-1 mt-3 text-muted small text-start">
+          <Col md={12}>
+            <Card.Body>
+              <p id="toppage" className="barabara-label text-start">TOURISM FRONTLINERS FULL LIST</p>
+              <p className="mt-1 mb-4 text-muted small text-start">
                 Full list of current employees and applicants.
               </p>
 
@@ -366,26 +767,183 @@ export default function VerifierEmployeeListPage() {
                 >
                   <FontAwesomeIcon icon={faSyncAlt} />
                 </Button>
+                <DropdownButton
+                  as={ButtonGroup}
+                  variant="outline-secondary"
+                  title={<><FontAwesomeIcon icon={faDownload} /></>}
+                  size="md"
 
+                >
+                  <Dropdown.Item onClick={() => exportToExcel(employees, "All_Employees.xlsx")}>
+                    <FontAwesomeIcon icon={faDownload} className="me-2" />
+                    Download All Data (Excel)
+                  </Dropdown.Item>
 
+                  <Dropdown.Item onClick={() => exportToExcel(filteredEmployees, "Filtered_Employees.xlsx")}>
+                    <FontAwesomeIcon icon={faDownload} className="me-2" />
+                    Download Filtered Data (Excel)
+                  </Dropdown.Item>
 
-                {/* Search Input */}
-                <InputGroup style={{ maxWidth: "350px" }}>
-                  <FormControl
-                    placeholder="Search by name or company..."
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                  />
-                  <Button
-                    variant="outline-secondary"
-                    onClick={() => {
-                      setActiveSearchText(searchText);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faSearch} />
-                  </Button>
-                </InputGroup>
+                  <Dropdown.Item onClick={() => exportToPdf(filteredEmployees, "Filtered_Employees.pdf")}>
+                    <FontAwesomeIcon icon={faPrint} className="me-2" />
+                    Download Filtered Data (PDF)
+                  </Dropdown.Item>
+                </DropdownButton>
+
+                <Dropdown
+                  show={showColumnDropdown}
+                  onToggle={() => setShowColumnDropdown(!showColumnDropdown)}
+                >
+                  <Dropdown.Toggle variant="outline-secondary" title="Customize Columns">
+                    <FontAwesomeIcon icon={faColumns} />
+                  </Dropdown.Toggle>
+
+                  <Dropdown.Menu style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}>
+                    <div className="d-flex justify-content-between mb-2">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() => setVisibleColumns(allColumns.map(col => col.key))}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() => setVisibleColumns([])}
+                      >
+                        Unselect All
+                      </Button>
+                    </div>
+
+                    <Form>
+                      {allColumns.map(col => (
+                        <Form.Check
+                          key={col.key}
+                          type="checkbox"
+                          id={`toggle-${col.key}`}
+                          label={col.label}
+                          checked={visibleColumns.includes(col.key)}
+                          onChange={() => {
+                            setVisibleColumns(prev =>
+                              prev.includes(col.key)
+                                ? prev.filter(k => k !== col.key)
+                                : [...prev, col.key]
+                            );
+                          }}
+                        />
+                      ))}
+                    </Form>
+                  </Dropdown.Menu>
+                </Dropdown>
+
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-secondary" size="md">
+                    <FontAwesomeIcon icon={faFileCircleCheck} />
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu style={{ padding: "10px", width: 250 }}>
+                    {[
+                      { key: "profilePhoto", label: "With Profile Photo" },
+                      { key: "trainingCert", label: "With Training Certificate" },
+                      { key: "diploma", label: "With Diploma" },
+                      { key: "additionalRequirement", label: "With Additional Requirement" },
+                      { key: "workingPermit", label: "With Working Permit" },
+                    ].map(({ key, label }) => (
+                      <Form.Check
+                        key={key}
+                        type="checkbox"
+                        id={`doc-filter-${key}`}
+                        label={label}
+                        checked={documentFilters[key]}
+                        onChange={(e) =>
+                          setDocumentFilters((prev) => ({
+                            ...prev,
+                            [key]: e.target.checked,
+                          }))
+                        }
+                      />
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-secondary" size="md">
+                    <FontAwesomeIcon icon={faCalendar} />
+                  </Dropdown.Toggle>
+
+                  <Dropdown.Menu style={{ padding: "1rem", minWidth: 250 }}>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Date Type</label>
+                      <Form.Select
+                        value={dateFilterType}
+                        onChange={(e) => {
+                          setDateFilterType(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="">All Dates</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="custom">Custom Range</option>
+                      </Form.Select>
+                    </div>
+
+                    {dateFilterType === "monthly" && (
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold small text-muted">Select Month</label>
+                        <Form.Select
+                          value={selectedMonth}
+                          onChange={(e) => setSelectedMonth(e.target.value)}
+                        >
+                          <option value="">Select Month</option>
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <option key={i} value={i + 1}>
+                              {new Date(0, i).toLocaleString("default", { month: "long" })}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </div>
+                    )}
+
+                    {dateFilterType === "yearly" && (
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold small text-muted">Select Year</label>
+                        <Form.Control
+                          type="number"
+                          min="2000"
+                          max={new Date().getFullYear()}
+                          value={selectedYear}
+                          placeholder="Enter year"
+                          onChange={(e) => setSelectedYear(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {dateFilterType === "custom" && (
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold small text-muted">Custom Range</label>
+                        <div className="d-flex gap-2">
+                          <Form.Control
+                            type="date"
+                            value={customRange.start}
+                            onChange={(e) =>
+                              setCustomRange((prev) => ({ ...prev, start: e.target.value }))
+                            }
+                          />
+                          <Form.Control
+                            type="date"
+                            value={customRange.end}
+                            onChange={(e) =>
+                              setCustomRange((prev) => ({ ...prev, end: e.target.value }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </Dropdown.Menu>
+                </Dropdown>
                 <Dropdown>
                   <Dropdown.Toggle variant="outline-secondary" size="md">
                     <FontAwesomeIcon icon={faFilter} className="me-2" />
@@ -417,6 +975,33 @@ export default function VerifierEmployeeListPage() {
                       />
                     </div>
 
+                    {/* Designation Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Designation</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Designations" },
+                          ...Array.from(new Set(employees.map((e) => e.designation || "")))
+                            .filter(Boolean)
+                            .map((designation) => ({
+                              value: designation.toLowerCase(),
+                              label: designation,
+                            })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Designation"
+                        value={
+                          designationFilter
+                            ? { value: designationFilter, label: designationFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setDesignationFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
                     {/* Application Type Filter */}
                     <div className="mb-3">
                       <label className="form-label fw-semibold small text-muted">Application Type</label>
@@ -440,6 +1025,29 @@ export default function VerifierEmployeeListPage() {
                         }}
                       />
                     </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Type of Residency</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Nationalities" },
+                          ...Array.from(new Set(employees.map((e) => e.nationality || "")))
+                            .filter(Boolean)
+                            .map((nat) => ({ value: nat.toLowerCase(), label: nat })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Type of Residency"
+                        value={
+                          nationalityFilter
+                            ? { value: nationalityFilter, label: nationalityFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setNationalityFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
 
                     {/* Employee Status Filter */}
                     <div className="mb-3">
@@ -466,7 +1074,7 @@ export default function VerifierEmployeeListPage() {
                     </div>
 
                     {/* Company Status Filter */}
-                    <div>
+                    <div className="mb-3">
                       <label className="form-label fw-semibold small text-muted">Company Status</label>
                       <Select
                         options={[
@@ -488,9 +1096,83 @@ export default function VerifierEmployeeListPage() {
                         }}
                       />
                     </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Sex</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Sex" },
+                          ...Array.from(new Set(employees.map((e) => e.sex || "")))
+                            .filter(Boolean)
+                            .map((sex) => ({ value: sex.toLowerCase(), label: sex })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Sex"
+                        value={
+                          sexFilter
+                            ? { value: sexFilter, label: sexFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setSexFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Age Group</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Age Groups" },
+                          { value: "kid", label: "Kid (0-12)" },
+                          { value: "teen", label: "Teen (13-19)" },
+                          { value: "adult", label: "Adult (20-59)" },
+                          { value: "senior", label: "Senior (60+)" },
+                        ]}
+                        isClearable
+                        placeholder="Filter by Age Group"
+                        value={
+                          ageGroupFilter
+                            ? {
+                              value: ageGroupFilter,
+                              label:
+                                ageGroupFilter === "kid"
+                                  ? "Kid (0-12)"
+                                  : ageGroupFilter === "teen"
+                                    ? "Teen (13-19)"
+                                    : ageGroupFilter === "adult"
+                                      ? "Adult (20-59)"
+                                      : "Senior (60+)",
+                            }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setAgeGroupFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+
+
                   </Dropdown.Menu>
                 </Dropdown>
-
+                {/* Search Input */}
+                <InputGroup style={{ maxWidth: "350px" }}>
+                  <FormControl
+                    placeholder="Search by name or company..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => {
+                      setActiveSearchText(searchText);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faSearch} />
+                  </Button>
+                </InputGroup>
 
               </div>
 
@@ -498,237 +1180,174 @@ export default function VerifierEmployeeListPage() {
 
               <div ref={scrollRef} className="custom-scroll-wrapper table-border">
                 <div ref={tableRef} className="mt-2">
+                  <div className="mb-3">
+                    <p className="small text-muted mb-1"><strong>Active Filters:</strong></p>
+                    <p className="small text-dark mb-0">
+                      {[
+                        companyFilter && `Company: ${getCompanyLabel(companyFilter)}`,
+                        applicationTypeFilter && `Application Type: ${applicationTypeFilter}`,
+                        statusFilter && `Status: ${statusFilter}`,
+                        companyStatusFilter && `Company Status: ${companyStatusFilter}`,
+                        sexFilter && `Sex: ${sexFilter}`,
+                        ageGroupFilter && `Age Group: ${ageGroupFilter}`,
+                        designationFilter && `Designation: ${designationFilter}`,
+                        nationalityFilter && `Nationality: ${nationalityFilter}`,
+                        ...Object.entries(documentFilters)
+                          .filter(([_, isChecked]) => isChecked)
+                          .map(([field]) => `Has ${field}`),
+                        dateFilterType === "monthly" && selectedMonth && `Month: ${new Date(0, selectedMonth - 1).toLocaleString("default", { month: "long" })}`,
+                        dateFilterType === "yearly" && selectedYear && `Year: ${selectedYear}`,
+                        dateFilterType === "custom" && customRange.start && customRange.end &&
+                        `Date Range: ${new Date(customRange.start).toLocaleDateString()} to ${new Date(customRange.end).toLocaleDateString()}`
+                      ]
+                        .filter(Boolean)
+                        .join(" | ") || "None"}
+                    </p>
+                  </div>
 
                   <Table bordered hover style={{ minWidth: "1400px" }}>
                     <thead>
                       <tr>
-                        <th>Status</th>
-                        <th>Company Status</th>
-                        <th>Tourism Certificate</th>
-                        <th>Actions</th>
-                        <th>History</th>
-                        <th>Application Type</th>
-                        <th>Company Name</th>
-                        <th>Full Name</th>
-                        <th>Sex</th>
-                        <th>Birthday</th>
-                        <th>Age</th>
-                        <th>Marital Status</th>
-                        <th>Type of Residency</th>
-                        <th>Contact</th>
-                        <th>Email</th>
-                        <th>Designation</th>
-                        <th>Education</th>
-                        <th>Emergency Contact</th>
-                        <th>Present Address</th>
-                        <th>Birth Place</th>
-                        <th>Height (ft)</th>
-                        <th>Weight (kg)</th>
-                        <th>Profile Photo</th>
-                        <th>Training Cert</th>
-                        <th>Diploma</th>
-                        <th>Notarized COE / Endorsement</th>
-                        <th>Working Permit</th>
+                        {allColumns
+                          .filter(col => visibleColumns.includes(col.key))
+                          .map(col => (
+                            <th key={col.key}>{col.label}</th>
+                          ))}
                       </tr>
                     </thead>
                     <tbody>
                       {filteredEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan={26} className="text-center text-muted">No employees found.</td>
+                          <td colSpan={visibleColumns.length} className="text-center text-muted">
+                            No employees found.
+                          </td>
                         </tr>
                       ) : (
                         paginatedEmployees.map((empData) => {
                           const emp = new Employee({ id: empData.id, ...empData });
                           const company = companyDataMap[emp.companyId];
 
+                          const rowData = {
+                            status: <Badge bg={getStatusBadgeVariant(emp.status)}>{emp.status}</Badge>,
+                            tourismCertificate: Array.isArray(emp.tourism_certificate_ids) && emp.tourism_certificate_ids.length > 0 ? (
+                              <div className="d-flex flex-wrap gap-2">
+                                {emp.tourism_certificate_ids.map((certId, index) => (
+                                  <Button
+                                    key={certId}
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    onClick={() => window.open(`/tourism-certificate/${certId}`, "_blank")}
+                                  >
+                                    <FontAwesomeIcon icon={faEye} className="me-1" />
+                                    View {emp.tourism_certificate_ids.length > 1 ? `#${index + 1}` : ""}
+                                  </Button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted">N/A</span>
+                            ),
+
+
+                            actions: (
+                              <div className="d-flex gap-2">
+                                <Dropdown>
+                                  <Dropdown.Toggle size="sm" variant="outline-secondary">
+                                    Change Status
+                                  </Dropdown.Toggle>
+                                  <Dropdown.Menu>
+                                    {STATUSES.map((status) => (
+                                      <Dropdown.Item
+                                        key={status}
+                                        disabled={empData.status?.toLowerCase() === status.toLowerCase()}
+                                        onClick={() => handleChangeStatus(empData, status)}
+                                      >
+                                        {status}
+                                      </Dropdown.Item>
+                                    ))}
+                                  </Dropdown.Menu>
+                                </Dropdown>
+                                <Button
+      variant="outline-primary"
+      size="sm"
+      onClick={() => handleEditEmployee(empData)}
+      title="Edit Employee"
+    >
+      <FontAwesomeIcon icon={faPen} />
+    </Button>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+
+                                  onClick={() => handleDeleteEmployee(empData.id)}
+                                >
+                                  <FontAwesomeIcon icon={faTrash} />
+                                </Button>
+                                {/* add here the edit button */}
+                              </div>
+                            ),
+
+                            companyStatus: <Badge bg={getStatusBadgeVariant(emp.company_status)}>{emp.company_status || "N/A"}</Badge>,
+                            history: (
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => toggleExpand(emp.id)}
+                              >
+                                {expandedRows.includes(emp.id) ? "Hide History" : "View History"}
+                              </button>
+                            ),
+                            applicationType: emp.application_type,
+                            companyName: company?.name || emp.companyId,
+                            fullName: emp.getFullName(),
+                            sex: emp.sex,
+                            birthday: emp.birthday,
+                            age: emp.age,
+                            maritalStatus: emp.maritalStatus,
+                            nationality: emp.nationality,
+                            contact: emp.contact,
+                            email: emp.email,
+                            designation: emp.designation,
+                            education: emp.education,
+                            emergencyContact: `${emp.emergencyContactName} / ${emp.emergencyContactNumber}`,
+                            presentAddress: [
+                              emp.presentAddress?.street,
+                              emp.presentAddress?.barangay,
+                              emp.presentAddress?.town,
+                              emp.presentAddress?.province,
+                              emp.presentAddress?.region,
+                              emp.presentAddress?.country,
+                            ].filter(Boolean).join(", "),
+                            birthPlace: [
+                              emp.birthPlace?.town,
+                              emp.birthPlace?.province,
+                              emp.birthPlace?.country,
+                            ].filter(Boolean).join(", "),
+                            height: emp.height,
+                            weight: emp.weight,
+                            profilePhoto: viewDocLink(emp.profilePhoto),
+                            trainingCert: viewDocLink(emp.trainingCert),
+                            diploma: viewDocLink(emp.diploma),
+                            additionalRequirement: viewDocLink(emp.additionalRequirement),
+                            workingPermit: viewDocLink(emp.workingPermit),
+                          };
+
                           return (
                             <React.Fragment key={emp.id}>
                               <tr>
-                                <td>
-                                  <span className={`badge bg-${getStatusBadgeVariant(emp.status)}`}>{emp.status}</span>
-                                </td>
-                                <td>
-                                  <span className={`badge bg-${getStatusBadgeVariant(emp.company_status)}`}>{emp.company_status || "N/A"}</span>
-                                </td>
-                                <td>
-                                  {emp.tourism_certificate?.length > 0 ? (() => {
-                                    const latestCert = emp.tourism_certificate[emp.tourism_certificate.length - 1];
-                                    return (
-                                      <div className="d-flex flex-column gap-1">
-
-
-                                        <Button
-                                          variant="outline-secondary"
-                                          size="sm"
-                                          disabled={!emp.tourism_certificate || emp.tourism_certificate.length === 0}
-                                          onClick={() => setShowCertificateFor(emp.employeeId)}
-                                        >
-                                          <FontAwesomeIcon icon={faEye} className="me-2" />
-                                          View
-                                        </Button>
-
-
-                                      </div>
-                                    );
-                                  })() : (
-                                    <span className="text-muted">N/A</span>
-                                  )}
-                                </td>
-
-
-                                <td>
-                                  <Dropdown>
-                                    <Dropdown.Toggle size="sm" variant="outline-secondary">
-                                      Change Status
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu>
-                                      {STATUSES.map((status) => (
-                                        <Dropdown.Item
-                                          key={status}
-                                          disabled={empData.status?.toLowerCase() === status.toLowerCase()}
-                                          onClick={() => handleChangeStatus(empData, status)}
-                                        >
-                                          {status}
-                                        </Dropdown.Item>
-                                      ))}
-                                    </Dropdown.Menu>
-                                  </Dropdown>
-                                </td>
-
-                                <td>
-                                  <button
-                                    className="btn btn-sm btn-outline-secondary"
-                                    onClick={() => toggleExpand(emp.id)}
-                                  >
-                                    {expandedRows.includes(emp.id) ? "Hide History" : "View History"}
-                                  </button>
-                                </td>
-                                <td>{emp.application_type}</td>
-                                <td>{company?.name || emp.companyId}</td>
-                                <td>{emp.getFullName()}</td>
-                                <td>{emp.sex}</td>
-                                <td>{emp.birthday}</td>
-                                <td>{emp.age}</td>
-                                <td>{emp.maritalStatus}</td>
-                                <td>{emp.nationality}</td>
-                                <td>{emp.contact}</td>
-                                <td>{emp.email}</td>
-                                <td>{emp.designation}</td>
-                                <td>{emp.education}</td>
-                                <td>{emp.emergencyContactName} / {emp.emergencyContactNumber}</td>
-                                <td>{`${emp.presentAddress.street}, ${emp.presentAddress.barangay}, ${emp.presentAddress.town}, ${emp.presentAddress.province}, ${emp.presentAddress.region}, ${emp.presentAddress.country}`}</td>
-                                <td>{`${emp.birthPlace.town}, ${emp.birthPlace.province}, ${emp.birthPlace.country}`}</td>
-                                <td>{emp.height}</td>
-                                <td>{emp.weight}</td>
-                                <td>{viewDocLink(emp.profilePhoto)}</td>
-                                <td>{viewDocLink(emp.trainingCert)}</td>
-                                <td>{viewDocLink(emp.diploma)}</td>
-                                <td>{viewDocLink(emp.additionalRequirement)}</td>
-                                <td>{viewDocLink(emp.workingPermit)}</td>
+                                {allColumns.map(col =>
+                                  visibleColumns.includes(col.key) && (
+                                    <td key={col.key}>{rowData[col.key]}</td>
+                                  )
+                                )}
                               </tr>
-                              {expandedRows.includes(emp.id) && (
-                                <tr key={`${emp.id}-expanded`}>
-
-                                  <td colSpan={26}>
-                                    <Card className="bg-light border mb-3">
-                                      <Card.Body>
-                                        <p className="fw-bold mb-2">Status History:</p>
-                                        {empData.status_history?.length > 0 ? (
-                                          <Table size="sm" bordered className="mb-3">
-                                            <thead>
-                                              <tr>
-                                                <th>Status</th>
-                                                <th>Remarks</th>
-                                                <th>User</th>
-                                                <th>Date Updated</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {empData.status_history.map((entry, index) => (
-                                                <tr key={index}>
-                                                  <td>{entry.status}</td>
-                                                  <td>{entry.remarks || "—"}</td>
-                                                  <td>{entry.userId}</td>
-                                                  <td>{new Date(entry.date_updated).toLocaleString()}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </Table>
-                                        ) : (
-                                          <p className="text-muted">No status history available.</p>
-                                        )}
-
-                                        <p className="fw-bold mb-2">Company Status History:</p>
-                                        {empData.company_status_history?.length > 0 ? (
-                                          <Table size="sm" bordered>
-                                            <thead>
-                                              <tr>
-                                                <th>Status</th>
-                                                <th>Remarks</th>
-                                                <th>User</th>
-                                                <th>Date Updated</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {empData.company_status_history.map((entry, index) => (
-                                                <tr key={index}>
-                                                  <td>{entry.company_status}</td>
-                                                  <td>{entry.remarks || "—"}</td>
-                                                  <td>{entry.userId}</td>
-                                                  <td>{new Date(entry.date_updated).toLocaleString()}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </Table>
-                                        ) : (
-                                          <p className="text-muted">No company status history available.</p>
-                                        )}
-
-                                        <p className="fw-bold mb-2">Tourism Certificate History:</p>
-                                        {empData.tourism_certificate_history?.length > 0 ? (
-                                          <Table size="sm" bordered>
-                                            <thead>
-                                              <tr>
-                                                <th>Tourism ID</th>
-                                                <th>Type</th>
-                                                <th>Date Issued</th>
-                                                <th>Date Expired</th>
-                                                <th>Verifier</th>
-                                                <th>Link</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {empData.tourism_certificate_history.map((cert, idx) => (
-                                                <tr key={idx}>
-                                                  <td>{cert.tourism_cert_id}</td>
-                                                  <td>{cert.type}</td>
-                                                  <td>{cert.date_Issued}</td>
-                                                  <td>{cert.date_Expired}</td>
-                                                  <td>{cert.verifier_id}</td>
-                                                  <td>{viewDocLink(cert.image_link)}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </Table>
-                                        ) : (
-                                          <p className="text-muted">No tourism certificate history available.</p>
-                                        )}
-                                      </Card.Body>
-                                    </Card>
-                                  </td>
-                                </tr>
-                              )}
-
-
+                              {expandedRows.includes(emp.id) && renderExpandedHistory(emp, empData)}
                             </React.Fragment>
                           );
                         })
                       )}
                     </tbody>
+
                   </Table>
-
                 </div>
-
               </div>
               <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
                 {/* Left: Rows per page */}
@@ -748,8 +1367,6 @@ export default function VerifierEmployeeListPage() {
                     ))}
                   </Form.Select>
                 </Form.Group>
-
-
                 {/* Right: Pagination controls */}
                 <div className="d-flex align-items-center gap-2">
                   <Button
@@ -773,14 +1390,11 @@ export default function VerifierEmployeeListPage() {
                   </Button>
                 </div>
               </div>
-
               {/* OUTSIDE of map, and below the table */}
               {showCertificateFor && (() => {
                 const selectedEmp = employees.find(e => e.id === showCertificateFor);
                 const company = companyDataMap[selectedEmp?.companyId];
-
                 if (!selectedEmp) return null;
-
                 return (
                   <React.Fragment key={selectedEmp.id}>
                     <TourismCert
@@ -803,15 +1417,135 @@ export default function VerifierEmployeeListPage() {
 
                 );
               })()}
-
-
             </Card.Body>
           </Col>
         </Row>
+        <div className="d-flex justify-content-center mt-4 mb-5">
+          <Button
+            variant={showSummary ? "outline-danger" : "outline-secondary"}
+            onClick={toggleSummary}
+            disabled={loadingSummary}
+          >
+            {loadingSummary
+              ? "Loading..."
+              : showSummary
+                ? "Hide Summary"
+                : "Show Summary"}
+          </Button>
+        </div>
+        {showSummary && (
+          <Row className="justify-content-center">
+            <Col md={12}>
+              <div className="mt-2 table-border bg-white p-3" ref={summaryRef}>
+                <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
+                  <h6 className="mb-0">Summary</h6>
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={handleDownloadImage}
+                  >
+                    <FontAwesomeIcon icon={faDownload} /> Download Report
+                  </Button>
+                </div>
+                <p className="text-muted">
+                  <strong>{filteredEmployees.length}</strong> Tourism Fronliner(s){" "}
+                  {activeSearchText && (
+                    <>
+                      matching "<strong>{activeSearchText}</strong>"
+                    </>
+                  )}
+                </p>
+
+                {/* STATUS COUNTS */}
+                <Row className="mb-3 g-3">
+                  {Object.entries(statusCounts).map(([status, count], idx) => (
+                    <Col key={idx} md={2}>
+                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                        <div>
+                          <p className="mb-1 fw-semibold text-capitalize">{status}</p>
+                          <h6 className="mb-0 text-dark">
+                            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                          </h6>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+
+                {/* PIE CHART BREAKDOWNS */}
+                <Row className="g-3 mt-2">
+
+
+                  <Col md={3}>
+                    <SummaryPieChart
+                      title="Application Type Breakdown"
+                      loading={!filteredEmployees.length}
+                      data={[
+                        { name: 'New', value: summary?.new || 0 },
+                        { name: 'Renewal', value: summary?.renewal || 0 },
+                      ]}
+                    />
+                  </Col>
+                  <Col md={3}>
+                    <SummaryPieChart
+                      title="Type of Residency Breakdown"
+                      loading={!filteredEmployees.length}
+                      data={summary?.nationalityBreakdown || []}
+                    />
+                  </Col>
+                  <Col md={3}>
+                    <SummaryPieChart
+                      title="Sex Breakdown"
+                      loading={!filteredEmployees.length}
+                      data={[
+                        { name: 'Males', value: summary?.males || 0 },
+                        { name: 'Females', value: summary?.females || 0 },
+                        { name: 'Prefer not to say', value: summary?.preferNotToSay || 0 },
+                      ]}
+                    />
+                  </Col>
+
+                  <Col md={3}>
+                    <SummaryPieChart
+                      title="Age Breakdown"
+                      loading={!filteredEmployees.length}
+                      data={[
+                        { name: 'Kids (0–12)', value: summary?.kids || 0 },
+                        { name: 'Teens (13–19)', value: summary?.teens || 0 },
+                        { name: 'Adults (20–59)', value: summary?.adults || 0 },
+                        { name: 'Seniors (60+)', value: summary?.seniors || 0 },
+                      ]}
+                    />
+                  </Col>
+
+
+                </Row>
+                <Row className="g-3 mt-2">
+                  <Col md={6}>
+                    <TopRankingChart title="Top 10 Companies (Company Approved Tourism Frontliners)" data={topCompanies} />
+                  </Col>
+                  <Col md={6}>
+                    <TopRankingChart title="Top 10 Designations" data={topDesignations} />
+                  </Col>
+                </Row>
+                <Row className="g-3 mt-2">
+                  <Col md={12}>
+                    <TourismCertSummaryTable employees={filteredEmployees} loading={!filteredEmployees.length} />
+                  </Col>
+
+                </Row>
+                <small className="text-muted d-block text-center mt-2">
+                  * This report and its contents are the property of the Local Government of Malay through the Municipal Tourism Office and adhere to the Data Privacy Act of 2012 (Republic Act No. 10173). Please ensure proper disposal of printed or digital copies in accordance with data privacy and confidentiality protocols.
+                </small>
+              </div>
+            </Col>
+          </Row>
+
+
+        )}
+        <div className="my-5">
+        </div>
       </Container>
-
-      <FooterCustomized scrollToId="toppage" />
-
     </>
   );
 }

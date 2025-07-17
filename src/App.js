@@ -14,6 +14,9 @@ import { AuthProvider, useAuth } from './auth/authentication.js';
 import VerifierRegisterPage from './pages/Verifier_Registration.js';
 import VerifierLoginPage from './pages/Verifier_Login.js';
 import VerifierEmployeeListPage from './pages/Verifier_Employee_List.js';
+import VerifierDashboard from './pages/Verifier_Dashboard.js';
+import TourismCertView from './components/TourismCertView.js';
+import EditEmployeeForm from './pages/EditEmployee.js';
 
 // Private Route
 function PrivateRoute({ element }) {
@@ -34,10 +37,14 @@ function App() {
             <Route path="/employee-registration/:residency" element={<EmployeeRegistrationForm />} />
             <Route path="/verifier-registration/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierRegisterPage />} />
             <Route path="/verifier-login/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierLoginPage />} />
-            <Route path="/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierEmployeeListPage />} />
+            <Route path="/tourism-certificate/:tourism_cert_id" element={<TourismCertView />} />
+
             {/* /quickstatus/:employee_quickstatus_id */}
             {/* ✅ Protected Routes */}
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
+            <Route path="/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierEmployeeListPage />} />}/>
+            <Route path="/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierDashboard />} />}/>
+            <Route path="/verifier-employee-edit/:employee_id/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<EditEmployeeForm />} />}/>
 
             <Route path="*" element={<NotFound />} />
           </Routes>

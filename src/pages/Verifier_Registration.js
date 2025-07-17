@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { useNavigate } from 'react-router-dom';
+import FileUploader from '../components/UploadImageFile';
 
 export default function VerifierRegisterPage() {
   const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ export default function VerifierRegisterPage() {
     suffix: '',
     designation: '',
     tourism_Id_code: '',
+    profilePhoto: '', // ✅ Add this to hold the file URL
   });
 
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export default function VerifierRegisterPage() {
       const userCredential = await docreateUserWithEmailAndPassword(email, password);
       const user = userCredential.user;
 
-const verifierId = user.uid;
+      const verifierId = user.uid;
       const verifierData = new VerifierModel({
         verifierId,
         userUID: user.uid,
@@ -51,8 +53,6 @@ const verifierId = user.uid;
       await setDoc(verifierRef, verifierData.toObject());
 
       Swal.fire('Success', 'Verifier registered successfully!', 'success');
-
-      // ✅ Auto-redirect to dashboard
       navigate(`/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2`);
     } catch (error) {
       console.error(error);
@@ -108,6 +108,16 @@ const verifierId = user.uid;
                 <Form.Label>Tourism ID Code</Form.Label>
                 <Form.Control type="text" name="tourism_Id_code" value={formData.tourism_Id_code} onChange={handleChange} required />
               </Form.Group>
+
+              {/* ✅ File Uploader */}
+              <FileUploader
+                label="2x2 Profile Photo (formal attire)"
+                fileKey="profilePhoto"
+                storagePath="employee/profile_photos"
+                formData={formData}
+                setFormData={setFormData}
+              />
+
               <div className="d-flex justify-content-end mt-3">
                 <Button variant="primary" type="submit">Register</Button>
               </div>

@@ -246,8 +246,6 @@ export default function CompanyDashboardPage() {
                                                     isClearable
                                                 />
                                             </Form.Group>
-
-
                                             {selectedEmployee && (
                                                 <Form.Group className="mt-2">
                                                     <Form.Label>Assignee's Contact Information</Form.Label>
@@ -258,10 +256,6 @@ export default function CompanyDashboardPage() {
                                                     />
                                                 </Form.Group>
                                             )}
-
-
-
-
                                         </>
                                     )}
                                     {/* Step 2: Company Details */}
@@ -272,12 +266,6 @@ export default function CompanyDashboardPage() {
                                                 setGroupData={setTicketData}
                                                 ifForeign={true} // or false depending on what default you want
                                             />
-
-
-
-
-
-
                                         </>
                                     )}
                                     {/* Step 3: Company Details */}

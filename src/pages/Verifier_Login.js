@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Button, Card, Container } from 'react-bootstrap';
-import { doSignInWithEmailAndPassword } from '../config/auth'; // make sure path is correct
+import { doSignInWithEmailAndPassword } from '../config/auth';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import AppNavBar from '../components/AppNavBar';
@@ -18,13 +18,17 @@ export default function VerifierLoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      Swal.fire({ title: 'Logging in...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({
+        title: 'Logging in...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
 
       await doSignInWithEmailAndPassword(formData.email, formData.password);
       Swal.fire('Success', 'Login successful!', 'success');
 
-      // Redirect to dashboard or verifier page
-      navigate('/verifier-dashboard');
+      // ✅ Redirect to dashboard with specific ID
+      navigate('/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2');
     } catch (error) {
       console.error('Login error:', error);
       Swal.fire('Login Failed', error.message || 'Unable to log in', 'error');

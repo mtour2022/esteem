@@ -85,6 +85,7 @@ export default function EmployeeRegistrationForm() {
             }));
         }
     }, [residency]);
+    
     useEffect(() => {
         if (formData.classification) {
             const fetchCompanies = async () => {
@@ -123,16 +124,7 @@ export default function EmployeeRegistrationForm() {
     const nextStep = () => setCurrentStep(prev => prev + 1);
     const prevStep = () => setCurrentStep(prev => prev - 1);
 
-    const capturePhoto = () => {
-        const imageSrc = webcamRef.current.getScreenshot();
-        fetch(imageSrc).then(res => res.blob()).then(blob => {
-            const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, '');
-            const file = new File([blob], `captured_profile_${timestamp}.jpg`, { type: 'image/jpeg' });
-            setFormData(prev => ({ ...prev, profilePhoto: file }));
-            setShowCamera(false);
-        });
-    };
-
+    
     const companyOptions = companies.map((company) => ({
         label: company.name,
         value: company.id
@@ -702,47 +694,47 @@ export default function EmployeeRegistrationForm() {
 
                                                     {!isExempted && formData.application_type === "new" && (
                                                         formData.designation === "Local Tour Coordinator" && (
-  <FileUploader
-    label="Diploma / Transcript of Records / Certificate of Completion (For new only)"
-    fileKey="diploma"
-    storagePath="employee/diplomas"
-    formData={formData}
-    setFormData={setFormData}
-  />
-)
+                                                            <FileUploader
+                                                                label="Diploma / Transcript of Records / Certificate of Completion (For new only)"
+                                                                fileKey="diploma"
+                                                                storagePath="employee/diplomas"
+                                                                formData={formData}
+                                                                setFormData={setFormData}
+                                                            />
+                                                        )
 
                                                     )}
 
                                                     {!isExempted &&
-                                                       (formData.nationality === "foreign" ||
-  (!formData.nationality && residency === "foreign")) &&
-  ["Foreign Tour Guide", "Foreign Staff"].includes(formData.designation) && (
-    <>
-      <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">
-          Passport Number (for foreign only) *
-        </Form.Label>
-        <Form.Control
-          type="text"
-          name="passportNumber"
-          value={formData.passportNumber}
-          onChange={handleChange}
-          placeholder="Passport Number"
-        />
-      </Form.Group>
+                                                        (formData.nationality === "foreign" ||
+                                                            (!formData.nationality && residency === "foreign")) &&
+                                                        ["Foreign Tour Guide", "Foreign Staff"].includes(formData.designation) && (
+                                                            <>
+                                                                <Form.Group className="mb-3">
+                                                                    <Form.Label className="fw-bold">
+                                                                        Passport Number (for foreign only) *
+                                                                    </Form.Label>
+                                                                    <Form.Control
+                                                                        type="text"
+                                                                        name="passportNumber"
+                                                                        value={formData.passportNumber}
+                                                                        onChange={handleChange}
+                                                                        placeholder="Passport Number"
+                                                                    />
+                                                                </Form.Group>
 
-      <FileUploader
-        label="Special Working Permit from Bureau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign only)"
-        fileKey="workingPermit"
-        storagePath="employee/workingPermit"
-        formData={formData}
-        setFormData={setFormData}
-      />
-    </>
-)
+                                                                <FileUploader
+                                                                    label="Special Working Permit from Bureau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign only)"
+                                                                    fileKey="workingPermit"
+                                                                    storagePath="employee/workingPermit"
+                                                                    formData={formData}
+                                                                    setFormData={setFormData}
+                                                                />
+                                                            </>
+                                                        )
 
-                                                        
-                                                        }
+
+                                                    }
                                                 </>
                                             );
                                         })()}
