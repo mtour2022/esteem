@@ -86,7 +86,7 @@ const UpdateGroupEmployee = ({
         confirmButtonText: "OK"
       }).then(() => {
         if (onSuccess) onSuccess();
-        navigate("/home");
+          navigate("/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2");
       });
 
     } catch (error) {
@@ -108,7 +108,7 @@ const UpdateGroupEmployee = ({
         onClick={handleSubmit}
         type="submit"
       >
-        Submit
+        Update
       </Button>
     </div>
   );

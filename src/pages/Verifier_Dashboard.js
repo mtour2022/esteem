@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Nav, Tab, Row, Col, Card, Image, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faUser, faFileExport, faDoorOpen, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot } from '@fortawesome/free-solid-svg-icons';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { auth } from '../config/firebase';
@@ -12,10 +12,23 @@ import VerifierEmployeeListPage from './Verifier_Employee_List';
 import { useNavigate } from 'react-router-dom';
 import { doSignOut } from '../config/auth';
 import Swal from 'sweetalert2';
+import { FaStepForward } from 'react-icons/fa';
+import EmployeeQRScannerPage from './ApplicationStatusCheck';
 
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
 );
+
+const ScanTicketTab = () => (
+    <Card className="p-3 shadow-sm">
+        <h5>TicketTabScan</h5>
+        <p className="text-muted">Update your personal information or settings here.</p>
+    </Card>
+);
+
+const ApplicationStatusTab = ({ shouldRender }) => {
+    return <>{shouldRender && <EmployeeQRScannerPage />}</>;
+};
 
 const TourismTicketsTab = () => (
     <Card className="p-3 shadow-sm">
@@ -89,6 +102,8 @@ export default function VerifierDashboard() {
     }, []);
     const navItems = [
         { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
+        { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
+        { key: 'scanticket', label: 'Scan Tickets', icon: faQrcode },
         { key: 'tickets', label: 'Tourism Tickets', icon: faUser },
         { key: 'profile', label: 'Profile', icon: faUser },
         { key: 'reports', label: 'Save Reports', icon: faFileExport },
@@ -123,7 +138,7 @@ export default function VerifierDashboard() {
                                                     <h5 className="mt-4 mb-1 fw-bold">{verifier.getFullName()}</h5>
                                                     <p className="mb-1 text-muted">{verifier.designation}</p>
                                                     <p className="mb-1 text-muted">{auth.currentUser?.uid}</p>
-                                                    
+
                                                 </Col>
 
                                             </Row>
@@ -153,8 +168,8 @@ export default function VerifierDashboard() {
                                             <Nav.Link
                                                 eventKey={navKey}
                                                 className={`py-2 px-3 rounded ${key === navKey
-                                                        ? 'bg-dark text-white'
-                                                        : 'bg-transparent text-secondary border border-secondary'
+                                                    ? 'bg-dark text-white'
+                                                    : 'bg-transparent text-secondary border border-secondary'
                                                     }`}
                                             >
                                                 <FontAwesomeIcon icon={icon} className="me-2" />
@@ -174,9 +189,17 @@ export default function VerifierDashboard() {
                                     <Tab.Pane eventKey="frontliners">
                                         <TourismFrontlinersTab />
                                     </Tab.Pane>
+                                    <Tab.Pane eventKey="applicationstatus">
+                                        <ApplicationStatusTab shouldRender={key === 'applicationstatus'} />
+                                    </Tab.Pane>
+
+                                    <Tab.Pane eventKey="scanticket">
+                                        <ScanTicketTab />
+                                    </Tab.Pane>
                                     <Tab.Pane eventKey="tickets">
                                         <TourismTicketsTab />
                                     </Tab.Pane>
+
                                     <Tab.Pane eventKey="profile">
                                         <ProfileTab />
                                     </Tab.Pane>
@@ -184,7 +207,7 @@ export default function VerifierDashboard() {
                                         <SaveReportsTab />
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="logout">
-                                         <TourismFrontlinersTab />
+                                        <TourismFrontlinersTab />
                                     </Tab.Pane>
                                 </Tab.Content>
                             </Card>

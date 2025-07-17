@@ -21,6 +21,7 @@ import TourismCertSummaryTable from "../components/SummaryMonthlyTable";
 import { toPng } from "html-to-image";
 import download from "downloadjs";
 import { useNavigate } from "react-router-dom";
+import { runTransaction } from "firebase/firestore";
 
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
@@ -310,40 +311,61 @@ const handleEditEmployee = (employee) => {
       const employeeRef = doc(db, "employee", employee.employeeId);
 
       // ✅ Handle certificate creation if approved
-      if (newStatus.toLowerCase() === "approved") {
-        const dateNow = new Date();
-        const oneYearLater = new Date(dateNow.getFullYear(), 11, 31);
 
-        const certRef = doc(collection(db, "tourism_cert"));
-        const certId = certRef.id;
+if (newStatus.toLowerCase() === "approved") {
+  const dateNow = new Date();
+  const currentYear = dateNow.getFullYear();
+  const oneYearLater = new Date(currentYear, 11, 31);
 
-        const cert = {
-          tourism_cert_id: certId,
-          type: employee.trainingCert ? "Endorsement" : "Recommendation",
-          date_Issued: dateNow.toISOString(),
-          date_Expired: oneYearLater.toISOString(),
-          company_id: employee.companyId,
-          employee_id: employee.employeeId,
-          verifier_id: currentUser?.uid || "system",
-          tourism_cert_history: "",
-        };
+  const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
+  let tourismCertId = "";
 
-        // 🔒 Save certificate in main collection
-        await setDoc(certRef, cert);
+  // Run transaction to increment counter safely
+  await runTransaction(db, async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    let lastNumber = 0;
 
-        // 🧠 Reference only in employee document
-        updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), certId];
-        updates.latest_cert_id = certId;
-        updates.latest_cert_summary = {
-          tourism_cert_id: certId,
-          type: cert.type,
-          date_Issued: cert.date_Issued,
-          date_Expired: cert.date_Expired,
-        };
+    if (counterDoc.exists()) {
+      lastNumber = counterDoc.data().last_number;
+    }
 
-        // 🖼 Optionally: trigger display
-        setShowCertificateFor(employee.employeeId);
-      }
+    const nextNumber = lastNumber + 1;
+    const paddedNumber = String(nextNumber).padStart(4, "0");
+    tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
+
+    transaction.set(counterRef, {
+      year: currentYear,
+      last_number: nextNumber,
+    });
+  });
+
+  const certRef = doc(db, "tourism_cert", tourismCertId);
+
+  const cert = {
+    tourism_cert_id: tourismCertId,
+    type: employee.trainingCert ? "Endorsement" : "Recommendation",
+    date_Issued: dateNow.toISOString(),
+    date_Expired: oneYearLater.toISOString(),
+    company_id: employee.companyId,
+    employee_id: employee.employeeId,
+    verifier_id: currentUser?.uid || "system",
+    tourism_cert_history: "",
+  };
+
+  await setDoc(certRef, cert);
+
+  updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), tourismCertId];
+  updates.latest_cert_id = tourismCertId;
+  updates.latest_cert_summary = {
+    tourism_cert_id: tourismCertId,
+    type: cert.type,
+    date_Issued: cert.date_Issued,
+    date_Expired: cert.date_Expired,
+  };
+
+  setShowCertificateFor(employee.employeeId);
+}
+
 
       await updateDoc(employeeRef, updates);
       await fetchEmployeeDetails();
@@ -723,6 +745,7 @@ const handleEditEmployee = (employee) => {
       </tr>
     );
   }
+  
   const handleDownloadImage = () => {
     if (summaryRef.current === null) return;
 
@@ -1267,13 +1290,13 @@ const handleEditEmployee = (employee) => {
                                   </Dropdown.Menu>
                                 </Dropdown>
                                 <Button
-      variant="outline-primary"
-      size="sm"
-      onClick={() => handleEditEmployee(empData)}
-      title="Edit Employee"
-    >
-      <FontAwesomeIcon icon={faPen} />
-    </Button>
+                                  variant="outline-primary"
+                                  size="sm"
+                                  onClick={() => handleEditEmployee(empData)}
+                                  title="Edit Employee"
+                                >
+                                  <FontAwesomeIcon icon={faPen} />
+                                </Button>
                                 <Button
                                   variant="outline-danger"
                                   size="sm"
