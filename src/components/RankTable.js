@@ -23,7 +23,7 @@ export default function TopRankingChart({ title = '', data = [], loading = false
   };
 
   return (
-    <Card className="summary-card border rounded p-3 text-muted h-100">
+    <Card className="summary-card border rounded p-3 text-muted h-100 bg-white"  ref={chartRef}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h6 className="mb-0">{title}</h6>
         {!loading && validData.length > 0 && (
@@ -46,7 +46,7 @@ export default function TopRankingChart({ title = '', data = [], loading = false
       ) : validData.length === 0 ? (
         <p className="text-center text-muted my-5">No data available</p>
       ) : (
-        <div ref={chartRef}>
+        <div>
           <Table bordered size="sm" className="text-center small mb-0">
             <thead className="table-light">
               <tr>

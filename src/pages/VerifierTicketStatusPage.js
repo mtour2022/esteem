@@ -1,7 +1,7 @@
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, Table, Badge, Row, Col, Form } from "react-bootstrap";
-import { FormControl, Button, Dropdown } from "react-bootstrap";
+import { InputGroup, FormControl, Button, Dropdown } from "react-bootstrap";
 import { db } from "../config/firebase"; // adjust path as needed
 import { toPng } from "html-to-image";
 import download from "downloadjs";
@@ -13,20 +13,27 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import useDeleteTicket from "../services/DeleteTicket"; // adjust path
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import TopRankingChart from "../components/RankTable";
-
+import useResolvedAllActivitiesFromTickets from "../services/GetAllActivitiesDetails";
 import {
   faMagnifyingGlass,
   faDownload,
   faPrint,
-  faTrash,
+  faFilter, faTrash,
   faLayerGroup, faCalendarDays, faColumns,
   faCopy,
   faRefresh,
-
+  faUserGroup,
+  faBarChart,
+  faBarsProgress,
+  faBarsStaggered,
+  faLineChart
 } from "@fortawesome/free-solid-svg-icons";
-import SummaryPieChart from './PieChart';
-import useResolvedAllActivitiesFromTickets from "../services/GetAllActivitiesDetails";
+import SummaryPieChart from '../components/PieChart';
+import { FaBarsStaggered } from "react-icons/fa6";
+import TopRankingChart from "../components/RankTable";
+
+import TicketsSummaryTable from "../components/TicketsSummaryTable";
+import TicketPaxChart from "../components/TicketLineChart";
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -162,23 +169,20 @@ const getStatusBadgeVariant = (status) => {
 
 
 
-const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
+const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
   const [showFullSummary, setShowFullSummary] = useState(false);
-
   useEffect(() => {
     const handleResize = () => {
       setIsSmallScreen(window.innerWidth < 768);
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
   const allColumns = [
+    { key: "status", label: "Status" },
     { key: "actions", label: "Actions" },
 
-    { key: "status", label: "Status" },
     { key: "ticketId", label: "Ticket ID" },
     { key: "name", label: "Name" },
     { key: "contact", label: "Contact" },
@@ -206,16 +210,13 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     { key: "expectedSale", label: "Total Expected Sale %" },
     { key: "scannedBy", label: "Scanned By" },
   ];
-
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map(col => col.key));
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
-
   const [isDownloading, setIsDownloading] = useState(false);
   const tableRef = useRef();
   const [tickets, setTickets] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  // 🔧 Make sure this state is defined
   const [searchText, setSearchText] = useState("");
   const [searchType, setSearchType] = useState("name"); // 'name' or 'employeeName'
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -224,15 +225,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const scrollRef = useRef();
   useMouseDragScroll(scrollRef);
   const now = new Date();
-
   const sortedTickets = [...tickets].sort((a, b) => {
     const aTime = new Date(a.start_date_time);
     const bTime = new Date(b.start_date_time);
     return Math.abs(aTime - now) - Math.abs(bTime - now);
   });
-  const summaryRef = useRef(null);
-
-
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -252,7 +249,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [filterResidency, setFilterResidency] = useState("");
   const [filterSex, setFilterSex] = useState("");
   const [filterAgeBracket, setFilterAgeBracket] = useState("");
+  const [employeeMap, setEmployeeMap] = useState({});
+  const [showSummary, setShowSummary] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryFilter, setSummaryFilter] = useState("all"); // 'all' or 'scanned'
+  const summaryRef = useRef(null);
 
   useEffect(() => {
     const today = new Date();
@@ -270,55 +271,44 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
   useEffect(() => {
     const fetchTickets = async () => {
-      setTickets([]); // Clear old data
-      setAllFilteredTickets([]); // ✅ Clear here
-
-
-      if (!ticket_ids || ticket_ids.length === 0) return;
-
-      Swal.fire({
-        title: "Fetching data...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
       try {
         setIsLoading(true);
+        setTickets([]);
+        setAllFilteredTickets([]);
 
-        const chunks = [];
-        for (let i = 0; i < ticket_ids.length; i += 10) {
-          chunks.push(ticket_ids.slice(i, i + 10));
-        }
-
-        const allTickets = [];
-        for (const chunk of chunks) {
-          const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
-          const snapshot = await getDocs(q);
-          snapshot.forEach((doc) => {
-            allTickets.push({ id: doc.id, ...doc.data() });
-          });
-        }
-
-        const start = new Date(startDateInput);
-        const end = new Date(endDateInput);
-        end.setHours(23, 59, 59, 999);
-
-        const filtered = allTickets.filter((t) => {
-          const tStart = new Date(t.start_date_time);
-          return tStart >= start && tStart <= end;
+        Swal.fire({
+          title: "Fetching tickets...",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
         });
 
-        setTickets(filtered);
-        setAllFilteredTickets(filtered); // <-- Store all matching tickets for summary use
+        // Fetch all documents from "tickets" collection
+        const snapshot = await getDocs(collection(db, "tickets"));
+        const allTickets = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      } catch (err) {
-        console.error("Error fetching tickets:", err);
+        // Manual date filtering
+        const start = new Date(startDateInput);
+        const end = new Date(endDateInput);
+        end.setHours(23, 59, 59, 999); // Include entire end day
+
+        const filtered = allTickets.filter(ticket => {
+          const ticketDate = new Date(ticket.start_date_time);
+          return ticketDate >= start && ticketDate <= end;
+        });
+
+        // Update states
+        setTickets(filtered);             // Optional: raw reference
+        setAllFilteredTickets(filtered);  // For UI search/filter
+
+      } catch (error) {
+        console.error("Error fetching tickets:", error);
         Swal.fire("Error", "Something went wrong while fetching tickets.", "error");
       } finally {
         setIsLoading(false);
-        Swal.close(); // Always close modal
+        Swal.close();
       }
     };
 
@@ -326,10 +316,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       fetchTickets();
       setTriggerSearch(false);
     }
-  }, [triggerSearch, ticket_ids, startDateInput, endDateInput]);
-
-
-
+  }, [triggerSearch, startDateInput, endDateInput]);
 
 
   useEffect(() => {
@@ -337,8 +324,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       handleSearch();
       setTriggerSearch(false);
     }
-  }, [startDateInput, endDateInput, selectedMonth, selectedYear, triggerSearch]);
-
+  }, [triggerSearch]);
 
   const { deleteTicket } = useDeleteTicket();
 
@@ -364,7 +350,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
   const ticketsToRender = isDownloading ? dataToRender : currentTickets;
 
-  const [employeeMap, setEmployeeMap] = useState({});
   useEffect(() => {
     const fetchEmployees = async () => {
       const snapshot = await getDocs(collection(db, "employee"));
@@ -381,18 +366,24 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     t.activities?.flatMap(a => a.activities_availed || []) || []
   );
   const uniqueActivityIds = Array.from(new Set(allActivityIds));
-  const resolvedActivities = useResolvedActivities({
+  const memoizedTicket = useMemo(() => ({
     activities: [{ activities_availed: uniqueActivityIds }]
-  });
+  }), [uniqueActivityIds]);
+
+  const resolvedActivities = useResolvedActivities(memoizedTicket);
+
   const getActivityDetails = (id) => resolvedActivities.find(a => a.id === id);
 
   const allProviderIds = tickets.flatMap(t =>
     t.activities?.flatMap(a => a.activity_selected_providers || []) || []
   );
   const uniqueProviderIds = Array.from(new Set(allProviderIds));
-  const resolvedProviders = useResolvedProviders([
-    { activity_selected_providers: uniqueProviderIds }
-  ]);
+  const memoizedActivities = useMemo(
+    () => [{ activity_selected_providers: uniqueProviderIds }],
+    [uniqueProviderIds.join(",")] // Join to avoid unnecessary triggers
+  );
+
+  const resolvedProviders = useResolvedProviders(memoizedActivities);
   const getProviderName = id => resolvedProviders.find(p => p.id === id)?.name;
 
   const formatDateLocal = (date) => {
@@ -568,9 +559,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           (t.address || []).reduce((sum, a) => sum + (a[filterAgeBracket] || 0), 0) > 0
         );
       }
-
-
-
       // ✅ Finalize
       setFilteredTickets(result);
       setSearchText(searchTextInput);
@@ -578,7 +566,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       setIsLoading(false);
     }, 0);
   };
-
 
   const handleDownloadTable = async () => {
     try {
@@ -934,8 +921,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     doc.save("tourist-activity-status-board.pdf");
   };
 
-
-
   const filteredSummaryTickets = useMemo(() => {
     return summaryFilter === "scanned"
       ? allFilteredTickets.filter(t => t.status === "scanned")
@@ -1069,6 +1054,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       value,
     }));
 
+
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};
 
@@ -1121,6 +1107,25 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
 
+  const handleRefresh = () => {
+    setTickets([]);
+    setAllFilteredTickets([]);
+    setTriggerSearch(true);
+  };
+
+  const toggleSummary = () => {
+    if (showSummary) {
+      setShowSummary(false);
+    } else {
+      setLoadingSummary(true);
+      setTimeout(() => {
+        setShowSummary(true);
+        setLoadingSummary(false);
+      }, 500); // simulate a short load delay
+    }
+  };
+
+
   const handleDownloadImage = () => {
     if (summaryRef.current === null) return;
 
@@ -1144,13 +1149,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       });
   };
 
-
-
-  const handleRefresh = () => {
-    setTickets([]);
-    setAllFilteredTickets([]);
-    setTriggerSearch(true);
-  };
 
   return (
     <>
@@ -1542,6 +1540,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       };
 
                       const rowData = {
+                        status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
                         actions: (
                           <div className="d-flex gap-2">
                             <Button
@@ -1568,18 +1567,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                             </Button>
                           </div>
                         ),
-
-
-
-                        status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
-
                         ticketId: t.id,
                         name: t.name,
                         contact: t.contact,
                         accommodation: t.accommodation,
-
                         address: renderAddress(t),
-
                         startTime: new Date(t.start_date_time).toLocaleString(),
                         endTime: new Date(t.end_date_time).toLocaleString(),
                         totalPax: t.total_pax,
@@ -1605,9 +1597,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                         })}`,
                         scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
                       };
-
-
-
                       return (
                         <tr key={t.id}>
                           {allColumns.map(col =>
@@ -1621,19 +1610,12 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   )}
                 </tbody>
               </Table>
-
-
-
-
             </div>
           </div>
         )}
       </Card.Body>
-
       <div className="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-3">
         <div className="d-flex align-items-center gap-3">
-
-
           {/* ⬇️ Rows per Page Selector */}
           <Form.Group className="d-flex align-items-center gap-2 mb-0">
             <Form.Label className="mb-0 small">Rows per page</Form.Label>
@@ -1651,10 +1633,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
             </Form.Select>
           </Form.Group>
         </div>
-
-
-
-
         <div>
           <span className="me-3">
             Page {currentPage} of {totalPages}
@@ -1675,183 +1653,215 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           </button>
         </div>
       </div>
-      <>
-        <div className="d-flexjustify-content-between align-items-center mb-5 mt-5">
 
-          {/* Filter Buttons */}
-          <div>
-            <Button
-              variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
-              size="sm"
-              className="me-2"
-              onClick={() => setSummaryFilter("all")}
-            >
-              All Data
-            </Button>
-            <Button
-              variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
-              size="sm"
-              onClick={() => setSummaryFilter("scanned")}
-            >
-              Scanned Data Only
-            </Button>
-          </div>
-
-          {/* Title + Download */}
-          <div>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={handleDownloadImage}
-            >
-              <FontAwesomeIcon icon={faDownload} /> Download Report
-            </Button>
-          </div>
-        </div>
-        <div className="mt-5  bg-white p-2" ref={summaryRef}>
-
-          <h6>Summary</h6>
-          <p className="text-muted">
-            <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
-            <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-              year: "numeric", month: "long", day: "numeric"
-            })}</strong>{" "}
-            to{" "}
-            <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-              year: "numeric", month: "long", day: "numeric"
-            })}</strong>
-          </p>
-
-
-
-          {(!isSmallScreen || showFullSummary) && (
-            <>
-
-              <Row className="mb-3 g-3">
-                {Object.entries(statusCounts).map(([status, count], idx) => (
-                  <Col key={idx} md={2}>
-                    <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                      <div>
-                        <p className="mb-1 fw-semibold">{status}</p>
-                        <h6 className="mb-0 text-dark">
-                          <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-                        </h6>
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-              <Row className="mb-2 g-3">
-                {[
-                  {
-                    label: "Total Pax",
-                    value: summary.totalPax?.toLocaleString() || "0",
-                  },
-                  {
-                    label: "Expected Payment",
-                    value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Actual Payment",
-                    value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Expected Sale",
-                    value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Avg. Markup",
-                    value: `${averageMarkup?.toFixed(2)}%`,
-                  },
-                  {
-                    label: "Avg. Sale per Ticket",
-                    value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                ].map((item, idx) => (
-                  <Col key={idx} md={2}>
-                    <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                      <div>
-                        <p className="mb-1 fw-semibold">{item.label}</p>
-                        <h6 className="mb-0 text-dark">{item.value}</h6>
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-
-
-              <Row className="g-3 mt-2">
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Residency Breakdown"
-                    loading={false}
-                    data={hasResidencyData ? residencyData : []}
-                  />
-                </Col>
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Sex Breakdown"
-                    loading={false}
-                    data={hasSexData ? sexData : []}
-                  />
-                </Col>
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Age Breakdown"
-                    loading={false}
-                    data={hasAgeData ? ageData : []}
-                  />
-                </Col>
-              </Row>
-              <Row className="g-3 mt-2">
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Activities Availed (by Pax)"
-                    data={topActivities}
-                    loading={resolvedActivities.length === 0}
-                  />
-                </Col>
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Countries"
-                    data={topCountries}
-                    loading={filteredSummaryTickets.length === 0}
-                  />
-                </Col>
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Domestic Towns (Philippines)"
-                    data={topTowns}
-                    loading={filteredSummaryTickets.length === 0}
-                  />
-                </Col>
-
-
-              </Row>
-              
-
-            </>
-          )}
-
-          {isSmallScreen && (
-            <div className="mt-2">
+      <div className="d-flex justify-content-center mt-4 mb-5">
+        <Button
+          variant={showSummary ? "outline-danger" : "outline-secondary"}
+          onClick={toggleSummary}
+          disabled={loadingSummary}
+        >
+          {loadingSummary
+            ? "Loading..."
+            : showSummary
+              ? "Hide Summary"
+              : "Show Summary"}
+        </Button>
+      </div>
+      {showSummary && (
+        <>
+          <div className="d-flex justify-content-between align-items-center mb-5 mt-5">
+            {/* Filter Buttons */}
+            <div>
               <Button
+                variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
                 size="sm"
-                variant="link"
-                onClick={() => setShowFullSummary(prev => !prev)}
+                className="me-2"
+                onClick={() => setSummaryFilter("all")}
               >
-                {showFullSummary ? "Read less" : "Read more"}
+                All Data
+              </Button>
+              <Button
+                variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
+                size="sm"
+                onClick={() => setSummaryFilter("scanned")}
+              >
+                Scanned Data Only
               </Button>
             </div>
-          )}
-        </div>
-      </>
 
-      <p className="mt-5 mb-5 text-muted small text-center">
-        <strong>Reminder:</strong> All information displayed is handled in compliance with the
-        <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
-        Please ensure that personal data is accessed and used only for authorized and lawful purposes.
-      </p>
+            {/* Title + Download */}
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={handleDownloadImage}
+              >
+                <FontAwesomeIcon icon={faDownload} /> Download Report
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-5 bg-white p-2" ref={summaryRef}>
+
+
+            <h6>Summary</h6>
+
+
+
+            <p className="text-muted">
+              <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
+              <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric"
+              })}</strong>{" "}
+              to{" "}
+              <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric"
+              })}</strong>
+            </p>
+            {(!isSmallScreen || showFullSummary) && (
+              <>
+
+                <Row className="mb-3 g-3">
+                  {Object.entries(statusCounts).map(([status, count], idx) => (
+                    <Col key={idx} md={2}>
+                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                        <div>
+                          <p className="mb-1 fw-semibold">{status}</p>
+                          <h6 className="mb-0 text-dark">
+                            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                          </h6>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+                <Row className="mb-2 g-3">
+                  {[
+                    {
+                      label: "Total Pax",
+                      value: summary.totalPax?.toLocaleString() || "0",
+                    },
+                    {
+                      label: "Expected Payment",
+                      value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Actual Payment",
+                      value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Expected Sale",
+                      value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Avg. Markup",
+                      value: `${averageMarkup?.toFixed(2)}%`,
+                    },
+                    {
+                      label: "Avg. Sale per Ticket",
+                      value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                  ].map((item, idx) => (
+                    <Col key={idx} md={2}>
+                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                        <div>
+                          <p className="mb-1 fw-semibold">{item.label}</p>
+                          <h6 className="mb-0 text-dark">{item.value}</h6>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+                <Row className="g-3 mt-2">
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Residency Breakdown"
+                      loading={false}
+                      data={hasResidencyData ? residencyData : []}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Sex Breakdown"
+                      loading={false}
+                      data={hasSexData ? sexData : []}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Age Breakdown"
+                      loading={false}
+                      data={hasAgeData ? ageData : []}
+                    />
+                  </Col>
+                </Row>
+
+                <Row className="g-3 mt-2">
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Activities Availed (by Pax)"
+                      data={topActivities}
+                      loading={allResolvedActivities.length === 0}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Countries"
+                      data={topCountries}
+                      loading={filteredSummaryTickets.length === 0}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Domestic Towns (Philippines)"
+                      data={topTowns}
+                      loading={filteredSummaryTickets.length === 0}
+                    />
+                  </Col>
+
+
+                </Row>
+                
+                 {/* <Row className="g-3 mt-2">
+  <Col md={12}>
+    <TicketPaxChart
+      allFilteredTickets={filteredSummaryTickets}
+      loading={!filteredSummaryTickets.length}
+    />
+  </Col>
+</Row> */}
+       <Row className="g-3 mt-2">
+  <Col md={12}>
+    <TicketsSummaryTable
+      allFilteredTickets={filteredSummaryTickets}
+      loading={!filteredSummaryTickets.length}
+    />
+  </Col>
+</Row>
+
+
+
+              </>
+            )}
+            {isSmallScreen && (
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="link"
+                  onClick={() => setShowFullSummary(prev => !prev)}
+                >
+                  {showFullSummary ? "Read less" : "Read more"}
+                </Button>
+              </div>
+            )}
+            <p className="mt-5 mb-5 text-muted small text-center">
+              <strong>Reminder:</strong> All information displayed is handled in compliance with the
+              <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
+              Please ensure that personal data is accessed and used only for authorized and lawful purposes.
+            </p>
+          </div>
+        </>
+      )}
 
 
 
@@ -1859,4 +1869,4 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   );
 };
 
-export default TouristActivityStatusBoard;
+export default VerifierTicketStatusPage;

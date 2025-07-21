@@ -14,6 +14,7 @@ import { doSignOut } from '../config/auth';
 import Swal from 'sweetalert2';
 import { FaStepForward } from 'react-icons/fa';
 import EmployeeQRScannerPage from './ApplicationStatusCheck';
+import VerifierTicketStatusPage from './VerifierTicketStatusPage';
 
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
@@ -31,10 +32,7 @@ const ApplicationStatusTab = ({ shouldRender }) => {
 };
 
 const TourismTicketsTab = () => (
-    <Card className="p-3 shadow-sm">
-        <h5>Verifier Profile</h5>
-        <p className="text-muted">Update your personal information or settings here.</p>
-    </Card>
+    <VerifierTicketStatusPage></VerifierTicketStatusPage>
 );
 
 const ProfileTab = () => (

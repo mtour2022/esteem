@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Card, Spinner, Button } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -11,17 +11,24 @@ const COLORS = [
     '#9966FF', '#FF9F40', '#C9CBCF',
 ];
 
-export default function SummaryPieChart({ title = "", data = [], loading = false }) {
+function SummaryPieChart({ title = "", data = [], loading = false }) {
     const chartRef = useRef();
-    const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
-    const validData = data?.filter(d => d?.value > 0) || [];
-    const isReady = !loading && validData.length > 0;
+
+    const validData = useMemo(() =>
+        (data || []).filter(d => typeof d.value === 'number' && d.value > 0),
+        [data]
+    );
+
+    const total = useMemo(() =>
+        validData.reduce((sum, item) => sum + item.value, 0),
+        [validData]
+    );
 
     const handleDownload = async () => {
         if (!chartRef.current) return;
         try {
             const dataUrl = await toPng(chartRef.current, {
-                backgroundColor: '#ffffff' // White background
+                backgroundColor: '#ffffff'
             });
             download(dataUrl, `${title || 'chart'}.png`, 'image/png');
         } catch (error) {
@@ -29,9 +36,10 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
         }
     };
 
+    const showNoData = !loading && validData.length === 0;
 
     return (
-        <Card className="summary-card border rounded p-3 text-muted h-100">
+        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white"  ref={chartRef}>
             <div className="d-flex justify-content-between align-items-center mb-2">
                 <h6 className="mb-0">{title}</h6>
                 {!loading && total > 0 && (
@@ -51,10 +59,10 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
                     <Spinner animation="border" variant="primary" />
                     <small className="mt-2 text-muted">Loading chart...</small>
                 </div>
-            ) : validData.length === 0 ? (
-                <p className="text-center text-muted my-5">No data available</p>
+            ) : showNoData ? (
+                <div className="text-center text-muted my-5">No data available</div>
             ) : (
-                <div ref={chartRef}>
+                <div>
                     <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
                             <Pie
@@ -63,8 +71,8 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
                                 cy="50%"
                                 outerRadius={60}
                                 dataKey="value"
-                                labelLine={true}
-                                label={({ name, value, percent }) =>
+                                labelLine
+                                label={({ name, percent }) =>
                                     `${name}: ${(percent * 100).toFixed(1)}%`
                                 }
                             >
@@ -72,7 +80,6 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-
                         </PieChart>
                     </ResponsiveContainer>
 
@@ -97,7 +104,8 @@ export default function SummaryPieChart({ title = "", data = [], loading = false
                     </div>
                 </div>
             )}
-
         </Card>
     );
 }
+
+export default React.memo(SummaryPieChart);

@@ -1,16 +1,17 @@
-// src/hooks/useResolvedActivities.js
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../config/firebase"; // Adjust path as needed
+import { db } from "../config/firebase";
 
-const useResolvedActivities = (ticket) => {
+const useResolvedAllActivitiesFromTickets = (allFilteredTickets) => {
   const [resolvedActivities, setResolvedActivities] = useState([]);
 
   useEffect(() => {
-    const fetchAllActivityDetails = async () => {
+    const fetchActivityDetails = async () => {
       try {
-        const allActivityIds = ticket.activities
-          .flatMap(a => a.activities_availed || [])
+        const allActivityIds = allFilteredTickets
+          .flatMap(ticket =>
+            ticket.activities?.flatMap(act => act.activities_availed || []) || []
+          )
           .filter(id => typeof id === "string");
 
         const uniqueIds = [...new Set(allActivityIds)];
@@ -34,16 +35,16 @@ const useResolvedActivities = (ticket) => {
       }
     };
 
-    const hasActivities = ticket?.activities?.some(
-      a => Array.isArray(a.activities_availed) && a.activities_availed.length > 0
+    const hasActivities = allFilteredTickets.some(t =>
+      t.activities?.some(act => Array.isArray(act.activities_availed) && act.activities_availed.length > 0)
     );
 
     if (hasActivities) {
-      fetchAllActivityDetails();
+      fetchActivityDetails();
     }
-  },  [ticket]); // ✅ avoids infinite loop
+  }, [allFilteredTickets]);
 
   return resolvedActivities;
 };
 
-export default useResolvedActivities;
+export default useResolvedAllActivitiesFromTickets;
