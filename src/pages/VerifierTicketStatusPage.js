@@ -7,6 +7,9 @@ import { toPng } from "html-to-image";
 import download from "downloadjs";
 import useResolvedActivities from "../services/GetActivitiesDetails";
 import useResolvedProviders from "../services/GetProvidersDetails"
+import useCompanyInfo from "../services/GetCompanyDetails";
+import Select from "react-select";
+
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -31,9 +34,11 @@ import {
 import SummaryPieChart from '../components/PieChart';
 import { FaBarsStaggered } from "react-icons/fa6";
 import TopRankingChart from "../components/RankTable";
-
 import TicketsSummaryTable from "../components/TicketsSummaryTable";
-import TicketPaxChart from "../components/TicketLineChart";
+import PaymentPaxLineChart from "../components/TicketExpectedVsActual";
+import ExpectedSaleForecastChart from "../components/TicketSaleForecast";
+import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
+
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -184,6 +189,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     { key: "actions", label: "Actions" },
 
     { key: "ticketId", label: "Ticket ID" },
+    { key: "company", label: "Company" },
     { key: "name", label: "Name" },
     { key: "contact", label: "Contact" },
     { key: "accommodation", label: "Accommodation" },
@@ -233,7 +239,10 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const dataToRender = filteredTickets.length > 0 ? filteredTickets : sortedTickets;
+  const [hasFiltered, setHasFiltered] = useState(false);
+
+  const dataToRender =
+    hasFiltered ? filteredTickets : sortedTickets;
   const totalPages = Math.ceil(dataToRender.length / rowsPerPage);
   const currentTickets = dataToRender.slice(indexOfFirstRow, indexOfLastRow);
   const [showDateSearchDropdown, setShowDateSearchDropdown] = useState(false);
@@ -249,7 +258,13 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [filterResidency, setFilterResidency] = useState("");
   const [filterSex, setFilterSex] = useState("");
   const [filterAgeBracket, setFilterAgeBracket] = useState("");
+  const [filterCompanyId, setFilterCompanyId] = useState("");
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterTown, setFilterTown] = useState("");
+
   const [employeeMap, setEmployeeMap] = useState({});
+  const [companyMap, setCompanyMap] = useState({});
+
   const [showSummary, setShowSummary] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryFilter, setSummaryFilter] = useState("all"); // 'all' or 'scanned'
@@ -275,6 +290,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
         setIsLoading(true);
         setTickets([]);
         setAllFilteredTickets([]);
+        setSearchText(searchTextInput); // also sync search keyword if needed
 
         Swal.fire({
           title: "Fetching tickets...",
@@ -314,17 +330,13 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
     if (triggerSearch) {
       fetchTickets();
+      setHasFiltered(false); // 👈 Optional: reset filter state
+
       setTriggerSearch(false);
     }
   }, [triggerSearch, startDateInput, endDateInput]);
 
 
-  useEffect(() => {
-    if (triggerSearch) {
-      handleSearch();
-      setTriggerSearch(false);
-    }
-  }, [triggerSearch]);
 
   const { deleteTicket } = useDeleteTicket();
 
@@ -360,6 +372,18 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       setEmployeeMap(map);
     };
     fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    const fetchCompany = async () => {
+      const snapshot = await getDocs(collection(db, "company"));
+      const map = {};
+      snapshot.forEach((doc) => {
+        map[doc.id] = doc.data();
+      });
+      setCompanyMap(map);
+    };
+    fetchCompany();
   }, []);
 
   const allActivityIds = tickets.flatMap(t =>
@@ -462,6 +486,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const handleSearch = () => {
     setIsLoading(true);
     setTriggerSearch(false);
+    setHasFiltered(true);
 
     setTimeout(() => {
       let result = [...allFilteredTickets];
@@ -481,7 +506,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
           if (searchType === "employeeName") {
             const emp = employeeMap[t.employee_id];
-            const fullName = `${emp?.name?.first || ""} ${emp?.name?.last || ""}`.toLowerCase();
+            const fullName = `${emp?.firstname || ""} ${emp?.middlename || ""} ${emp?.surname || ""}`.toLowerCase();
             return fullName.includes(lower);
           }
 
@@ -527,6 +552,26 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       }
 
       // 🧪 Group Filters (Status, Residency, Sex, Age)
+      // Company Filter
+      if (filterCompanyId) {
+        result = result.filter(t => t.company_id === filterCompanyId);
+      }
+
+      // Country Filter
+      if (filterCountry) {
+        result = result.filter((t) =>
+          (t.address || []).some(a => a.country === filterCountry)
+        );
+      }
+
+      // Town Filter
+      if (filterTown) {
+        result = result.filter((t) =>
+          (t.address || []).some(a => a.town === filterTown)
+        );
+      }
+
+
 
       // Status remains the same
       if (filterStatus) {
@@ -618,15 +663,40 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     }
   };
 
+  const countryOptions = useMemo(() => {
+    const countries = allFilteredTickets.flatMap(t =>
+      t.address?.map(a => a.country).filter(Boolean) || []
+    );
+    const unique = [...new Set(countries)];
+    return [{ value: "", label: "All Countries" }, ...unique.map(c => ({ value: c, label: c }))];
+  }, [allFilteredTickets]);
+
+  const townOptions = useMemo(() => {
+    const towns = allFilteredTickets.flatMap(t =>
+      t.address?.map(a => a.town).filter(Boolean) || []
+    );
+    const unique = [...new Set(towns)];
+    return [{ value: "", label: "All Towns" }, ...unique.map(t => ({ value: t, label: t }))];
+  }, [allFilteredTickets]);
+
+
   function total(addresses, key) {
     return addresses?.reduce((sum, addr) => sum + (Number(addr[key]) || 0), 0) || 0;
   }
+
   function getEmployeeName(t) {
     const emp = employeeMap[t.employee_id];
     return emp ? `${emp.firstname} ${emp.surname}` : "-";
   }
+
+
   function getEmployeeContact(t) {
     return employeeMap[t.employee_id]?.contact || "-";
+  }
+
+  function getCompanyName(t) {
+    const emp = companyMap[t.company_id];
+    return emp ? `${emp.name}` : "-";
   }
 
   function getActivitiesText(t) {
@@ -746,13 +816,18 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       const adults = t.address?.reduce((sum, addr) => sum + (Number(addr.adults) || 0), 0) || 0;
       const seniors = t.address?.reduce((sum, addr) => sum + (Number(addr.seniors) || 0), 0) || 0;
       const employee = employeeMap[t.employee_id];
+      const company = companyMap[t.company_id];
+
       const employeeName = employee ? `${employee.firstname || ""} ${employee.surname || ""}` : "-";
+      const companyName = company ? `${company.name}` : "-";
+
       const employeeContact = employee?.contact || "-";
       const scannedBy = t.scan_logs?.find((log) => log.status === "scanned")?.updated_by || "";
 
       return {
         Status: status,
         TicketID: t.id,
+        Company: companyName,
         Name: t.name,
         Contact: t.contact,
         Accommodation: t.accommodation,
@@ -837,13 +912,18 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       const adults = t.address?.reduce((sum, addr) => sum + (Number(addr.adults) || 0), 0) || 0;
       const seniors = t.address?.reduce((sum, addr) => sum + (Number(addr.seniors) || 0), 0) || 0;
       const employee = employeeMap[t.employee_id];
+      const company = companyMap[t.company_id];
+
       const employeeName = employee ? `${employee.firstname || ""} ${employee.surname || ""}` : "-";
+      const companyName = company ? `${company.name}` : "-";
+
       const employeeContact = employee?.contact || "-";
       const scannedBy = t.scan_logs?.find((log) => log.status === "scanned")?.updated_by || "";
 
       return [
         status,
         t.id,
+        t.companyName,
         t.name,
         t.contact,
         t.accommodation,
@@ -904,7 +984,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
     autoTable(doc, {
       head: [[
-        "Status", "TicketID", "Name", "Contact", "Accommodation", "Addresses", "Start Time", "End Time", "Total Pax",
+        "Status", "TicketID", "Company", "Name", "Contact", "Accommodation", "Addresses", "Start Time", "End Time", "Total Pax",
         "Locals", "Foreigns", "Males", "Females", "Prefered Not To Say",
         "Kids", "Teens", "Adults", "Seniors", "Assigned To", "Asignee's Contact", "Activities Availed",
         , "Expected Payment", "Actual Payment", "Total Markup", "Scanned By"
@@ -921,10 +1001,12 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     doc.save("tourist-activity-status-board.pdf");
   };
 
+
   const filteredSummaryTickets = useMemo(() => {
-    return summaryFilter === "scanned"
-      ? allFilteredTickets.filter(t => t.status === "scanned")
-      : allFilteredTickets;
+    if (summaryFilter === "scanned") {
+      return allFilteredTickets.filter(t => t.status === "scanned");
+    }
+    return allFilteredTickets;
   }, [allFilteredTickets, summaryFilter]);
 
 
@@ -976,7 +1058,11 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     );
   }, [filteredSummaryTickets]);
 
-  const summaryReady = filteredSummaryTickets.length > 0 && summary.totalPax > 0;
+  // const summaryReady = filteredSummaryTickets.length > 0 && summary.totalPax > 0;
+  const hasFilteredSummaryData = useMemo(() => {
+    return filteredSummaryTickets.length > 0 && filteredSummaryTickets.some(t => t.total_pax > 0);
+  }, [filteredSummaryTickets]);
+
   const residencyData = useMemo(() => {
     return [
       { name: 'Locals', value: summary.locals },
@@ -1385,6 +1471,66 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
               <Dropdown.Menu style={{ minWidth: "280px", padding: "15px", maxHeight: "400px", overflowY: "auto" }}>
                 <Form>
+                  {/* add here  use <Select> import */}
+                  {/* Company Filter with react-select */}
+                  <Form.Group controlId="filter-company" className="mb-3">
+                    <Form.Label>Company</Form.Label>
+                    <Select
+                      options={[
+                        { value: "", label: "All Companies" },
+                        ...Object.entries(companyMap).map(([id, company]) => ({
+                          value: id,
+                          label: company.name,
+                        })),
+                      ]}
+                      value={
+                        filterCompanyId
+                          ? {
+                            value: filterCompanyId,
+                            label: companyMap[filterCompanyId]?.name || "Unknown",
+                          }
+                          : { value: "", label: "All Companies" }
+                      }
+                      onChange={(selected) => setFilterCompanyId(selected?.value || "")}
+                      isClearable
+                    />
+                  </Form.Group>
+
+                  {/* Country Filter */}
+                  <Form.Group controlId="filter-country" className="mb-3">
+                    <Form.Label>Country</Form.Label>
+                    <Select
+                      options={countryOptions}
+                      value={
+                        filterCountry
+                          ? { value: filterCountry, label: filterCountry }
+                          : { value: "", label: "All Countries" }
+                      }
+                      onChange={(selected) => setFilterCountry(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Country"
+                    />
+                  </Form.Group>
+
+                  {/* Town Filter */}
+                  <Form.Group controlId="filter-town" className="mb-3">
+                    <Form.Label>Town</Form.Label>
+                    <Select
+                      options={townOptions}
+                      value={
+                        filterTown
+                          ? { value: filterTown, label: filterTown }
+                          : { value: "", label: "All Towns" }
+                      }
+                      onChange={(selected) => setFilterTown(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Town"
+                    />
+                  </Form.Group>
+
+
+
+
                   {/* Status Filter */}
                   <Form.Group controlId="filter-status" className="mb-3">
                     <Form.Label>Status</Form.Label>
@@ -1424,6 +1570,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     </Form.Select>
                   </Form.Group>
 
+
                   {/* Age Bracket Filter */}
                   <Form.Group controlId="filter-age" className="mb-3">
                     <Form.Label>Age Bracket</Form.Label>
@@ -1445,6 +1592,9 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                         setFilterResidency("");
                         setFilterSex("");
                         setFilterAgeBracket("");
+                        setFilterCompanyId("");
+                        setFilterCountry("");
+                        setFilterTown("");
                         setFilteredTickets(allFilteredTickets); // <-- Reset to full original
                       }}
                     >
@@ -1465,12 +1615,55 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
 
         {isLoading ? (
-          <div className="text-center my-5">
-            <span className="spinner-border text-primary" role="status" />
-            <p className="mt-2 text-muted">Loading results...</p>
+          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+            {startDateInput && endDateInput && (
+              <div className="mb-3 text-muted mt-2">
+                Showing data from{" "}
+                <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>{" "}
+                to{" "}
+                <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>
+              </div>
+            )}
+            <div className="text-center my-5">
+              <span className="spinner-border text-primary" role="status" />
+              <p className="mt-2 text-muted">Loading results...</p>
+            </div>
           </div>
+
+        ) : dataToRender.length === 0 && hasFiltered ? (
+          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+            {startDateInput && endDateInput && (
+              <div className="mb-3 text-muted mt-2">
+                Showing data from{" "}
+                <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>{" "}
+                to{" "}
+                <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>
+              </div>
+            )}
+            <div className="text-center my-5 text-muted">
+              No data available.
+            </div>
+          </div>
+
         ) : (
           <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+
             <div ref={tableRef} className="mt-2">
               {startDateInput && endDateInput && (
                 <div className="mb-3 text-muted">
@@ -1488,6 +1681,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   })}</strong>
                 </div>
               )}
+
 
               <Table bordered hover style={{ minWidth: "1400px" }}>
                 <thead>
@@ -1512,6 +1706,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                       const getRowText = (t) => {
                         return [
                           `ticketId: ${t.id}`,
+                          `company: ${getCompanyName(t)}`,
                           `name: ${t.name}`,
                           `contact: ${t.contact}`,
                           `address: ${renderAddressText(t)}`,
@@ -1568,6 +1763,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                           </div>
                         ),
                         ticketId: t.id,
+                        company: getCompanyName(t),
                         name: t.name,
                         contact: t.contact,
                         accommodation: t.accommodation,
@@ -1735,6 +1931,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     </Col>
                   ))}
                 </Row>
+
                 <Row className="mb-2 g-3">
                   {[
                     {
@@ -1772,6 +1969,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     </Col>
                   ))}
                 </Row>
+
                 <Row className="g-3 mt-2">
                   <Col md={4}>
                     <SummaryPieChart
@@ -1821,25 +2019,49 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
 
                 </Row>
-                
-                 {/* <Row className="g-3 mt-2">
-  <Col md={12}>
-    <TicketPaxChart
-      allFilteredTickets={filteredSummaryTickets}
-      loading={!filteredSummaryTickets.length}
-    />
-  </Col>
-</Row> */}
-       <Row className="g-3 mt-2">
-  <Col md={12}>
-    <TicketsSummaryTable
-      allFilteredTickets={filteredSummaryTickets}
-      loading={!filteredSummaryTickets.length}
-    />
-  </Col>
-</Row>
 
 
+
+                <Row className="mb-4 g-3">
+                  <Col md={12}>
+
+                    <TicketPaxVsTicket
+                      title="Ticket Vs Pax Forecast"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+
+                  <Col md={12}>
+
+                    <ExpectedSaleForecastChart
+                      title="Expected Sale Forecast"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+                  <Col md={12}>
+
+                    <PaymentPaxLineChart
+                      title="Expected vs Actual Payment"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+
+                </Row>
+                <Row className="g-3 mt-2">
+                  <Col md={12}>
+                    <TicketsSummaryTable
+                      allFilteredTickets={filteredSummaryTickets}
+                      loading={!hasFilteredSummaryData}
+                    />
+
+                  </Col>
+                </Row>
 
               </>
             )}

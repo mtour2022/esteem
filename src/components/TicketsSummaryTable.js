@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Table,
   Spinner,
   Card,
-  Button, Col,
-  Form,
+  Button,
+  Form, Row, Col,
 } from "react-bootstrap";
 import dayjs from "dayjs";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -13,27 +13,28 @@ import { toPng } from "html-to-image";
 import download from "downloadjs";
 import * as XLSX from "xlsx";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar,
-  CartesianGrid, Legend
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
 } from "recharts";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 const daysInMonth = 31;
 
-export default function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
-  const [mode, setMode] = useState("frequency");
+function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
+  const [mode, setMode] = useState("pax");
   const [paxFilter, setPaxFilter] = useState("all");
   const [groupedData, setGroupedData] = useState({});
   const [chartData, setChartData] = useState([]);
   const tableRef = useRef();
   const chartRef = useRef();
 
-
-
-  // Grouping data for table + chart together
   useEffect(() => {
-
     const now = dayjs();
     const chartGroup = {};
     const tableGroup = {};
@@ -46,8 +47,18 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
     }
 
     for (const ticket of allFilteredTickets) {
-      const createdAt = ticket.created_at;
-      const date = dayjs(createdAt instanceof Date ? createdAt : createdAt?.toDate?.());
+      let rawDate = ticket.start_date_time;
+      if (rawDate && typeof rawDate.toDate === "function") {
+        rawDate = rawDate.toDate();
+      }
+
+      const date = dayjs(rawDate);
+
+      if (!date.isValid()) {
+        console.warn("Invalid start_date_time in ticket:", ticket);
+        continue;
+      }
+
       const month = date.format("MMMM");
       const shortMonth = date.format("MMM");
       const day = date.date();
@@ -69,6 +80,8 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
       tableGroup[month][day] += valueToAdd;
       chartGroup[shortMonth] += valueToAdd;
     }
+
+
     const chartFormatted = MONTH_LABELS.map(m => ({
       month: m,
       value: chartGroup[m] ?? 0,
@@ -76,9 +89,6 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
 
     setGroupedData(tableGroup);
     setChartData(chartFormatted);
-
-
-
   }, [allFilteredTickets, mode, paxFilter]);
 
   const getMonthTotal = days => Object.values(days).reduce((sum, val) => sum + val, 0);
@@ -127,7 +137,6 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
     const externalStyles = [...document.styleSheets].filter(
       sheet => sheet.href && sheet.href.includes("fonts.googleapis.com")
     );
-
     const backup = externalStyles.map(sheet => sheet.ownerNode);
     backup.forEach(node => node?.parentNode?.removeChild(node));
 
@@ -159,41 +168,68 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
   }
 
   return (
-    <Card className="border rounded p-3 text-muted bg-white mb-5" ref={tableRef}>
-      {/* Header / Controls */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div className="d-flex gap-2 align-items-center">
-          <Form.Select size="sm" value={mode} onChange={e => setMode(e.target.value)}>
-            <option value="frequency">Ticket Frequency</option>
-            <option value="pax">Pax Summary</option>
-          </Form.Select>
-          {mode === "pax" && (
-            <Form.Select size="sm" value={paxFilter} onChange={e => setPaxFilter(e.target.value)}>
-              <option value="all">All</option>
-              <option value="locals">Locals Only</option>
-              <option value="foreigns">Foreigns Only</option>
+    <div className="bg-white" ref={tableRef}>
+      
+
+
+      <Card className="border rounded p-3 text-muted bg-white mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex gap-2 align-items-center">
+            <Form.Select size="sm" value={mode} onChange={e => setMode(e.target.value)}>
+              <option value="frequency">Ticket Frequency</option>
+              <option value="pax">Pax Summary</option>
             </Form.Select>
-          )}
+            {mode === "pax" && (
+              <Form.Select size="sm" value={paxFilter} onChange={e => setPaxFilter(e.target.value)}>
+                <option value="all">All</option>
+                <option value="locals">Locals Only</option>
+                <option value="foreigns">Foreigns Only</option>
+              </Form.Select>
+            )}
+          </div>
+          <div className="d-flex gap-2">
+            <Button variant="light" size="sm" onClick={handleDownloadImage}>
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+            <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+              <FontAwesomeIcon icon={faTable} />
+            </Button>
+          </div>
         </div>
-        <div className="d-flex gap-2">
-          <Button variant="light" size="sm" onClick={handleDownloadImage}>
-            <FontAwesomeIcon icon={faDownload} />
-          </Button>
-          <Button variant="light" size="sm" onClick={handleDownloadExcel}>
-            <FontAwesomeIcon icon={faTable} />
-          </Button>
-        </div>
-      </div>
+        <Row className="mb-4">
+        <Col md={4} sm={4}>
+          <Card className="border rounded  text-center  p-3 bg-light">
+            <h6 className="fw-bold text-dark mb-2">Daily Average Pax</h6>
+            <div className="fs-4 text-primary">
+              {Math.round(getGrandTotal() / 365).toLocaleString()}
+            </div>
+          </Card>
+        </Col>
+        <Col md={4} sm={4}>
+          <Card className="border rounded text-center p-3 bg-light">
+            <h6 className="fw-bold text-dark mb-2">Daily Average Tickets</h6>
+            <div className="fs-4 text-primary">
+              {Math.round(allFilteredTickets.length / 365).toLocaleString()}
+            </div>
+          </Card>
+        </Col>
+        <Col md={4} sm={4}>
+          <Card className="border rounded text-center p-3 bg-light">
+            <h6 className="fw-bold text-dark mb-2">Daily Average Expected Sale</h6>
+            <div className="fs-4 text-primary">
+              {Math.round(
+                allFilteredTickets.reduce((sum, ticket) => sum + (ticket.total_expected_sale || 0), 0) / 365
+              ).toLocaleString()}
+            </div>
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Table Title */}
-      <h6 className="fw-bold text-dark mb-3">
-        {mode === "pax"
-          ? "Summary per pax per month"
-          : "Summary per ticket per month"}
-      </h6>
 
-      {/* Table */}
-      <div>
+        <h6 className="fw-bold text-dark mb-3">
+          {mode === "pax" ? "Summary per pax per month" : "Summary per ticket per month"}
+        </h6>
+
         <Table striped bordered hover responsive>
           <thead>
             <tr>
@@ -227,39 +263,37 @@ export default function TicketsSummaryTable({ allFilteredTickets = [], loading =
             )}
           </tbody>
         </Table>
-      </div>
 
-      <div className="mt-4 bg-white" ref={chartRef}>
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h6 className="fw-bold text-dark mb-0">
-            {mode === "pax" ? "Monthly Pax Summary" : "Monthly Ticket Frequency"}
-          </h6>
-          <Button variant="light" size="sm" onClick={handleDownloadChart}>
-            <FontAwesomeIcon icon={faDownload} />
-          </Button>
+        <div className="mt-4 bg-white" ref={chartRef}>
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h6 className="fw-bold text-dark mb-0">
+              {mode === "pax" ? "Monthly Pax Summary" : "Monthly Ticket Frequency"}
+            </h6>
+            <Button variant="light" size="sm" onClick={handleDownloadChart}>
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+          </div>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" interval={0} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar
+                dataKey="value"
+                name={mode === "pax" ? "Pax" : "Frequency"}
+                fill="#007bff"
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
+      </Card>
 
-        {/* ✅ No need for inline style div wrapper here */}
-  <ResponsiveContainer width="100%" height={300}>
-    <BarChart
-      data={chartData}
-      style={{ backgroundColor: "#ffffff" }} // Ensures white background for chart
-    >
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="month" interval={0} />
-      <YAxis allowDecimals={false} />
-      <Tooltip />
-      <Legend />
-      <Bar
-        dataKey="value"
-        name={mode === "pax" ? "Pax" : "Frequency"}
-        fill="#007bff"
-      />
-    </BarChart>
-  </ResponsiveContainer>
+    </div>
 
-
-      </div>
-    </Card>
   );
 }
+
+export default React.memo(TicketsSummaryTable);

@@ -14,6 +14,11 @@ import * as XLSX from "xlsx";
 import useDeleteTicket from "../services/DeleteTicket"; // adjust path
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import TopRankingChart from "../components/RankTable";
+import TicketsSummaryTable from "../components/TicketsSummaryTable";
+import PaymentPaxLineChart from "../components/TicketExpectedVsActual";
+import ExpectedSaleForecastChart from "../components/TicketSaleForecast";
+import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
+import Select from "react-select";
 
 import {
   faMagnifyingGlass,
@@ -220,6 +225,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [searchType, setSearchType] = useState("name"); // 'name' or 'employeeName'
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [filteredTickets, setFilteredTickets] = useState([]);
+
   const [searchTextInput, setSearchTextInput] = useState("");
   const scrollRef = useRef();
   useMouseDragScroll(scrollRef);
@@ -236,8 +242,10 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const dataToRender = filteredTickets.length > 0 ? filteredTickets : sortedTickets;
-  const totalPages = Math.ceil(dataToRender.length / rowsPerPage);
+  const [hasFiltered, setHasFiltered] = useState(false);
+
+  const dataToRender =
+    hasFiltered ? filteredTickets : sortedTickets; const totalPages = Math.ceil(dataToRender.length / rowsPerPage);
   const currentTickets = dataToRender.slice(indexOfFirstRow, indexOfLastRow);
   const [showDateSearchDropdown, setShowDateSearchDropdown] = useState(false);
   const [startDateInput, setStartDateInput] = useState("");
@@ -253,6 +261,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [filterSex, setFilterSex] = useState("");
   const [filterAgeBracket, setFilterAgeBracket] = useState("");
   const [summaryFilter, setSummaryFilter] = useState("all"); // 'all' or 'scanned'
+  const [showSummary, setShowSummary] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterTown, setFilterTown] = useState("");
+  const [employeeMap, setEmployeeMap] = useState({});
 
   useEffect(() => {
     const today = new Date();
@@ -272,6 +285,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     const fetchTickets = async () => {
       setTickets([]); // Clear old data
       setAllFilteredTickets([]); // ✅ Clear here
+      setFilteredTickets([]); // instantly apply for fresh search
+      setSearchText(searchTextInput); // also sync search keyword if needed
 
 
       if (!ticket_ids || ticket_ids.length === 0) return;
@@ -324,20 +339,13 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
     if (triggerSearch) {
       fetchTickets();
+      setHasFiltered(false); // 👈 Optional: reset filter state
       setTriggerSearch(false);
     }
   }, [triggerSearch, ticket_ids, startDateInput, endDateInput]);
 
 
 
-
-
-  useEffect(() => {
-    if (triggerSearch) {
-      handleSearch();
-      setTriggerSearch(false);
-    }
-  }, [startDateInput, endDateInput, selectedMonth, selectedYear, triggerSearch]);
 
 
   const { deleteTicket } = useDeleteTicket();
@@ -364,7 +372,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
   const ticketsToRender = isDownloading ? dataToRender : currentTickets;
 
-  const [employeeMap, setEmployeeMap] = useState({});
   useEffect(() => {
     const fetchEmployees = async () => {
       const snapshot = await getDocs(collection(db, "employee"));
@@ -471,6 +478,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const handleSearch = () => {
     setIsLoading(true);
     setTriggerSearch(false);
+    setHasFiltered(true);
 
     setTimeout(() => {
       let result = [...allFilteredTickets];
@@ -490,7 +498,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
           if (searchType === "employeeName") {
             const emp = employeeMap[t.employee_id];
-            const fullName = `${emp?.name?.first || ""} ${emp?.name?.last || ""}`.toLowerCase();
+            const fullName = `${emp?.firstname || ""} ${emp?.middlename || ""} ${emp?.surname || ""}`.toLowerCase();
             return fullName.includes(lower);
           }
 
@@ -554,6 +562,21 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           (t.address || []).reduce((sum, a) => sum + (a.foreigns || 0), 0) > 0
         );
       }
+
+      // Country Filter
+      if (filterCountry) {
+        result = result.filter((t) =>
+          (t.address || []).some(a => a.country === filterCountry)
+        );
+      }
+
+      // Town Filter
+      if (filterTown) {
+        result = result.filter((t) =>
+          (t.address || []).some(a => a.town === filterTown)
+        );
+      }
+
 
       // Sex (males, females, prefer_not_to_say)
       if (filterSex) {
@@ -630,6 +653,23 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       setIsDownloading(false);
     }
   };
+
+  const countryOptions = useMemo(() => {
+    const countries = allFilteredTickets.flatMap(t =>
+      t.address?.map(a => a.country).filter(Boolean) || []
+    );
+    const unique = [...new Set(countries)];
+    return [{ value: "", label: "All Countries" }, ...unique.map(c => ({ value: c, label: c }))];
+  }, [allFilteredTickets]);
+
+  const townOptions = useMemo(() => {
+    const towns = allFilteredTickets.flatMap(t =>
+      t.address?.map(a => a.town).filter(Boolean) || []
+    );
+    const unique = [...new Set(towns)];
+    return [{ value: "", label: "All Towns" }, ...unique.map(t => ({ value: t, label: t }))];
+  }, [allFilteredTickets]);
+
 
   function total(addresses, key) {
     return addresses?.reduce((sum, addr) => sum + (Number(addr[key]) || 0), 0) || 0;
@@ -935,12 +975,18 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   };
 
 
-
   const filteredSummaryTickets = useMemo(() => {
-    return summaryFilter === "scanned"
-      ? allFilteredTickets.filter(t => t.status === "scanned")
-      : allFilteredTickets;
+    if (summaryFilter === "scanned") {
+      return allFilteredTickets.filter(t => t.status === "scanned");
+    }
+    return allFilteredTickets;
+
   }, [allFilteredTickets, summaryFilter]);
+
+
+  useEffect(() => {
+    console.log("filteredSummaryTickets:", filteredSummaryTickets);
+  }, [filteredSummaryTickets]);
 
 
   const initialSummary = {
@@ -991,7 +1037,12 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     );
   }, [filteredSummaryTickets]);
 
-  const summaryReady = filteredSummaryTickets.length > 0 && summary.totalPax > 0;
+  // const summaryReady = filteredSummaryTickets.length > 0 && summary.totalPax > 0;
+  const hasFilteredSummaryData = useMemo(() => {
+    return filteredSummaryTickets.length > 0 && filteredSummaryTickets.some(t => t.total_pax > 0);
+  }, [filteredSummaryTickets]);
+
+
   const residencyData = useMemo(() => {
     return [
       { name: 'Locals', value: summary.locals },
@@ -1121,6 +1172,12 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
 
+  const handleRefresh = () => {
+    setTickets([]);
+    setAllFilteredTickets([]);
+    setTriggerSearch(true);
+  };
+
   const handleDownloadImage = () => {
     if (summaryRef.current === null) return;
 
@@ -1145,12 +1202,18 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   };
 
 
-
-  const handleRefresh = () => {
-    setTickets([]);
-    setAllFilteredTickets([]);
-    setTriggerSearch(true);
+  const toggleSummary = () => {
+    if (showSummary) {
+      setShowSummary(false);
+    } else {
+      setLoadingSummary(true);
+      setTimeout(() => {
+        setShowSummary(true);
+        setLoadingSummary(false);
+      }, 500); // simulate a short load delay
+    }
   };
+
 
   return (
     <>
@@ -1205,6 +1268,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     onChange={(e) => setSearchTextInput(e.target.value)}
                     className="mb-2"
                   />
+
+
                   <Button variant="primary" size="sm" onClick={() => {
                     setShowSearchDropdown(false);
                     handleSearch();
@@ -1359,6 +1424,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   </Button>
                 </div>
 
+
+
                 <Form>
                   {allColumns.map(col => (
                     <Form.Check
@@ -1404,6 +1471,37 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       <option value="On Emergency">On Emergency</option>
                     </Form.Select>
                   </Form.Group>
+                  {/* Country Filter */}
+                  <Form.Group controlId="filter-country" className="mb-3">
+                    <Form.Label>Country</Form.Label>
+                    <Select
+                      options={countryOptions}
+                      value={
+                        filterCountry
+                          ? { value: filterCountry, label: filterCountry }
+                          : { value: "", label: "All Countries" }
+                      }
+                      onChange={(selected) => setFilterCountry(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Country"
+                    />
+                  </Form.Group>
+
+                  {/* Town Filter */}
+                  <Form.Group controlId="filter-town" className="mb-3">
+                    <Form.Label>Town</Form.Label>
+                    <Select
+                      options={townOptions}
+                      value={
+                        filterTown
+                          ? { value: filterTown, label: filterTown }
+                          : { value: "", label: "All Towns" }
+                      }
+                      onChange={(selected) => setFilterTown(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Town"
+                    />
+                  </Form.Group>
 
                   {/* Residency Filter */}
                   <Form.Group controlId="filter-residency" className="mb-3">
@@ -1447,6 +1545,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                         setFilterResidency("");
                         setFilterSex("");
                         setFilterAgeBracket("");
+                        setFilterCountry("");
+                        setFilterTown("");
                         setFilteredTickets(allFilteredTickets); // <-- Reset to full original
                       }}
                     >
@@ -1467,10 +1567,52 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
         {isLoading ? (
-          <div className="text-center my-5">
-            <span className="spinner-border text-primary" role="status" />
-            <p className="mt-2 text-muted">Loading results...</p>
+          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+            {startDateInput && endDateInput && (
+              <div className="mb-3 text-muted mt-2">
+                Showing data from{" "}
+                <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>{" "}
+                to{" "}
+                <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>
+              </div>
+            )}
+            <div className="text-center my-5">
+              <span className="spinner-border text-primary" role="status" />
+              <p className="mt-2 text-muted">Loading results...</p>
+            </div>
           </div>
+
+        ) : dataToRender.length === 0 && hasFiltered ? (
+          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+            {startDateInput && endDateInput && (
+              <div className="mb-3 text-muted mt-2">
+                Showing data from{" "}
+                <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>{" "}
+                to{" "}
+                <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}</strong>
+              </div>
+            )}
+            <div className="text-center my-5 text-muted">
+              No data available.
+            </div>
+          </div>
+
         ) : (
           <div ref={scrollRef} className="custom-scroll-wrapper table-border">
             <div ref={tableRef} className="mt-2">
@@ -1675,177 +1817,232 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           </button>
         </div>
       </div>
-      <>
-        <div className="d-flexjustify-content-between align-items-center mb-5 mt-5">
+      <div className="d-flex justify-content-center mt-4 mb-5">
+        <Button
+          variant={showSummary ? "outline-danger" : "outline-secondary"}
+          onClick={toggleSummary}
+          disabled={loadingSummary}
+        >
+          {loadingSummary
+            ? "Loading..."
+            : showSummary
+              ? "Hide Summary"
+              : "Show Summary"}
+        </Button>
+      </div>
+      {showSummary && (
+        <>
 
-          {/* Filter Buttons */}
-          <div>
-            <Button
-              variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
-              size="sm"
-              className="me-2"
-              onClick={() => setSummaryFilter("all")}
-            >
-              All Data
-            </Button>
-            <Button
-              variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
-              size="sm"
-              onClick={() => setSummaryFilter("scanned")}
-            >
-              Scanned Data Only
-            </Button>
-          </div>
-
-          {/* Title + Download */}
-          <div>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={handleDownloadImage}
-            >
-              <FontAwesomeIcon icon={faDownload} /> Download Report
-            </Button>
-          </div>
-        </div>
-        <div className="mt-5  bg-white p-2" ref={summaryRef}>
-
-          <h6>Summary</h6>
-          <p className="text-muted">
-            <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
-            <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-              year: "numeric", month: "long", day: "numeric"
-            })}</strong>{" "}
-            to{" "}
-            <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-              year: "numeric", month: "long", day: "numeric"
-            })}</strong>
-          </p>
-
-
-
-          {(!isSmallScreen || showFullSummary) && (
-            <>
-
-              <Row className="mb-3 g-3">
-                {Object.entries(statusCounts).map(([status, count], idx) => (
-                  <Col key={idx} md={2}>
-                    <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                      <div>
-                        <p className="mb-1 fw-semibold">{status}</p>
-                        <h6 className="mb-0 text-dark">
-                          <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-                        </h6>
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-              <Row className="mb-2 g-3">
-                {[
-                  {
-                    label: "Total Pax",
-                    value: summary.totalPax?.toLocaleString() || "0",
-                  },
-                  {
-                    label: "Expected Payment",
-                    value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Actual Payment",
-                    value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Expected Sale",
-                    value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                  {
-                    label: "Avg. Markup",
-                    value: `${averageMarkup?.toFixed(2)}%`,
-                  },
-                  {
-                    label: "Avg. Sale per Ticket",
-                    value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                  },
-                ].map((item, idx) => (
-                  <Col key={idx} md={2}>
-                    <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                      <div>
-                        <p className="mb-1 fw-semibold">{item.label}</p>
-                        <h6 className="mb-0 text-dark">{item.value}</h6>
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-
-
-              <Row className="g-3 mt-2">
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Residency Breakdown"
-                    loading={false}
-                    data={hasResidencyData ? residencyData : []}
-                  />
-                </Col>
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Sex Breakdown"
-                    loading={false}
-                    data={hasSexData ? sexData : []}
-                  />
-                </Col>
-                <Col md={4}>
-                  <SummaryPieChart
-                    title="Age Breakdown"
-                    loading={false}
-                    data={hasAgeData ? ageData : []}
-                  />
-                </Col>
-              </Row>
-              <Row className="g-3 mt-2">
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Activities Availed (by Pax)"
-                    data={topActivities}
-                    loading={resolvedActivities.length === 0}
-                  />
-                </Col>
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Countries"
-                    data={topCountries}
-                    loading={filteredSummaryTickets.length === 0}
-                  />
-                </Col>
-                <Col md={4}>
-                  <TopRankingChart
-                    title="Top 10 Domestic Towns (Philippines)"
-                    data={topTowns}
-                    loading={filteredSummaryTickets.length === 0}
-                  />
-                </Col>
-
-
-              </Row>
-              
-
-            </>
-          )}
-
-          {isSmallScreen && (
-            <div className="mt-2">
+          <div className="d-flex justify-content-between align-items-center mb-5 mt-5">
+            {/* Filter Buttons */}
+            <div>
               <Button
+                variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
                 size="sm"
-                variant="link"
-                onClick={() => setShowFullSummary(prev => !prev)}
+                className="me-2"
+                onClick={() => setSummaryFilter("all")}
               >
-                {showFullSummary ? "Read less" : "Read more"}
+                All Data
+              </Button>
+              <Button
+                variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
+                size="sm"
+                onClick={() => setSummaryFilter("scanned")}
+              >
+                Scanned Data Only
               </Button>
             </div>
-          )}
-        </div>
-      </>
+
+            {/* Title + Download */}
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={handleDownloadImage}
+              >
+                <FontAwesomeIcon icon={faDownload} /> Download Report
+              </Button>
+            </div>
+          </div>
+          <div className="mt-5  bg-white p-2" ref={summaryRef}>
+
+            <h6>Summary</h6>
+            <p className="text-muted">
+              <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
+              <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric"
+              })}</strong>{" "}
+              to{" "}
+              <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric"
+              })}</strong>
+            </p>
+
+
+
+            {(!isSmallScreen || showFullSummary) && (
+              <>
+
+                <Row className="mb-3 g-3">
+                  {Object.entries(statusCounts).map(([status, count], idx) => (
+                    <Col key={idx} md={2}>
+                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                        <div>
+                          <p className="mb-1 fw-semibold">{status}</p>
+                          <h6 className="mb-0 text-dark">
+                            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                          </h6>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+                <Row className="mb-2 g-3">
+                  {[
+                    {
+                      label: "Total Pax",
+                      value: summary.totalPax?.toLocaleString() || "0",
+                    },
+                    {
+                      label: "Expected Payment",
+                      value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Actual Payment",
+                      value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Expected Sale",
+                      value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                    {
+                      label: "Avg. Markup",
+                      value: `${averageMarkup?.toFixed(2)}%`,
+                    },
+                    {
+                      label: "Avg. Sale per Ticket",
+                      value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    },
+                  ].map((item, idx) => (
+                    <Col key={idx} md={2}>
+                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                        <div>
+                          <p className="mb-1 fw-semibold">{item.label}</p>
+                          <h6 className="mb-0 text-dark">{item.value}</h6>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+
+
+                <Row className="g-3 mt-2">
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Residency Breakdown"
+                      loading={false}
+                      data={hasResidencyData ? residencyData : []}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Sex Breakdown"
+                      loading={false}
+                      data={hasSexData ? sexData : []}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <SummaryPieChart
+                      title="Age Breakdown"
+                      loading={false}
+                      data={hasAgeData ? ageData : []}
+                    />
+                  </Col>
+                </Row>
+                <Row className="g-3 mt-2 mb-4">
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Activities Availed (by Pax)"
+                      data={topActivities}
+                      loading={resolvedActivities.length === 0}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Countries"
+                      data={topCountries}
+                      loading={filteredSummaryTickets.length === 0}
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <TopRankingChart
+                      title="Top 10 Domestic Towns (Philippines)"
+                      data={topTowns}
+                      loading={filteredSummaryTickets.length === 0}
+                    />
+                  </Col>
+
+
+                </Row>
+
+                <Row className="mb-4 g-3">
+                  <Col md={12}>
+
+                    <TicketPaxVsTicket
+                      title="Ticket Vs Pax Forecast"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+                  <Col md={12}>
+
+                    <ExpectedSaleForecastChart
+                      title="Expected Sale Forecast"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+                  <Col md={12}>
+
+                    <PaymentPaxLineChart
+                      title="Expected vs Actual Payment"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+                  
+
+                </Row>
+                <Row className="g-3 mt-2">
+                  <Col md={12}>
+                    <TicketsSummaryTable
+                      allFilteredTickets={filteredSummaryTickets}
+                      loading={!hasFilteredSummaryData}
+                    />
+
+                  </Col>
+                </Row>
+
+              </>
+            )}
+
+            {isSmallScreen && (
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="link"
+                  onClick={() => setShowFullSummary(prev => !prev)}
+                >
+                  {showFullSummary ? "Read less" : "Read more"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <p className="mt-5 mb-5 text-muted small text-center">
         <strong>Reminder:</strong> All information displayed is handled in compliance with the

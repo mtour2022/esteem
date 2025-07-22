@@ -109,3 +109,5 @@ function SummaryPieChart({ title = "", data = [], loading = false }) {
 }
 
 export default React.memo(SummaryPieChart);
+
+

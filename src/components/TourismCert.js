@@ -173,11 +173,11 @@ const TourismCert = ({ emp, company }) => {
                     {cert.type === "Recommendation" ? (
                         <>
                             <br />
-                            This is to recommend <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> in the issuance of Mayor's Permit...
+                            This is to recommend <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> in the issuance of Mayor's Permit.
                         </>
                     ) : (
                         <>
-                            This is to endorse <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> has successfully completed the Municipal Tourism requirement...
+                            This is to endorse <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> has successfully completed the Municipal Tourism requirements.
                         </>
                     )}
                 </p>
