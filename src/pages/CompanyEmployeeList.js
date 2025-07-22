@@ -7,7 +7,7 @@ import { useAuth } from '../auth/authentication';
 import Employee from "../classes/employee";
 import Swal from "sweetalert2";
 import TourismCert from "../components/TourismCert";
-import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen, faRegistered, faUserGroup, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Select from "react-select";
 import SummaryPieChart from '../components/PieChart';
@@ -89,28 +89,22 @@ const getStatusBadgeVariant = (status) => {
   }
 };
 
-export default function VerifierEmployeeListPage() {
 
-  const navigate = useNavigate();
-
- const handleEditEmployee = (employee) => {
-  const url = `/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`;
-  window.open(url, '_blank'); // opens in a new tab
-};
-
-  const summaryRef = useRef(null);
-
+export default function CompanyEmployeeListPage({ employeeIds = [], companyId = "", companyName = "" }) {
   const [expandedRows, setExpandedRows] = useState([]);
-  const [showCertificateFor, setShowCertificateFor] = useState(null);
+  const now = new Date().toISOString();
+  const navigate = useNavigate();
   const tableRef = useRef();
-  const scrollRef = useRef();
   const [employees, setEmployees] = useState([]);
   const { currentUser } = useAuth();
+  const scrollRef = useRef();
+
+  const [showCertificateFor, setShowCertificateFor] = useState(null);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [activeSearchText, setActiveSearchText] = useState(""); // <-- used for filtering
 
-  const [companyDataMap, setCompanyDataMap] = useState({});
+  // const [companyDataMap, setCompanyDataMap] = useState({});
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [companyFilter, setCompanyFilter] = useState("");
@@ -138,13 +132,15 @@ export default function VerifierEmployeeListPage() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const summaryRef = useRef(null);
+
 
   // Define all possible columns (match keys with employee object)
   const allColumns = [
     { key: "status", label: "Tourism Status" },
+    { key: "companyStatus", label: "Company Status" },
 
     { key: "actions", label: "Actions" },
-    { key: "companyStatus", label: "Company Status" },
     { key: "tourismCertificate", label: "Tourism Certificate" },
     { key: "tourismCertificateLatestSummary", label: "Latest Certificate Summary" },
     { key: "history", label: "History" },
@@ -177,7 +173,6 @@ export default function VerifierEmployeeListPage() {
     allColumns.map(col => col.key) // Default to show all
   );
 
-
   const toggleSummary = () => {
     if (showSummary) {
       setShowSummary(false);
@@ -190,8 +185,13 @@ export default function VerifierEmployeeListPage() {
     }
   };
 
+  const handleEditEmployee = (employee) => {
+    const url = `/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`;
+    window.open(url, '_blank'); // opens in a new tab
+  };
 
   useMouseDragScroll(scrollRef);
+
 
   const toggleExpand = (id) => {
     setExpandedRows((prev) =>
@@ -199,29 +199,39 @@ export default function VerifierEmployeeListPage() {
     );
   };
 
+
+
   const fetchEmployeeDetails = async () => {
+    if (!Array.isArray(employeeIds) || employeeIds.length === 0) return;
+
     try {
-      setLoading(true);
       Swal.fire({
         title: "Fetching data...",
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
 
-      const snapshot = await getDocs(collection(db, "employee"));
-      let employeeDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const employeeDocs = await Promise.all(
+  employeeIds.map(async (employeeId) => {
+    try {
+      const docRef = doc(db, "employee", employeeId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? { id: employeeId, ...docSnap.data() } : null;
+    } catch (error) {
+      console.error(`Error fetching ${employeeId}:`, error);
+      return null;
+    }
+  })
+);
 
-      // Sort by the most recent status_history date (descending)
-      employeeDocs.sort((a, b) => {
-        const aLatest = getLatestStatusDate(a.status_history);
-        const bLatest = getLatestStatusDate(b.status_history);
-        return bLatest - aLatest; // descending
-      });
+// ✅ Filter out nulls to prevent runtime errors
+const validEmployees = employeeDocs.filter(emp => emp !== null);
+setEmployees(validEmployees);
+setFilteredEmployees(validEmployees);
 
-      setEmployees(employeeDocs);
       setSearchText("");
       setActiveSearchText("");
-      setCompanyFilter("");
+      
       setApplicationTypeFilter("");
       setStatusFilter("");
       setCompanyStatusFilter("");
@@ -241,13 +251,11 @@ export default function VerifierEmployeeListPage() {
       setSelectedYear("");
       setCertTypeFilter("");
       setCustomRange({ start: "", end: "" });
-      setFilteredEmployees(employeeDocs);
       setCurrentPage(1);
     } catch (err) {
       console.error("Error fetching employees:", err);
       Swal.fire("Error", "Failed to load employee data.", "error");
     } finally {
-      setLoading(false);
       Swal.close();
     }
   };
@@ -266,22 +274,23 @@ export default function VerifierEmployeeListPage() {
 
   useEffect(() => {
     fetchEmployeeDetails();
-  }, []);
+  }, [employeeIds]);
 
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      const newMap = {};
-      for (const emp of employees) {
-        if (emp.companyId && !newMap[emp.companyId]) {
-          const docSnap = await getDoc(doc(db, "company", emp.companyId));
-          if (docSnap.exists()) newMap[emp.companyId] = docSnap.data();
-        }
-      }
-      setCompanyDataMap(newMap);
-    };
+  // useEffect(() => {
+  //   const fetchCompanies = async () => {
+  //     const newMap = {};
+  //     for (const emp of employees) {
+  //       if (emp.companyId && !newMap[emp.companyId]) {
+  //         const docSnap = await getDoc(doc(db, "company", emp.companyId));
+  //         if (docSnap.exists()) newMap[emp.companyId] = docSnap.data();
+  //       }
+  //     }
+  //     setCompanyDataMap(newMap);
+  //   };
 
-    if (employees.length) fetchCompanies();
-  }, [employees]);
+  //   if (employees.length) fetchCompanies();
+  // }, [employees]);
+
 
   const handleChangeStatus = async (employee, newStatus) => {
     const { value: formValues, isConfirmed } = await Swal.fire({
@@ -302,96 +311,49 @@ export default function VerifierEmployeeListPage() {
 
     try {
       const historyEntry = {
-        status: newStatus,
+        company_status: newStatus,
         date_updated: new Date().toISOString(),
         remarks: formValues.remarks || "",
         userId: currentUser?.email || "system",
       };
 
       const updates = {
-        status: newStatus,
-        status_history: [...(employee.status_history || []), historyEntry],
-        recent_certificate_id: employee.recent_certificate_id || "",
-        recent_certificate_type: employee.recent_certificate_type || "",
+        company_status: newStatus,
+        company_status_history: [...(employee.company_status_history || []), historyEntry],
       };
 
-      const employeeRef = doc(db, "employee", employee.employeeId);
-
-      // ✅ Handle certificate creation if approved
-
+      // ✅ If status is approved, push to work_history
       if (newStatus.toLowerCase() === "approved") {
-        const dateNow = new Date();
-        const currentYear = dateNow.getFullYear();
-        const oneYearLater = new Date(currentYear, 11, 31);
-
-        const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
-        let tourismCertId = "";
-
-        await runTransaction(db, async (transaction) => {
-          const counterDoc = await transaction.get(counterRef);
-          let lastNumber = 0;
-
-          if (counterDoc.exists()) {
-            lastNumber = counterDoc.data().last_number;
-          }
-
-          const nextNumber = lastNumber + 1;
-          const paddedNumber = String(nextNumber).padStart(4, "0");
-          tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
-
-          transaction.set(counterRef, {
-            year: currentYear,
-            last_number: nextNumber,
-          });
-        });
-
-        const certRef = doc(db, "tourism_cert", tourismCertId);
-
-        const cert = {
-          tourism_cert_id: tourismCertId,
-          type: employee.trainingCert ? "Endorsement" : "Recommendation",
-          date_Issued: dateNow.toISOString(),
-          date_Expired: oneYearLater.toISOString(),
-          company_id: employee.companyId,
-          employee_id: employee.employeeId,
-          verifier_id: currentUser?.uid || "system",
-          tourism_cert_history: "",
+        const newWork = {
+          work_history_id: crypto.randomUUID(),
+          date_start: new Date().toISOString(),
+          date_end: "",
+          company_name: companyName,
+          company_id: companyId,
+          remarks: formValues.remarks || "",
         };
-
-        await setDoc(certRef, cert);
-
-        updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), tourismCertId];
-        updates.recent_certificate_id = tourismCertId;
-        updates.recent_certificate_type = cert.type;
-
-        setShowCertificateFor(employee.employeeId);
+        updates.work_history = [...(employee.work_history || []), newWork];
       }
 
+      // ✅ If status is resigned, update current work_history entry's date_end
+      if (newStatus.toLowerCase() === "resigned" && Array.isArray(employee.work_history)) {
+        const updatedWorkHistory = employee.work_history.map(entry => {
+          if (entry.company_id === companyId && !entry.date_end) {
+            return { ...entry, date_end: new Date().toISOString() };
+          }
+          return entry;
+        });
+        updates.work_history = updatedWorkHistory;
+      }
 
-
+      const employeeRef = doc(db, "employee", employee.id);
       await updateDoc(employeeRef, updates);
       await fetchEmployeeDetails();
-      await new Promise(res => setTimeout(res, 500));
 
-      if (newStatus.toLowerCase() === "approved") {
-        setShowCertificateFor(employee.employeeId);
-      }
-
-      Swal.fire("Success", "Status updated successfully.", "success");
+      Swal.fire("Success", "Company status updated successfully.", "success");
     } catch (err) {
       console.error("Error updating status:", err);
       Swal.fire("Error", "Failed to update status.", "error");
-    }
-  };
-
-  const getStatusBadgeVariant = (status) => {
-    if (!status) return "secondary";
-    switch (status.toLowerCase()) {
-      case "approved": return "success";
-      case "under review": return "warning";
-      case "incomplete": return "danger";
-      case "resigned": return "dark";
-      default: return "secondary";
     }
   };
 
@@ -410,14 +372,14 @@ export default function VerifierEmployeeListPage() {
     const filtered = employees.filter((e) => {
       const emp = new Employee(e);
       const fullName = emp.getFullName().toLowerCase();
-      const companyName = companyDataMap[emp.companyId]?.name?.toLowerCase() || "";
+      // const companyName = companyDataMap[emp.companyId]?.name?.toLowerCase() || "";
 
       const matchesText =
-        fullName.includes(activeSearchText.toLowerCase()) ||
-        companyName.includes(activeSearchText.toLowerCase());
+        fullName.includes(activeSearchText.toLowerCase());
+      // companyName.includes(activeSearchText.toLowerCase());
 
-      const matchesCompany =
-        !companyFilter || companyName === companyFilter;
+      // const matchesCompany =
+      //   !companyFilter || companyName === companyFilter;
 
       const matchesApplicationType =
         !applicationTypeFilter ||
@@ -480,7 +442,7 @@ export default function VerifierEmployeeListPage() {
         !certTypeFilter ||
         (e.latest_cert_summary?.type || "").toLowerCase() === certTypeFilter;
 
-      return matchesText && matchesCompany && matchesApplicationType && matchesStatus && matchesCompanyStatus && matchesSex && matchesAgeGroup && matchesDesignation && matchesNationality && matchesDocuments && matchesDate && matchesCertType;
+      return matchesText && matchesApplicationType && matchesStatus && matchesCompanyStatus && matchesSex && matchesAgeGroup && matchesDesignation && matchesNationality && matchesDocuments && matchesDate && matchesCertType;
     });
 
     setFilteredEmployees(filtered);
@@ -489,10 +451,10 @@ export default function VerifierEmployeeListPage() {
   }, [
     activeSearchText,
     employees,
-    companyDataMap,
+    // companyDataMap,
     statusFilter,
     companyStatusFilter,
-    companyFilter,
+    // companyFilter,
     sexFilter,
     ageGroupFilter,
     designationFilter,
@@ -513,12 +475,13 @@ export default function VerifierEmployeeListPage() {
     currentPage * rowsPerPage
   );
 
-  const getCompanyLabel = (value) => {
-    const match = Object.values(companyDataMap).find(
-      (c) => c.name?.toLowerCase() === value
-    );
-    return match?.name || value;
-  };
+  // const getCompanyLabel = (value) => {
+  //   const match = Object.values(companyDataMap).find(
+  //     (c) => c.name?.toLowerCase() === value
+  //   );
+  //   return match?.name || value;
+  // };
+
 
 
   const handleDeleteEmployee = async (employeeId, employeeData) => {
@@ -595,50 +558,45 @@ export default function VerifierEmployeeListPage() {
 
   const statusCounts = {};
   const nationalityMap = {};
-  const companyCounts = {}; // For Top Companies
   const designationCounts = {}; // For Top Designations
 
   filteredEmployees.forEach((emp) => {
-    const age = emp.age || 0;
+  if (!emp) return; // ✅ skip null or undefined entries
 
-    // Status counts
-    const status = (emp.status || "unknown").toLowerCase();
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
+  const age = emp.age || 0;
 
-    // Sex counts
-    const sex = (emp.sex || "").toLowerCase();
-    if (sex === "male") summary.males++;
-    else if (sex === "female") summary.females++;
-    else summary.preferNotToSay++;
+  // Status counts
+  const status = (emp.status || "unknown").toLowerCase();
+  statusCounts[status] = (statusCounts[status] || 0) + 1;
 
-    // Age Segregation
-    if (age <= 12) summary.kids++;
-    else if (age <= 19) summary.teens++;
-    else if (age <= 59) summary.adults++;
-    else summary.seniors++;
+  // Sex counts
+  const sex = (emp.sex || "").toLowerCase();
+  if (sex === "male") summary.males++;
+  else if (sex === "female") summary.females++;
+  else summary.preferNotToSay++;
 
-    // Nationality aggregation
-    const nat = emp.nationality?.toLowerCase() || "unknown";
-    nationalityMap[nat] = (nationalityMap[nat] || 0) + 1;
+  // Age Segregation
+  if (age <= 12) summary.kids++;
+  else if (age <= 19) summary.teens++;
+  else if (age <= 59) summary.adults++;
+  else summary.seniors++;
 
-    // Application Type Summary
-    const appType = (emp.application_type || "").toLowerCase();
-    if (appType === "new") summary.new++;
-    else if (appType === "renewal") summary.renewal++;
+  // Nationality aggregation
+  const nat = emp.nationality?.toLowerCase() || "unknown";
+  nationalityMap[nat] = (nationalityMap[nat] || 0) + 1;
 
-    // ✅ Top Companies (if company_status === "approved")
-    const companyId = emp.companyId;
-    const companyStatus = emp.company_status?.toLowerCase();
-    if (companyId && companyStatus === "approved") {
-      companyCounts[companyId] = (companyCounts[companyId] || 0) + 1;
-    }
+  // Application Type Summary
+  const appType = (emp.application_type || "").toLowerCase();
+  if (appType === "new") summary.new++;
+  else if (appType === "renewal") summary.renewal++;
 
-    // ✅ Top Designations
-    const desig = emp.designation?.trim();
-    if (desig) {
-      designationCounts[desig] = (designationCounts[desig] || 0) + 1;
-    }
-  });
+  // ✅ Top Designations
+  const desig = emp.designation?.trim();
+  if (desig) {
+    designationCounts[desig] = (designationCounts[desig] || 0) + 1;
+  }
+});
+
 
   // Convert nationality map to pie data
   summary.nationalityBreakdown = Object.entries(nationalityMap).map(([nat, count]) => ({
@@ -646,14 +604,6 @@ export default function VerifierEmployeeListPage() {
     value: count,
   }));
 
-  // ✅ Generate Top 10 Companies (sorted descending by count)
-  const topCompanies = Object.entries(companyCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([companyId, count]) => ({
-      name: companyDataMap[companyId]?.name || companyId,
-      value: count,
-    }));
 
   // ✅ Generate Top 10 Designations
   const topDesignations = Object.entries(designationCounts)
@@ -772,20 +722,38 @@ export default function VerifierEmployeeListPage() {
         Swal.fire("Error", "Failed to generate the image.", "error");
       });
   };
-
-
+ const openInNewTab = (path) => {
+    window.open(path, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
       <Container>
         <Row className="justify-content-center">
           <Col md={12}>
-            <Card.Body>
-              <p id="toppage" className="barabara-label text-start">TOURISM FRONTLINERS FULL LIST</p>
-              <p className="mt-1 mb-4 text-muted small text-start">
+            <Card.Body className="mt-5">
+              <p className="barabara-label text-start mt-5">COMPANY EMPLOYEE LIST</p>
+              <p className="m-1 mt-3 text-muted small text-start">
                 Full list of current employees and applicants.
               </p>
+              <div className="d-flex justify-content-start align-items-center gap-2 mt-3 mb-5 flex-wrap">
+ <Button
+          size="md"
+          variant="outline-secondary"
+          className="me-2"
+          onClick={() => openInNewTab("/employee-registration/local")}
+        >
+          <FontAwesomeIcon icon={faUser} className="me-2" />Register Local
+        </Button>
 
+        <Button
+          size="md"
+          variant="outline-secondary"
+          onClick={() => openInNewTab("/employee-registration/foreign")}
+        >
+          <FontAwesomeIcon icon={faUser} className="me-2" />Register Foreign
+        </Button>
+              </div>
               <div className="d-flex justify-content-end align-items-center gap-2 mt-3 mb-3 flex-wrap">
                 <Button
                   variant="outline-secondary"
@@ -978,29 +946,7 @@ export default function VerifierEmployeeListPage() {
                   </Dropdown.Toggle>
 
                   <Dropdown.Menu style={{ padding: "1rem", width: 300 }}>
-                    {/* Company Filter */}
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold small text-muted">Company</label>
-                      <Select
-                        options={[
-                          { value: "", label: "All Companies" },
-                          ...Object.values(companyDataMap)
-                            .filter((c) => c?.name)
-                            .map((c) => ({ value: c.name.toLowerCase(), label: c.name })),
-                        ]}
-                        isClearable
-                        placeholder="Filter by Company"
-                        value={
-                          companyFilter
-                            ? { value: companyFilter, label: getCompanyLabel(companyFilter) }
-                            : null
-                        }
-                        onChange={(selected) => {
-                          setCompanyFilter(selected?.value || "");
-                          setCurrentPage(1);
-                        }}
-                      />
-                    </div>
+
                     {/* Certificate Type Filter */}
                     <div className="mb-3">
                       <label className="form-label fw-semibold small text-muted">Certificate Type (Latest Only)</label>
@@ -1234,13 +1180,14 @@ export default function VerifierEmployeeListPage() {
 
 
 
+
               <div ref={scrollRef} className="custom-scroll-wrapper table-border">
                 <div ref={tableRef} className="mt-2">
                   <div className="mb-3">
                     <p className="small text-muted mb-1"><strong>Active Filters:</strong></p>
                     <p className="small text-dark mb-0">
                       {[
-                        companyFilter && `Company: ${getCompanyLabel(companyFilter)}`,
+                        // companyFilter && `Company: ${getCompanyLabel(companyFilter)}`,
                         applicationTypeFilter && `Application Type: ${applicationTypeFilter}`,
                         statusFilter && `Status: ${statusFilter}`,
                         companyStatusFilter && `Company Status: ${companyStatusFilter}`,
@@ -1260,7 +1207,6 @@ export default function VerifierEmployeeListPage() {
                         .join(" | ") || "None"}
                     </p>
                   </div>
-
                   <Table bordered hover style={{ minWidth: "1400px" }}>
                     <thead>
                       <tr>
@@ -1281,52 +1227,57 @@ export default function VerifierEmployeeListPage() {
                       ) : (
                         paginatedEmployees.map((empData) => {
                           const emp = new Employee({ id: empData.id, ...empData });
-                          const company = companyDataMap[emp.companyId];
 
                           const rowData = {
                             status: <Badge bg={getStatusBadgeVariant(emp.status)}>{emp.status}</Badge>,
 
 
-
-                            actions: (
-                              <div className="d-flex gap-2">
-                                <Dropdown>
-                                  <Dropdown.Toggle size="sm" variant="outline-secondary">
-                                    Change Tourism Status
-                                  </Dropdown.Toggle>
-                                  <Dropdown.Menu>
-                                    {STATUSES.map((status) => (
-                                      <Dropdown.Item
-                                        key={status}
-                                        disabled={empData.status?.toLowerCase() === status.toLowerCase()}
-                                        onClick={() => handleChangeStatus(empData, status)}
-                                      >
-                                        {status}
-                                      </Dropdown.Item>
-                                    ))}
-                                  </Dropdown.Menu>
-                                </Dropdown>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => handleEditEmployee(empData)}
-                                  title="Edit Employee"
-                                >
-                                  <FontAwesomeIcon icon={faPen} />
-                                </Button>
-                                <Button
-                                  variant="outline-danger"
-                                  size="sm"
-
-                                  onClick={() => handleDeleteEmployee(empData.id)}
-                                >
-                                  <FontAwesomeIcon icon={faTrash} />
-                                </Button>
-                                {/* add here the edit button */}
-                              </div>
-                            ),
-
                             companyStatus: <Badge bg={getStatusBadgeVariant(emp.company_status)}>{emp.company_status || "N/A"}</Badge>,
+
+                      actions: (
+  <div className="d-flex gap-2">
+    <Dropdown>
+      <Dropdown.Toggle
+        size="sm"
+        variant="outline-secondary"
+        disabled={empData.status?.toLowerCase() !== "approved"}
+      >
+        Change Company Status
+      </Dropdown.Toggle>
+      <Dropdown.Menu>
+        {STATUSES.map((status) => (
+          <Dropdown.Item
+            key={status}
+            disabled={empData.company_status?.toLowerCase() === status.toLowerCase()}
+            onClick={() => handleChangeStatus(empData, status)}
+          >
+            {status}
+          </Dropdown.Item>
+        ))}
+      </Dropdown.Menu>
+    </Dropdown>
+
+    <Button
+      variant="outline-primary"
+      size="sm"
+      onClick={() => handleEditEmployee(empData)}
+      title="Edit Employee"
+    >
+      <FontAwesomeIcon icon={faPen} />
+    </Button>
+
+    <Button
+      variant="outline-danger"
+      size="sm"
+      onClick={() => handleDeleteEmployee(empData.id)}
+    >
+      <FontAwesomeIcon icon={faTrash} />
+    </Button>
+  </div>
+),
+
+
+
                             tourismCertificate: Array.isArray(emp.tourism_certificate_ids) && emp.tourism_certificate_ids.length > 0 ? (
                               <div className="d-flex flex-wrap gap-2">
                                 {emp.tourism_certificate_ids.map((certId, index) => (
@@ -1365,7 +1316,6 @@ export default function VerifierEmployeeListPage() {
                               </button>
                             ),
                             applicationType: emp.application_type,
-                            companyName: company?.name || emp.companyId,
                             fullName: emp.getFullName(),
                             sex: emp.sex,
                             birthday: emp.birthday,
@@ -1416,6 +1366,9 @@ export default function VerifierEmployeeListPage() {
                     </tbody>
 
                   </Table>
+
+
+
                 </div>
               </div>
               <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
@@ -1462,13 +1415,12 @@ export default function VerifierEmployeeListPage() {
               {/* OUTSIDE of map, and below the table */}
               {showCertificateFor && (() => {
                 const selectedEmp = employees.find(e => e.id === showCertificateFor);
-                const company = companyDataMap[selectedEmp?.companyId];
                 if (!selectedEmp) return null;
                 return (
                   <React.Fragment key={selectedEmp.id}>
                     <TourismCert
                       emp={new Employee(selectedEmp)}
-                      company={company}
+                      company={selectedEmp.companyId}
                       currentUser={currentUser}
                     />
                     <div className="text-center mt-3 mb-5">
@@ -1486,6 +1438,7 @@ export default function VerifierEmployeeListPage() {
 
                 );
               })()}
+
             </Card.Body>
           </Col>
         </Row>
@@ -1590,9 +1543,9 @@ export default function VerifierEmployeeListPage() {
 
                 </Row>
                 <Row className="g-3 mt-2">
-                  <Col md={6}>
+                  {/* <Col md={6}>
                     <TopRankingChart title="Top 10 Companies (Company Approved Tourism Frontliners)" data={topCompanies} />
-                  </Col>
+                  </Col> */}
                   <Col md={6}>
                     <TopRankingChart title="Top 10 Designations" data={topDesignations} />
                   </Col>
@@ -1616,5 +1569,6 @@ export default function VerifierEmployeeListPage() {
         </div>
       </Container>
     </>
+
   );
 }

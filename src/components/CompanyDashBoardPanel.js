@@ -9,7 +9,7 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import TouristActivityStatusBoard from "./ActivityStatusBoard";
-import CompanyEmployeeListPage from "./Employee_List";
+import CompanyEmployeeListPage from "../pages/CompanyEmployeeList";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLineChart, faTicket, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 

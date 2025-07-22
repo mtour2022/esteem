@@ -173,11 +173,13 @@ const TourismCert = ({ emp, company }) => {
                     {cert.type === "Recommendation" ? (
                         <>
                             <br />
-                            This is to recommend <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> in the issuance of Mayor's Permit.
+                            This is to recommend <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> in the issuance of Mayor's Permit in pursuant
+                            to section 3, letters d and e of the Municipal Ordinance No. 150 series of 2022 (Creating of Municipal Tourism Office and Defining its Duties and Functions).
                         </>
                     ) : (
                         <>
-                            This is to endorse <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> has successfully completed the Municipal Tourism requirements.
+                            This is to endorse <strong>{emp.firstname} {emp.middlename || ''} {emp.surname} {emp.suffix || ''}</strong> of <strong>{company?.name || "Loading..."}</strong> has successfully completed the Municipal Tourism requirements
+                            pursuant to section 3, letters d and e of the Municipal Ordinance No. 150 series of 2022 (Creating of Municipal Tourism office and Defining its Duties and Functions).
                         </>
                     )}
                 </p>
