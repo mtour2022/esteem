@@ -88,7 +88,7 @@ const PaxVsTicketLineChart = ({ title = "Pax vs Ticket Report", tickets = [], st
 
   if (chartData.length === 0) {
     return (
-      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white my-2">
+      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white my-2 mt-4">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h6 className="mb-0">{title}</h6>
           <Button variant="light" size="sm" onClick={() => setShowChart(false)} title="Hide chart">

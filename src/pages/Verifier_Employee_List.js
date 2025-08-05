@@ -4,6 +4,7 @@ import { doc, getDoc, addDoc, updateDoc, getDocs, collection, setDoc, deleteDoc 
 import { ref, uploadBytes, getDownloadURL, deleteObject, } from "firebase/storage";
 import { db, storage } from "../config/firebase";
 import { useAuth } from '../auth/authentication';
+
 import Employee from "../classes/employee";
 import Swal from "sweetalert2";
 import TourismCert from "../components/TourismCert";
@@ -22,7 +23,7 @@ import { toPng } from "html-to-image";
 import download from "downloadjs";
 import { useNavigate } from "react-router-dom";
 import { runTransaction } from "firebase/firestore";
-
+import CertificateIssuanceForecastChart from "../components/TourismCertForecast"
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
 const useMouseDragScroll = (ref) => {
@@ -93,10 +94,10 @@ export default function VerifierEmployeeListPage() {
 
   const navigate = useNavigate();
 
- const handleEditEmployee = (employee) => {
-  const url = `/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`;
-  window.open(url, '_blank'); // opens in a new tab
-};
+  const handleEditEmployee = (employee) => {
+    const url = `/verifier-employee-edit/${employee.id}/0b5f8f06bafb3828f619f6f96fc6adb2`;
+    window.open(url, '_blank'); // opens in a new tab
+  };
 
   const summaryRef = useRef(null);
 
@@ -1471,6 +1472,7 @@ export default function VerifierEmployeeListPage() {
                       company={company}
                       currentUser={currentUser}
                     />
+
                     <div className="text-center mt-3 mb-5">
                       <Button
                         variant="outline-danger"
@@ -1601,9 +1603,20 @@ export default function VerifierEmployeeListPage() {
                   <Col md={12}>
                     <TourismCertSummaryTable employees={filteredEmployees} loading={!filteredEmployees.length} />
                   </Col>
+                
+
 
                 </Row>
-                <small className="text-muted d-block text-center mt-2">
+                <Row>
+                    <Col md={12}>
+                    <CertificateIssuanceForecastChart
+                      title="Certificate Issuance Forecast"
+                      employees={filteredEmployees}
+                    />
+                  </Col>
+
+                </Row>
+                <small className="text-muted d-block text-center mt-5">
                   * This report and its contents are the property of the Local Government of Malay through the Municipal Tourism Office and adhere to the Data Privacy Act of 2012 (Republic Act No. 10173). Please ensure proper disposal of printed or digital copies in accordance with data privacy and confidentiality protocols.
                 </small>
               </div>

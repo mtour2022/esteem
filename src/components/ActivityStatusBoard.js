@@ -281,69 +281,73 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }, 0);
   }, []);
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      setTickets([]); // Clear old data
-      setAllFilteredTickets([]); // ✅ Clear here
-      setFilteredTickets([]); // instantly apply for fresh search
-      setSearchText(searchTextInput); // also sync search keyword if needed
+  const handleRefresh = () => {
+  setTickets([]);
+  setAllFilteredTickets([]);
+  setFilteredTickets([]);
+  setTriggerSearch(prev => !prev); // Toggle to ensure re-run even if already true
+};
 
+useEffect(() => {
+  const fetchTickets = async () => {
+    setTickets([]);
+    setAllFilteredTickets([]);
+    setFilteredTickets([]);
+    setSearchText(searchTextInput);
 
-      if (!ticket_ids || ticket_ids.length === 0) return;
+    if (!ticket_ids || ticket_ids.length === 0) return;
 
-      Swal.fire({
-        title: "Fetching data...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
+    Swal.fire({
+      title: "Fetching data...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      setIsLoading(true);
+
+      const chunks = [];
+      for (let i = 0; i < ticket_ids.length; i += 10) {
+        chunks.push(ticket_ids.slice(i, i + 10));
+      }
+
+      const allTickets = [];
+      for (const chunk of chunks) {
+        const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
+        const snapshot = await getDocs(q);
+        snapshot.forEach((doc) => {
+          allTickets.push({ id: doc.id, ...doc.data() });
+        });
+      }
+
+      const start = new Date(startDateInput);
+      const end = new Date(endDateInput);
+      end.setHours(23, 59, 59, 999);
+
+      const filtered = allTickets.filter((t) => {
+        const tStart = new Date(t.start_date_time);
+        return tStart >= start && tStart <= end;
       });
 
-      try {
-        setIsLoading(true);
+      setTickets(filtered);
+      setAllFilteredTickets(filtered);
 
-        const chunks = [];
-        for (let i = 0; i < ticket_ids.length; i += 10) {
-          chunks.push(ticket_ids.slice(i, i + 10));
-        }
-
-        const allTickets = [];
-        for (const chunk of chunks) {
-          const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
-          const snapshot = await getDocs(q);
-          snapshot.forEach((doc) => {
-            allTickets.push({ id: doc.id, ...doc.data() });
-          });
-        }
-
-        const start = new Date(startDateInput);
-        const end = new Date(endDateInput);
-        end.setHours(23, 59, 59, 999);
-
-        const filtered = allTickets.filter((t) => {
-          const tStart = new Date(t.start_date_time);
-          return tStart >= start && tStart <= end;
-        });
-
-        setTickets(filtered);
-        setAllFilteredTickets(filtered); // <-- Store all matching tickets for summary use
-
-      } catch (err) {
-        console.error("Error fetching tickets:", err);
-        Swal.fire("Error", "Something went wrong while fetching tickets.", "error");
-      } finally {
-        setIsLoading(false);
-        Swal.close(); // Always close modal
-      }
-    };
-
-    if (triggerSearch) {
-      fetchTickets();
-      setHasFiltered(false); // 👈 Optional: reset filter state
-      setTriggerSearch(false);
+    } catch (err) {
+      console.error("Error fetching tickets:", err);
+      Swal.fire("Error", "Failed to fetch tickets", "error");
+    } finally {
+      Swal.close();
+      setIsLoading(false);
     }
-  }, [triggerSearch, ticket_ids, startDateInput, endDateInput]);
+  };
 
+  if (triggerSearch) {
+    fetchTickets();
+    setTriggerSearch(false); // Reset after triggering
+  }
+}, [triggerSearch, ticket_ids, startDateInput, endDateInput, searchTextInput]);
 
 
 
@@ -363,6 +367,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       const res = await deleteTicket(ticketId);
       if (res.success) {
         Swal.fire("Deleted!", "Ticket has been deleted.", "success");
+        handleRefresh();
         // Optionally trigger a refetch or remove from state
       } else {
         Swal.fire("Error", res.error?.message || "Delete failed", "error");
@@ -1172,11 +1177,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
 
-  const handleRefresh = () => {
-    setTickets([]);
-    setAllFilteredTickets([]);
-    setTriggerSearch(true);
-  };
+
 
   const handleDownloadImage = () => {
     if (summaryRef.current === null) return;

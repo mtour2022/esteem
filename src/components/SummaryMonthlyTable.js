@@ -43,7 +43,23 @@ export default function TourismCertSummaryTable({ employees = [], loading = fals
                 // Populate data
                 for (const cert of results) {
                     const issued = cert.date_Issued;
-                    const date = dayjs(issued instanceof Date ? issued : issued?.toDate?.());
+                    let date;
+
+                    if (issued instanceof Date) {
+                        date = dayjs(issued);
+                    } else if (issued?.toDate) {
+                        date = dayjs(issued.toDate());
+                    } else if (typeof issued === "string" || typeof issued === "number") {
+                        date = dayjs(issued);
+                    } else {
+                        console.warn("Invalid or missing date_Issued in certificate:", cert);
+                        continue; // skip this cert
+                    }
+
+                    if (!date.isValid()) {
+                        console.warn("Invalid date format for certificate:", cert);
+                        continue;
+                    }
                     const monthLabel = date.format("MMMM YYYY");
                     const day = date.date();
                     if (!grouped[monthLabel]) grouped[monthLabel] = {};
@@ -157,7 +173,7 @@ export default function TourismCertSummaryTable({ employees = [], loading = fals
 
 
 
-            <Card className="summary-card border rounded p-3 text-muted mb-5">
+            <Card className="summary-card border rounded p-3 text-muted mb-4">
                 <div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
                         <h6 className="mb-0">Tourism Certificates Summary by Month</h6>

@@ -113,6 +113,7 @@ const ExpectedSaleForecastChart = ({
   }
 
   return (
+    
     <Card
       className="summary-card border rounded p-3 text-muted h-100 bg-white my-2"
       ref={chartRef}

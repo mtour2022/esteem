@@ -23,8 +23,11 @@ export default function CompanyDashboardPage() {
     const [company, setCompany] = useState(null);
     const [loading, setLoading] = useState(true);
     const { currentUser } = useAuth();
+    const [refreshKey, setRefreshKey] = useState(0);
+
     // Initial state (when setting up groupData for the first time)
     const [ticketData, setTicketData] = useState(new TicketModel({
+        address: [],
         activities: [
             {
                 activity_area: "",
@@ -35,9 +38,41 @@ export default function CompanyDashboardPage() {
                 activity_num_unit: "",
                 activity_agreed_price: "",
                 activity_expected_price: "",
+                activity_selected_providers: [],
+                activity_base_price: "",
             },
-        ]
+        ],
+        start_date_time: "",
+        end_date_time: "",
     }));
+
+
+   const resetTicketForm = () => {
+    setCurrentStep(1);
+    setSavedTicket(null);
+    setTicketData({
+        address: [],
+        activities: [
+            {
+                activity_area: "",
+                activity_date_time_start: "",
+                activity_date_time_end: "",
+                activities_availed: [],
+                activity_num_pax: "",
+                activity_num_unit: "",
+                activity_agreed_price: "",
+                activity_expected_price: "",
+                activity_selected_providers: [],
+                activity_base_price: "",
+            },
+        ],
+        start_date_time: "",
+        end_date_time: "",
+    });
+    setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
+};
+
+
     const handleChange = (e) => {
         const { name, value } = e.target;
 
@@ -303,12 +338,11 @@ export default function CompanyDashboardPage() {
                                             <Button
                                                 className="color-blue-button"
                                                 variant="primary"
-                                                onClick={() => {
-                                                    window.location.reload(); // refresh the entire screen
-                                                }}
+                                                onClick={resetTicketForm} // ✅ NEW
                                             >
                                                 Generate More
                                             </Button>
+
                                         </Container>
 
                                     ) : (
@@ -404,7 +438,12 @@ export default function CompanyDashboardPage() {
 
 
                     {/* Main Dashboard Content */}
-                    <CompanyDashboardPanel company={company} employees={employees} />
+                    <CompanyDashboardPanel
+  company={company}
+  employees={employees}
+  refreshKey={refreshKey}
+/>
+
                 </Col>
 
                 <FooterCustomized scrollToId="toppage" />

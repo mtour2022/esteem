@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Nav, Tab, Row, Col, Card, Image, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat } from '@fortawesome/free-solid-svg-icons';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { auth } from '../config/firebase';
@@ -15,6 +15,9 @@ import Swal from 'sweetalert2';
 import { FaStepForward } from 'react-icons/fa';
 import EmployeeQRScannerPage from './ApplicationStatusCheck';
 import VerifierTicketStatusPage from './VerifierTicketStatusPage';
+import ProviderAdminPage from './Verifier_Providers';
+import ActivityAdminPage from './Verifier_Activities';
+import TourismCertAdminPage from './Verifier_TourismCerts';
 
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
@@ -40,6 +43,15 @@ const ProfileTab = () => (
         <h5>Verifier Profile</h5>
         <p className="text-muted">Update your personal information or settings here.</p>
     </Card>
+);
+const TourismCerTab = () => (
+    <TourismCertAdminPage></TourismCertAdminPage>
+);
+const ActivitiesTab = () => (
+    <ActivityAdminPage></ActivityAdminPage>
+);
+const ProvidersTab = () => (
+    <ProviderAdminPage></ProviderAdminPage>
 );
 
 const SaveReportsTab = () => (
@@ -101,10 +113,13 @@ export default function VerifierDashboard() {
     const navItems = [
         { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
         { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
-        { key: 'scanticket', label: 'Scan Tickets', icon: faQrcode },
         { key: 'tickets', label: 'Tourism Tickets', icon: faUser },
-        { key: 'profile', label: 'Profile', icon: faUser },
+        { key: 'scanticket', label: 'Scan Tickets', icon: faQrcode },
+         { key: 'tourismCerts', label: 'Tourism Certificates', icon: faCertificate },
+        { key: 'activities', label: 'Activities', icon: faPersonSwimming },
+        { key: 'providers', label: 'Providers', icon: faSailboat },
         { key: 'reports', label: 'Save Reports', icon: faFileExport },
+        { key: 'profile', label: 'Profile', icon: faUser },
         { key: 'logout', label: 'Log Out', icon: faDoorOpen },
     ];
 
@@ -197,10 +212,19 @@ export default function VerifierDashboard() {
                                     <Tab.Pane eventKey="tickets">
                                         <TourismTicketsTab />
                                     </Tab.Pane>
-
                                     <Tab.Pane eventKey="profile">
                                         <ProfileTab />
                                     </Tab.Pane>
+                                    <Tab.Pane eventKey="tourismCerts">
+                                        <TourismCerTab></TourismCerTab>
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="activities">
+                                        <ActivitiesTab></ActivitiesTab>
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="providers">
+                                        <ProvidersTab></ProvidersTab>
+                                    </Tab.Pane>
+                                     
                                     <Tab.Pane eventKey="reports">
                                         <SaveReportsTab />
                                     </Tab.Pane>

@@ -6,6 +6,8 @@ import Select from "react-select";
 import { ActivityModel } from "../classes/activities";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
+import useResolvedActivities from "../services/GetActivitiesDetails";
+
 
 const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
@@ -134,6 +136,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
 
 
 
+
     const handleAddActivityGroup = () => {
         setGroupData(prev => ({
             ...prev,
@@ -161,6 +164,8 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         setGroupData({ ...groupData, activities: updated });
     };
 
+    const resolvedActivities = useResolvedActivities(groupData);
+    const getActivityDetails = (id) => resolvedActivities.find(act => act.id === id);
 
 
     return (
@@ -174,7 +179,7 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                         <div key={index} className="border p-3 mb-4 rounded bg-light">
                             <Form.Label className="fw-semibold">Activity Set {index + 1}</Form.Label>
                             <br></br>
-                            
+
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Activity Name</Form.Label>
 
                             <Select
@@ -327,50 +332,50 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                             ) : (
                                 selected?.activity_sold_by === "pax" && (
                                     <>
-                                      <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-    Number of Pax
-</Form.Label>
-<Form.Control
-    type="number"
-    className="my-2"
-    min="0"
-    required
-    placeholder={`Number of Pax (Max ${selected.activity_maxpax})`}
-    value={actGroup.activity_num_pax || ""}
-    onChange={(e) => {
-        const input = parseInt(e.target.value || "0");
-        const max = parseInt(selected.activity_maxpax || "0");
+                                        <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                            Number of Pax
+                                        </Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            className="my-2"
+                                            min="0"
+                                            required
+                                            placeholder={`Number of Pax (Max ${selected.activity_maxpax})`}
+                                            value={actGroup.activity_num_pax || ""}
+                                            onChange={(e) => {
+                                                const input = parseInt(e.target.value || "0");
+                                                const max = parseInt(selected.activity_maxpax || "0");
 
-        if (input < 0) {
-            alert("Pax cannot be negative.");
-            return;
-        }
+                                                if (input < 0) {
+                                                    alert("Pax cannot be negative.");
+                                                    return;
+                                                }
 
-        // 🔍 Compute declared pax from groupData.address
-        const totalDeclaredPax = (groupData.address || []).reduce((sum, addr) => {
-            const locals = parseInt(addr.locals || "0");
-            const foreigns = parseInt(addr.foreigns || "0");
-            return sum + locals + foreigns;
-        }, 0);
+                                                // 🔍 Compute declared pax from groupData.address
+                                                const totalDeclaredPax = (groupData.address || []).reduce((sum, addr) => {
+                                                    const locals = parseInt(addr.locals || "0");
+                                                    const foreigns = parseInt(addr.foreigns || "0");
+                                                    return sum + locals + foreigns;
+                                                }, 0);
 
-        // 🛑 Check declared pax limit
-        if (input > totalDeclaredPax) {
-            alert(
-                `The number of pax (${input}) cannot exceed the total declared pax (${totalDeclaredPax}) from the address/es.`
-            );
-            return;
-        }
+                                                // 🛑 Check declared pax limit
+                                                if (input > totalDeclaredPax) {
+                                                    alert(
+                                                        `The number of pax (${input}) cannot exceed the total declared pax (${totalDeclaredPax}) from the address/es.`
+                                                    );
+                                                    return;
+                                                }
 
-        // ✅ Check max pax limit
-        if (input <= max) {
-            handleActivityGroupChange(index, {
-                activity_num_pax: input,
-            });
-        } else {
-            alert(`You cannot exceed the maximum allowed pax of ${max}.`);
-        }
-    }}
-/>
+                                                // ✅ Check max pax limit
+                                                if (input <= max) {
+                                                    handleActivityGroupChange(index, {
+                                                        activity_num_pax: input,
+                                                    });
+                                                } else {
+                                                    alert(`You cannot exceed the maximum allowed pax of ${max}.`);
+                                                }
+                                            }}
+                                        />
 
 
                                     </>
@@ -415,41 +420,48 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     if (!expected || expected === 0) return "";
 
                                     const markup = ((agreed - expected) / expected) * 100;
-                                    return `Markup: ${markup.toFixed(2)}%`;
+                                    return `Additional Markup: ${markup.toFixed(2)}%`;
                                 })()}
                             </Form.Label>
 
-                            {/* ✅ Markup Warning (30–50% and >50%) */}
-                            {(() => {
-  const price = Number(actGroup.activity_agreed_price || 0); // Final/agreed price
-  const base = Number(actGroup.activity_expected_price || 0); // Base/original price
-  const ticketTotal = Number(groupData?.total_payment || 0);     // Total payment from ticket
 
-  // Calculate individual markup percentage
-  const markupPercentage = base > 0 ? ((price - base) / base) * 100 : 0;
+{(() => {
+  const pax = parseInt(actGroup.activity_num_pax || "1");
+  const agreedPrice = parseFloat(actGroup.activity_agreed_price || "0");
+  let baseTotal = 0;
 
-  // Additional markup as difference from ticket total
-  const extraMarkup = price - ticketTotal;
+  actGroup.activities_availed?.forEach(activity => {
+    const activityId = typeof activity === "string" ? activity : activity.activity_id;
+    const resolved = resolvedActivities.find(act => act.id === activityId);
+    if (!resolved) return;
 
-  // Sum both for total markup
-  const totalMarkup = markupPercentage + (extraMarkup > 0 ? extraMarkup : 0);
+    const basePrice = parseFloat(resolved.activity_base_price || "0");
+    if (!isNaN(basePrice)) {
+      baseTotal += basePrice * pax;
+    }
+  });
 
-  if (totalMarkup >= 30 && totalMarkup <= 50) {
+  const expectedSale = Math.max(agreedPrice - baseTotal, 0);
+  const markup = baseTotal > 0 ? (expectedSale / baseTotal) * 100 : 0;
+  const formattedMarkup = markup.toFixed(1);
+
+  if (markup >= 30 && markup <= 50) {
     return (
       <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
-        ⚠️ Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
+        ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
       </Form.Label>
     );
-  } else if (totalMarkup > 50) {
+  } else if (markup > 50) {
     return (
       <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
-        ⚠️ Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
+        ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
       </Form.Label>
     );
   }
 
   return null;
 })()}
+
 
 
 
