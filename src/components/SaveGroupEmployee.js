@@ -164,7 +164,7 @@ const SaveGroupEmployee = ({
           const qrCanvas = document.getElementById("generatedQR");
           QRCode.toCanvas(
             qrCanvas,
-            `https://esteem.com/quickstatus/${docRef.id}`,
+            `https://esteem.com/application-status-check/${docRef.id}`,
             { width: 300 },
             (err) => {
               if (err) console.error("QR generation error:", err);
