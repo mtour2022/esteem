@@ -29,10 +29,10 @@ const SaveGroupEmployee = ({
   const navigate = useNavigate();
   const qrRef = useRef(null);
   const dateNow = new Date().toLocaleString("en-PH", {
-  dateStyle: "long",
-  timeStyle: "short",
-  hour12: true,
-});
+    dateStyle: "long",
+    timeStyle: "short",
+    hour12: true,
+  });
 
 
   const groupCollectionRef = collection(db, collectionName);
@@ -137,6 +137,10 @@ const SaveGroupEmployee = ({
               Municipality of Malay<br />
               Municipal Tourism Office
             </div>
+             
+            <p style="font-size: 11px; margin-bottom: 10px; margin-top: 5px;">
+              ${docRef.id} - ${groupData.firstname} ${groupData.middlename} ${groupData.surname}
+            </p>
             <div style="display: flex; justify-content: center;">
               <canvas id="generatedQR"></canvas>
             </div>
@@ -144,6 +148,7 @@ const SaveGroupEmployee = ({
               Scan this QR code to check your application status.<br />
               All information is protected and complies with the Data Privacy Act.
             </p>
+            
              <p style="font-size: 10px; margin-top: 10px;">
               Issued by the Municipal Tourism Office, Malay Aklan<br />
               Registered on: ${dateNow}
@@ -151,7 +156,6 @@ const SaveGroupEmployee = ({
           </div>
           <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
             <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
-            <button id="downloadPdfBtn" class="swal2-confirm swal2-styled" style="background: #555;">Download as PDF</button>
             <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background: #28a745;">Proceed</button>
           </div>
         `,
@@ -171,23 +175,59 @@ const SaveGroupEmployee = ({
 
           document.getElementById("downloadImageBtn").addEventListener("click", () => {
             if (!qrPreview) return;
+
+            Swal.fire({
+              title: "Downloading...",
+              text: "Your image is being prepared for download.",
+              allowOutsideClick: false,
+              didOpen: () => Swal.showLoading()
+            });
+
             toPng(qrPreview).then((dataUrl) => {
-              download(dataUrl, `EmployeeQR_${docRef.id}.png`);
+              download(dataUrl, `TourismStatusQR_${groupData.firstname}_${groupData.surname}_${docRef.id}.png`);
+
+              Swal.fire({
+                icon: "success",
+                title: "Downloaded!",
+                text: "The image has been saved to your device.",
+                timer: 2000,
+                showConfirmButton: false
+              }).then(() => {
+                Swal.fire({
+                  title: "Next Steps",
+                  icon: "info",
+                  html: `
+          <p>Your submission is under review.</p>
+          <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
+          <p>You will be <strong>notified via email</strong> at <em>${groupData.email}</em>.</p>
+        `,
+                  confirmButtonText: "Okay, got it!"
+                });
+              });
+
+            }).catch((err) => {
+              console.error("Image download error:", err);
+              Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to generate image. Please try again."
+              });
             });
           });
 
-          document.getElementById("downloadPdfBtn").addEventListener("click", () => {
-            if (!qrPreview) return;
-            toPng(qrPreview).then((dataUrl) => {
-              const pdf = new jsPDF({
-                orientation: "portrait",
-                unit: "px",
-                format: [qrPreview.offsetWidth, qrPreview.offsetHeight]
-              });
-              pdf.addImage(dataUrl, 'PNG', 0, 0, qrPreview.offsetWidth, qrPreview.offsetHeight);
-              pdf.save(`EmployeeQR_${docRef.id}.pdf`);
-            });
-          });
+
+          // document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+          //   if (!qrPreview) return;
+          //   toPng(qrPreview).then((dataUrl) => {
+          //     const pdf = new jsPDF({
+          //       orientation: "portrait",
+          //       unit: "px",
+          //       format: [qrPreview.offsetWidth, qrPreview.offsetHeight]
+          //     });
+          //     pdf.addImage(dataUrl, 'PNG', 0, 0, qrPreview.offsetWidth, qrPreview.offsetHeight);
+          //     pdf.save(`EmployeeQR_${docRef.id}.pdf`);
+          //   });
+          // });
 
           document.getElementById("proceedBtn").addEventListener("click", () => {
             Swal.fire({
@@ -244,6 +284,7 @@ const SaveGroupEmployee = ({
             Municipality of Malay<br />
             Municipal Tourism Office
           </div>
+
           <QRCodeCanvas
             value={`https://esteem.com/quickstatus/${groupData.employeeId || 'temp'}`}
             size={200}
@@ -252,10 +293,11 @@ const SaveGroupEmployee = ({
             Scan this QR code to check your application status.<br />
             All information is protected and complies with the Data Privacy Act.
           </p>
-          <p style="font-size: 10px; margin-top: 10px;">
-  Issued by the Municipal Tourism Office, Malay Aklan<br />
-  Registered on: ${dateNow}
-</p>
+          <p style={{ fontSize: "10px", marginTop: "10px" }}>
+            Issued by the Municipal Tourism Office, Malay Aklan<br />
+            Registered on: {dateNow}
+          </p>
+
 
         </div>
       </div>

@@ -6,6 +6,7 @@ class Employee {
     classification = "",
     companyId = "",
     designation = "",
+        years_in_service= "",
     application_type = "",
     unit_id = "",
     unit_owner = "",
@@ -59,6 +60,7 @@ class Employee {
       tourism_cert_id: "",
       type: ""
     },
+
   }) {
     this.employeeId = employeeId;
     this.userUID = userUID;
@@ -102,7 +104,7 @@ class Employee {
     this.tourism_certificate_ids = tourism_certificate_ids;
     this.latest_cert_id = latest_cert_id;
     this.latest_cert_summary = latest_cert_summary;
-
+this.years_in_service = years_in_service;
   }
 
   getFullName() {

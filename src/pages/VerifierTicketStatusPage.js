@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Card, Table, Badge, Row, Col, Form } from "react-bootstrap";
+import { Card, Table, Badge, Row, Col, Form, Tab, Tabs } from "react-bootstrap";
 import { InputGroup, FormControl, Button, Dropdown } from "react-bootstrap";
 import { db } from "../config/firebase"; // adjust path as needed
 import { toPng } from "html-to-image";
@@ -1874,14 +1874,14 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                 className="me-2"
                 onClick={() => setSummaryFilter("all")}
               >
-                All Data
+                All Tickets
               </Button>
               <Button
                 variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
                 size="sm"
                 onClick={() => setSummaryFilter("scanned")}
               >
-                Scanned Data Only
+                Scanned Tickets Only
               </Button>
             </div>
 
@@ -1898,133 +1898,132 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
           </div>
 
           <div className="mt-5 bg-white p-2" ref={summaryRef}>
+            <Tabs defaultActiveKey="summary" className="mb-4">
 
+              {/* Summary Tab */}
+              <Tab eventKey="summary" title="Summary">
+                <h6 className="my-4">Summary</h6>
+                <p className="text-muted">
+                  <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
+                  <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric", month: "long", day: "numeric"
+                  })}</strong>{" "}
+                  to{" "}
+                  <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric", month: "long", day: "numeric"
+                  })}</strong>
+                </p>
 
-            <h6>Summary</h6>
+                {(!isSmallScreen || showFullSummary) && (
+                  <>
+                    <Row className="mb-3 g-3">
+                      {Object.entries(statusCounts).map(([status, count], idx) => (
+                        <Col key={idx} md={2}>
+                          <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                            <div>
+                              <p className="mb-1 fw-semibold">{status}</p>
+                              <h6 className="mb-0 text-dark">
+                                <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                              </h6>
+                            </div>
+                          </div>
+                        </Col>
+                      ))}
+                    </Row>
 
+                    <Row className="mb-2 g-3">
+                      {[
+                        { label: "Total Pax", value: summary.totalPax?.toLocaleString() || "0" },
+                        { label: "Expected Payment", value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                        { label: "Actual Payment", value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                        { label: "Expected Sale", value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                        { label: "Avg. Markup", value: `${averageMarkup?.toFixed(2)}%` },
+                        { label: "Avg. Sale per Ticket", value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                      ].map((item, idx) => (
+                        <Col key={idx} md={2}>
+                          <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                            <div>
+                              <p className="mb-1 fw-semibold">{item.label}</p>
+                              <Badge bg="light" text="dark"><h6 className="mb-0 text-dark">{item.value}</h6></Badge>
 
+                            </div>
+                          </div>
+                        </Col>
+                      ))}
+                    </Row>
+                    <Row className="g-3 mt-2">
+                      <Col md={4}>
+                        <SummaryPieChart
+                          title="Residency Breakdown"
+                          loading={false}
+                          data={hasResidencyData ? residencyData : []}
+                        />
+                      </Col>
+                      <Col md={4}>
+                        <SummaryPieChart
+                          title="Sex Breakdown"
+                          loading={false}
+                          data={hasSexData ? sexData : []}
+                        />
+                      </Col>
+                      <Col md={4}>
+                        <SummaryPieChart
+                          title="Age Breakdown"
+                          loading={false}
+                          data={hasAgeData ? ageData : []}
+                        />
+                      </Col>
+                    </Row>
+                    <Row className="g-3 mt-2">
+                      <Col md={4}>
+                        <TopRankingChart
+                          title="Top 10 Activities Availed (by Pax)"
+                          data={topActivities}
+                          loading={allResolvedActivities.length === 0}
+                        />
+                      </Col>
+                      <Col md={4}>
+                        <TopRankingChart
+                          title="Top 10 Countries"
+                          data={topCountries}
+                          loading={filteredSummaryTickets.length === 0}
+                        />
+                      </Col>
+                      <Col md={4}>
+                        <TopRankingChart
+                          title="Top 10 Domestic Towns (Philippines)"
+                          data={topTowns}
+                          loading={filteredSummaryTickets.length === 0}
+                        />
+                      </Col>
+                    </Row>
+                  </>
+                )}
+              </Tab>
 
-            <p className="text-muted">
-              <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
-              <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-                year: "numeric", month: "long", day: "numeric"
-              })}</strong>{" "}
-              to{" "}
-              <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-                year: "numeric", month: "long", day: "numeric"
-              })}</strong>
-            </p>
-            {(!isSmallScreen || showFullSummary) && (
-              <>
-
-                <Row className="mb-3 g-3">
-                  {Object.entries(statusCounts).map(([status, count], idx) => (
-                    <Col key={idx} md={2}>
-                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                        <div>
-                          <p className="mb-1 fw-semibold">{status}</p>
-                          <h6 className="mb-0 text-dark">
-                            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-                          </h6>
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-
-                <Row className="mb-2 g-3">
-                  {[
-                    {
-                      label: "Total Pax",
-                      value: summary.totalPax?.toLocaleString() || "0",
-                    },
-                    {
-                      label: "Expected Payment",
-                      value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Actual Payment",
-                      value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Expected Sale",
-                      value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Avg. Markup",
-                      value: `${averageMarkup?.toFixed(2)}%`,
-                    },
-                    {
-                      label: "Avg. Sale per Ticket",
-                      value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                  ].map((item, idx) => (
-                    <Col key={idx} md={2}>
-                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                        <div>
-                          <p className="mb-1 fw-semibold">{item.label}</p>
-                          <h6 className="mb-0 text-dark">{item.value}</h6>
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-
+              {/* Performance Tab */}
+              <Tab eventKey="performance" title="Performance">
+                <h6 className="my-4">Performance</h6>
                 <Row className="g-3 mt-2">
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Residency Breakdown"
-                      loading={false}
-                      data={hasResidencyData ? residencyData : []}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Sex Breakdown"
-                      loading={false}
-                      data={hasSexData ? sexData : []}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Age Breakdown"
-                      loading={false}
-                      data={hasAgeData ? ageData : []}
+                  <Col md={12}>
+                    <TicketsSummaryTable
+                      allFilteredTickets={filteredSummaryTickets}
+                      loading={!hasFilteredSummaryData}
+                      filterType={summaryFilter}
                     />
                   </Col>
                 </Row>
+              </Tab>
 
-                <Row className="g-3 mt-2">
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Activities Availed (by Pax)"
-                      data={topActivities}
-                      loading={allResolvedActivities.length === 0}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Countries"
-                      data={topCountries}
-                      loading={filteredSummaryTickets.length === 0}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Domestic Towns (Philippines)"
-                      data={topTowns}
-                      loading={filteredSummaryTickets.length === 0}
-                    />
-                  </Col>
+              {/* Insights Tab */}
+              <Tab eventKey="insights" title="Insights">
+                <h6 className="my-4">Insights</h6>
 
-
-                </Row>
 
 
 
                 <Row className="mb-4 g-3">
                   <Col md={12}>
-
                     <TicketPaxVsTicket
                       title="Ticket Vs Pax Forecast"
                       tickets={filteredSummaryTickets}
@@ -2034,7 +2033,6 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   </Col>
 
                   <Col md={12}>
-
                     <ExpectedSaleForecastChart
                       title="Expected Sale Forecast"
                       tickets={filteredSummaryTickets}
@@ -2042,8 +2040,8 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                       endDate={endDateInput}
                     />
                   </Col>
-                  <Col md={12}>
 
+                  <Col md={12}>
                     <PaymentPaxLineChart
                       title="Expected vs Actual Payment"
                       tickets={filteredSummaryTickets}
@@ -2051,20 +2049,10 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                       endDate={endDateInput}
                     />
                   </Col>
-
                 </Row>
-                <Row className="g-3 mt-2">
-                  <Col md={12}>
-                    <TicketsSummaryTable
-                      allFilteredTickets={filteredSummaryTickets}
-                      loading={!hasFilteredSummaryData}
-                    />
+              </Tab>
+            </Tabs>
 
-                  </Col>
-                </Row>
-
-              </>
-            )}
             {isSmallScreen && (
               <div className="mt-2">
                 <Button

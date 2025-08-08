@@ -38,6 +38,7 @@ export default function EmployeeRegistrationForm() {
         classification: '',
         companyId: '',
         designation: '',
+        years_in_service: '',
         application_type: '',
         surname: '',
         middlename: '',
@@ -85,7 +86,7 @@ export default function EmployeeRegistrationForm() {
             }));
         }
     }, [residency]);
-    
+
     useEffect(() => {
         if (formData.classification) {
             const fetchCompanies = async () => {
@@ -124,7 +125,7 @@ export default function EmployeeRegistrationForm() {
     const nextStep = () => setCurrentStep(prev => prev + 1);
     const prevStep = () => setCurrentStep(prev => prev - 1);
 
-    
+
     const companyOptions = companies.map((company) => ({
         label: company.name,
         value: company.id
@@ -337,6 +338,19 @@ export default function EmployeeRegistrationForm() {
                                                 />
                                             )}
                                         </Form.Group>
+
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Years in service as {formData.designation || ""}</Form.Label>
+                                            <Form.Control
+                                                type="number"
+                                                name="years_in_service"
+                                                value={formData.years_in_service}
+                                                onChange={handleChange}
+                                                placeholder={`Taon ng serbisyo bilang isang ${formData.designation || "trabahodor"}`}
+                                            />
+                                        </Form.Group>
+
+
                                         <Form.Group className="mb-3">
                                             <Form.Label>Type of Application *</Form.Label>
                                             <Form.Select
@@ -549,6 +563,34 @@ export default function EmployeeRegistrationForm() {
                                                 </Form.Group>
                                             </Col>
                                         </Row>
+                                        <Form.Group className="mb-3 mt-4">
+                                            <Form.Label>Contact Number *</Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                name="contact"
+                                                value={formData.contact}
+                                                onChange={handleChange}
+                                                placeholder="Telepono o Mobile"
+                                                required
+                                            />
+                                        </Form.Group>
+
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Highest Educational Attainment *</Form.Label>
+                                            <Form.Select
+                                                name="education"
+                                                value={formData.education}
+                                                onChange={handleChange}
+                                                required
+                                            >
+                                                <option value="">Highest Educational Attainment</option>
+                                                <option value="elementary">Elementary</option>
+                                                <option value="high school">High School</option>
+                                                <option value="college">College</option>
+                                                <option value="alternative">Alternative Learning</option>
+                                                <option value="undergraduate">Undergraduate</option>
+                                            </Form.Select>
+                                        </Form.Group>
                                     </>
                                 )}
 
@@ -599,36 +641,9 @@ export default function EmployeeRegistrationForm() {
                                             )}
                                         </Form.Group>
 
+
+                                        <Form.Label className="mt-3">--- In case of Emergency ---</Form.Label>
                                         <Form.Group className="mb-3 mt-4">
-                                            <Form.Label>Contact Number *</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                name="contact"
-                                                value={formData.contact}
-                                                onChange={handleChange}
-                                                placeholder="Telepono o Mobile"
-                                                required
-                                            />
-                                        </Form.Group>
-
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Highest Educational Attainment *</Form.Label>
-                                            <Form.Select
-                                                name="education"
-                                                value={formData.education}
-                                                onChange={handleChange}
-                                                required
-                                            >
-                                                <option value="">Highest Educational Attainment</option>
-                                                <option value="elementary">Elementary</option>
-                                                <option value="high school">High School</option>
-                                                <option value="college">College</option>
-                                                <option value="alternative">Alternative Learning</option>
-                                                <option value="undergraduate">Undergraduate</option>
-                                            </Form.Select>
-                                        </Form.Group>
-
-                                        <Form.Group className="mb-3">
                                             <Form.Label>Name of person incase of emergency</Form.Label>
                                             <Form.Control
                                                 type="text"
@@ -655,6 +670,13 @@ export default function EmployeeRegistrationForm() {
                                 {/* Step 4: Company Details */}
                                 {currentStep === 4 && (
                                     <>
+                                    {!formData.designation && (
+  <p className="text-danger mb-4">
+    Please select your <strong>Designation</strong> first to avoid missing any required file uploads.
+  </p>
+)}
+
+
                                         <FileUploader
                                             label="2x2 Profile Photo (formal attire)"
                                             fileKey="profilePhoto"
@@ -672,72 +694,66 @@ export default function EmployeeRegistrationForm() {
                                             setFormData={setFormData}
                                         />
 
-                                        {(() => {
-                                            const isExempted =
-                                                formData.designation === "Field Staff" ||
-                                                formData.designation === "Office Staff" ||
-                                                (formData.designation || "").toLowerCase().includes("owner");
+                                       {(() => {
+  const isExempted =
+    formData.designation === "Field Staff" ||
+    formData.designation === "Office Staff" ||
+    (formData.designation || "").toLowerCase().includes("owner");
 
-                                            return (
-                                                <>
-                                                    {!isExempted &&
-                                                        (formData.nationality !== "foreign" ||
-                                                            (!formData.nationality && residency !== "foreign")) && (
-                                                            <FileUploader
-                                                                label="Training Certificate from DOT/LGU (2023/2024/2025) (Optional for renewal)"
-                                                                fileKey="trainingCert"
-                                                                storagePath="employee/training_certificates"
-                                                                formData={formData}
-                                                                setFormData={setFormData}
-                                                            />
-                                                        )}
+  // ✅ Prioritize formData.nationality over residency
+  const nationalityValue = formData.nationality?.toLowerCase();
+  const isForeign = nationalityValue === "foreign" || (!nationalityValue && residency === "foreign");
 
-                                                    {!isExempted && formData.application_type === "new" && (
-                                                        formData.designation === "Local Tour Coordinator" && (
-                                                            <FileUploader
-                                                                label="Diploma / Transcript of Records / Certificate of Completion (For new only)"
-                                                                fileKey="diploma"
-                                                                storagePath="employee/diplomas"
-                                                                formData={formData}
-                                                                setFormData={setFormData}
-                                                            />
-                                                        )
+  return (
+    <>
+      {!isExempted && !isForeign && (
+        <FileUploader
+          label="Training Certificate from DOT/LGU (2023/2024/2025) (Optional for renewal)"
+          fileKey="trainingCert"
+          storagePath="employee/training_certificates"
+          formData={formData}
+          setFormData={setFormData}
+        />
+      )}
 
-                                                    )}
+      {!isExempted && formData.application_type === "new" && formData.designation === "Local Tour Coordinator" && (
+        <FileUploader
+          label="Diploma / Transcript of Records / Certificate of Completion (For new tour coordinators only)"
+          fileKey="diploma"
+          storagePath="employee/diplomas"
+          formData={formData}
+          setFormData={setFormData}
+        />
+      )}
 
-                                                    {!isExempted &&
-                                                        (formData.nationality === "foreign" ||
-                                                            (!formData.nationality && residency === "foreign")) &&
-                                                        ["Foreign Tour Guide", "Foreign Staff"].includes(formData.designation) && (
-                                                            <>
-                                                                <Form.Group className="mb-3">
-                                                                    <Form.Label className="fw-bold">
-                                                                        Passport Number (for foreign only) *
-                                                                    </Form.Label>
-                                                                    <Form.Control
-                                                                        type="text"
-                                                                        name="passportNumber"
-                                                                        value={formData.passportNumber}
-                                                                        onChange={handleChange}
-                                                                        placeholder="Passport Number"
-                                                                    />
-                                                                </Form.Group>
+      {!isExempted && isForeign && ["Foreign Tour Guide", "Foreign Staff"].includes(formData.designation) && (
+        <>
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold">Passport Number (for foreign only) *</Form.Label>
+            <Form.Control
+              type="text"
+              name="passportNumber"
+              value={formData.passportNumber}
+              onChange={handleChange}
+              placeholder="Passport Number"
+            />
+          </Form.Group>
 
-                                                                <FileUploader
-                                                                    label="Special Working Permit from Bureau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign only)"
-                                                                    fileKey="workingPermit"
-                                                                    storagePath="employee/workingPermit"
-                                                                    formData={formData}
-                                                                    setFormData={setFormData}
-                                                                />
-                                                            </>
-                                                        )
+          <FileUploader
+            label="Special Working Permit from Bureau of Immigration e.g. AEP/9G/DOLE Certificate (for foreign only)"
+            fileKey="workingPermit"
+            storagePath="employee/workingPermit"
+            formData={formData}
+            setFormData={setFormData}
+          />
+        </>
+      )}
+    </>
+  );
+})()}
 
 
-                                                    }
-                                                </>
-                                            );
-                                        })()}
+
 
 
 
@@ -800,7 +816,12 @@ export default function EmployeeRegistrationForm() {
                                             required
                                         />
                                         <div className="mt-4 mb-3 p-3 border-start border-4 border-warning bg-light rounded">
-                                            <strong className="text-danger">Reminder:</strong><br />
+                                            <strong className="text-danger">Reminder:</strong>
+                                            <br />
+                                            <br />
+                                            <strong>Upload first the required documents before submitting. You will not be able to submit if the required documents is empty.</strong>
+ <br />
+                                            <br />
                                             Please double-check that all your uploaded files are correct and complete before submitting.
                                             <br /><br />
                                             Incomplete or incorrect files may delay the processing of your application.
@@ -819,6 +840,7 @@ export default function EmployeeRegistrationForm() {
                                         </span>
                                     ))}
                                 </Container>
+
                                 <Container className="d-flex justify-content-between mt-3">
                                     {/* Previous Button - Show if currentStep > 1 */}
                                     {currentStep > 1 && (
@@ -841,32 +863,49 @@ export default function EmployeeRegistrationForm() {
                                             fileType="Application"
                                             collectionName="employee"
                                             disabled={
-                                                (() => {
-                                                    const isExempted =
-                                                        formData.designation === "Field Staff" ||
-                                                        formData.designation === "Office Staff" ||
-                                                        (formData.designation || "").toLowerCase().includes("owner");
+  (() => {
+    const isExempted =
+      formData.designation === "Field Staff" ||
+      formData.designation === "Office Staff" ||
+      (formData.designation || "").toLowerCase().includes("owner");
 
-                                                    if (isExempted) {
-                                                        return (
-                                                            !formData.profilePhoto ||
-                                                            !formData.additionalRequirement ||
-                                                            !formData.email ||
-                                                            !formData.password ||
-                                                            !formData.agreed
-                                                        );
-                                                    }
+    const nationalityValue = formData.nationality?.toLowerCase();
+    const isForeign = nationalityValue === "foreign" || (!nationalityValue && residency === "foreign");
 
-                                                    return (
-                                                        !formData.profilePhoto ||
-                                                        !formData.trainingCert ||
-                                                        !formData.additionalRequirement ||
-                                                        !formData.email ||
-                                                        !formData.password ||
-                                                        !formData.agreed
-                                                    );
-                                                })()
-                                            }
+    if (isExempted) {
+      return (
+        !formData.profilePhoto ||
+        !formData.additionalRequirement ||
+        !formData.email ||
+        !formData.password ||
+        !formData.agreed
+      );
+    }
+
+    if (isForeign) {
+      return (
+        !formData.profilePhoto ||
+        !formData.additionalRequirement ||
+        !formData.workingPermit ||
+        !formData.passportNumber ||
+        !formData.email ||
+        !formData.password ||
+        !formData.agreed
+      );
+    }
+
+    // Default (not foreign, not exempted)
+    return (
+      !formData.profilePhoto ||
+      !formData.trainingCert ||
+      !formData.additionalRequirement ||
+      !formData.email ||
+      !formData.password ||
+      !formData.agreed
+    );
+  })()
+}
+
                                             idName="employeeId"
                                             ModelClass={Employee}
                                             onSuccess={() => {
@@ -892,18 +931,7 @@ export default function EmployeeRegistrationForm() {
                                 <Container className='empty-container'></Container>
 
                                 {/* Custom Styles for Dots */}
-                                <style>
-                                    {`
-                            .step-indicator {
-                                font-size: 1rem;
-                                color: #ccc;
-                                transition: color 0.3s ease-in-out;
-                            }
-                            .step-indicator.active {
-                                color: #1F89B2; /* Bootstrap primary color */
-                            }
-                        `}
-                                </style>
+
                             </Form>
                         </Container>
                     </Container>

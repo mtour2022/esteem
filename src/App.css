@@ -476,6 +476,16 @@ th {
   background-color: #b5fbc5 !important;
 }
 
+.step-indicator {
+  font-size: 1.5rem !important;
+  color: lightgray !important;
+  transition: color 0.3s ease !important;
+}
+
+.step-indicator.active {
+  color: #007bff !important; /* Bootstrap primary or your custom highlight */
+}
+
 /* .App {
   text-align: center;
 }

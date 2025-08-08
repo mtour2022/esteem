@@ -243,44 +243,51 @@ export default function CompanyDashboardPage() {
                                                     required
                                                 />
                                             </Form.Group>
-                                            <Form.Group className="my-3">
-                                                <Form.Label><strong>Assigned To</strong></Form.Label>
-                                                <br />
-                                                <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-                                                    Select designated employee to assist the guests.
-                                                </Form.Label>
-                                                <Select
-                                                    options={employees
-                                                        .filter(emp => emp.status?.toLowerCase() === "approved") // ✅ Only approved
-                                                        .map(emp => ({
-                                                            value: emp.employeeId,
-                                                            label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                                                            contact: emp.contact,
-                                                            raw: emp
-                                                        }))
-                                                    }
-                                                    placeholder="Select an employee"
-                                                    onChange={(selectedOption) => {
-                                                        setTicketData(prev => ({
-                                                            ...prev,
-                                                            employee_id: selectedOption?.value || ""
-                                                        }));
-                                                        setSelectedEmployee(selectedOption ? selectedOption.raw : null);
-                                                    }}
-                                                    value={
-                                                        employees
-                                                            .filter(emp => emp.status?.toLowerCase() === "approved") // ✅ Also filter here
-                                                            .map(emp => ({
-                                                                value: emp.employeeId,
-                                                                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                                                                contact: emp.contact,
-                                                                raw: emp
-                                                            }))
-                                                            .find(option => option.value === ticketData.employee_id) || null
-                                                    }
-                                                    isClearable
-                                                />
-                                            </Form.Group>
+                                          <Form.Group className="my-3">
+    <Form.Label><strong>Assigned To</strong></Form.Label>
+    <br />
+    <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+        Select designated employee to assist the guests.
+    </Form.Label>
+    <Select
+        options={employees
+            .filter(emp =>
+                emp.status?.toLowerCase() === "approved" &&
+                emp.company_status?.toLowerCase() === "approved"
+            )
+            .map(emp => ({
+                value: emp.employeeId,
+                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                contact: emp.contact,
+                raw: emp
+            }))
+        }
+        placeholder="Select an employee"
+        onChange={(selectedOption) => {
+            setTicketData(prev => ({
+                ...prev,
+                employee_id: selectedOption?.value || ""
+            }));
+            setSelectedEmployee(selectedOption ? selectedOption.raw : null);
+        }}
+        value={
+            employees
+                .filter(emp =>
+                    emp.status?.toLowerCase() === "approved" &&
+                    emp.company_status?.toLowerCase() === "approved"
+                )
+                .map(emp => ({
+                    value: emp.employeeId,
+                    label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                    contact: emp.contact,
+                    raw: emp
+                }))
+                .find(option => option.value === ticketData.employee_id) || null
+        }
+        isClearable
+    />
+</Form.Group>
+
                                             {selectedEmployee && (
                                                 <Form.Group className="mt-2">
                                                     <Form.Label>Assignee's Contact Information</Form.Label>

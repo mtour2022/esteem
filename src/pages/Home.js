@@ -3,7 +3,7 @@ import { Container, Row, Col, Button, Card, Form, InputGroup, Dropdown } from "r
 import AppNavBar from "../components/AppNavBar";
 import { useMediaQuery } from "react-responsive";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faListCheck, faQrcode, faBarChart, faChartGantt, faDownload, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faListCheck, faQrcode, faBarChart, faChartGantt, faDownload, faUserGroup, faDatabase } from '@fortawesome/free-solid-svg-icons';
 import lgu from '../assets/images/lgu.png';
 import bagongpilipinas from '../assets/images/bagongpilipinas.png';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
@@ -329,6 +329,11 @@ export default function Home() {
                   <Button className="white-button">
                     <FontAwesomeIcon className="button-icon" icon={faQrcode} size="xs" fixedWidth />Cert Verifier
                   </Button>
+                 
+                  <Link to="/application-status-check" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faDatabase} size="xs" fixedWidth />
+                    Registration Status
+                  </Link>
                   <Button className="white-button">
                     <FontAwesomeIcon className="button-icon" icon={faBarChart} size="xs" fixedWidth />General TF Stats
                   </Button>

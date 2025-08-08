@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from "react";
+import React, { useRef, useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { Card, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faX } from "@fortawesome/free-solid-svg-icons";
+import { faDownload } from "@fortawesome/free-solid-svg-icons";
 import { toPng } from "html-to-image";
 import download from "downloadjs";
 import dayjs from "dayjs";
@@ -23,7 +23,6 @@ const ExpectedSaleForecastChart = ({
   endDate,
 }) => {
   const chartRef = useRef(null);
-  const [showChart, setShowChart] = useState(false);
 
   const chartData = useMemo(() => {
     if (!startDate || !endDate || !tickets.length) return [];
@@ -46,21 +45,14 @@ const ExpectedSaleForecastChart = ({
 
     tickets.forEach((ticket) => {
       let rawDate = ticket.start_date_time;
-
       if (rawDate && typeof rawDate.toDate === "function") {
         rawDate = rawDate.toDate();
       }
 
       const startTime = dayjs(rawDate);
-
-      if (!startTime.isValid()) {
-        console.warn("Invalid start_date_time in ticket:", ticket);
-        return;
-      }
+      if (!startTime.isValid()) return;
 
       const label = startTime.format("YYYY-MM-DD");
-
-
       if (!dateMap[label]) return;
 
       dateMap[label].expectedSale += ticket.total_expected_sale || 0;
@@ -79,33 +71,11 @@ const ExpectedSaleForecastChart = ({
     }
   };
 
-  if (!showChart) {
-    return (
-      <div className="text-center my-2">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          onClick={() => setShowChart(true)}
-        >
-          Generate Expected Sale Forecast
-        </Button>
-      </div>
-    );
-  }
-
   if (chartData.length === 0) {
     return (
       <Card className="summary-card border rounded p-3 text-muted h-100 bg-white">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h6 className="mb-0">{title}</h6>
-          <Button
-            variant="light"
-            size="sm"
-            onClick={() => setShowChart(false)}
-            title="Hide chart"
-          >
-            <FontAwesomeIcon icon={faX} />
-          </Button>
         </div>
         <div className="text-center text-muted my-5">No data available</div>
       </Card>
@@ -113,31 +83,20 @@ const ExpectedSaleForecastChart = ({
   }
 
   return (
-    
     <Card
       className="summary-card border rounded p-3 text-muted h-100 bg-white my-2"
       ref={chartRef}
     >
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h6 className="mb-0">{title}</h6>
-        <div className="d-flex gap-2">
-          <Button
-            variant="light"
-            size="sm"
-            onClick={handleDownload}
-            title="Download chart"
-          >
-            <FontAwesomeIcon icon={faDownload} />
-          </Button>
-          <Button
-            variant="light"
-            size="sm"
-            onClick={() => setShowChart(false)}
-            title="Hide chart"
-          >
-            <FontAwesomeIcon icon={faX} />
-          </Button>
-        </div>
+        <Button
+          variant="light"
+          size="sm"
+          onClick={handleDownload}
+          title="Download chart"
+        >
+          <FontAwesomeIcon icon={faDownload} />
+        </Button>
       </div>
 
       <div style={{ width: "100%", minHeight: 300 }}>

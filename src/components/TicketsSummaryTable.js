@@ -3,7 +3,7 @@ import {
   Table,
   Spinner,
   Card,
-  Button,
+  Button, Badge,
   Form, Row, Col,
 } from "react-bootstrap";
 import dayjs from "dayjs";
@@ -14,37 +14,82 @@ import download from "downloadjs";
 import * as XLSX from "xlsx";
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
   Legend,
 } from "recharts";
+import { Tabs, Tab } from "react-bootstrap";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const daysInMonth = 31;
 
-function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
+function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterType }) {
   const [mode, setMode] = useState("pax");
   const [paxFilter, setPaxFilter] = useState("all");
   const [groupedData, setGroupedData] = useState({});
   const [chartData, setChartData] = useState([]);
   const tableRef = useRef();
   const chartRef = useRef();
+  const tableRefSummary = useRef();
+
+  const [dateRangeOption, setDateRangeOption] = useState("This Month (the default)");
+  const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
+  const isDailyView = ["This Month (the default)", "This Week", "1st Half of the Month (1-15)", "2nd Half of the Month"].includes(dateRangeOption);
+
+
+  useEffect(() => {
+    const now = dayjs();
+    let start, end;
+
+    switch (dateRangeOption) {
+      case "This Week":
+        start = now.startOf("week");
+        end = now.endOf("week");
+        break;
+      case "1st Half of the Month (1-15)":
+        start = now.startOf("month");
+        end = now.startOf("month").add(14, "day");
+        break;
+      case "2nd Half of the Month":
+        start = now.startOf("month").add(15, "day");
+        end = now.endOf("month");
+        break;
+      case "This Year":
+        start = now.startOf("year");
+        end = now;
+        break;
+      default:
+        start = now.startOf("month");
+        end = now;
+    }
+
+    setDateRange({ start, end });
+  }, [dateRangeOption]);
 
   useEffect(() => {
     const now = dayjs();
     const chartGroup = {};
     const tableGroup = {};
 
-    for (let i = 0; i < 12; i++) {
-      const fullMonth = dayjs(new Date(now.year(), i, 1)).format("MMMM");
-      const shortMonth = dayjs(new Date(now.year(), i, 1)).format("MMM");
-      tableGroup[fullMonth] = {};
-      chartGroup[shortMonth] = 0;
+    const startDate = dateRange.start;
+    const endDate = dateRange.end;
+
+    let tempDate = startDate;
+    while (tempDate.isBefore(endDate) || tempDate.isSame(endDate)) {
+      const label = isDailyView ? tempDate.format("MMM D") : tempDate.format("MMM");
+      if (!chartGroup[label]) chartGroup[label] = 0;
+
+      const monthLabel = tempDate.format("MMMM");
+      if (!tableGroup[monthLabel]) tableGroup[monthLabel] = {};
+      tableGroup[monthLabel][tempDate.date()] = 0;
+
+      tempDate = tempDate.add(1, "day");
     }
+
 
     for (const ticket of allFilteredTickets) {
       let rawDate = ticket.start_date_time;
@@ -53,9 +98,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
       }
 
       const date = dayjs(rawDate);
-
-      if (!date.isValid()) {
-        console.warn("Invalid start_date_time in ticket:", ticket);
+      if (!date.isValid() || date.isBefore(dateRange.start) || date.isAfter(dateRange.end)) {
         continue;
       }
 
@@ -66,6 +109,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
       if (!tableGroup[month][day]) tableGroup[month][day] = 0;
 
       let valueToAdd = 1;
+
       if (mode === "pax") {
         const addresses = ticket.address || [];
         valueToAdd = addresses.reduce((sum, addr) => {
@@ -75,21 +119,41 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
           if (paxFilter === "foreigns") return sum + foreigns;
           return sum + locals + foreigns;
         }, 0);
+      } else if (mode === "payment") {
+        valueToAdd = Number(ticket.total_payment || 0);
+      } else if (mode === "expected_sale") {
+        valueToAdd = Number(ticket.total_expected_sale || 0);
       }
 
+
       tableGroup[month][day] += valueToAdd;
-      chartGroup[shortMonth] += valueToAdd;
+      const chartLabel = isDailyView ? date.format("MMM D") : date.format("MMM");
+      if (!chartGroup[chartLabel]) chartGroup[chartLabel] = 0;
+      chartGroup[chartLabel] += valueToAdd;
     }
 
 
-    const chartFormatted = MONTH_LABELS.map(m => ({
-      month: m,
-      value: chartGroup[m] ?? 0,
+
+    const chartFormatted = Object.entries(chartGroup).map(([label, value]) => ({
+      label,
+      value,
     }));
+
+
+    // Sort for chronological order
+    chartFormatted.sort((a, b) => {
+      const aDate = isDailyView
+        ? dayjs(`${a.label} ${dayjs().year()}`, "MMM D YYYY")
+        : dayjs(`${a.label} ${dayjs().year()}`, "MMM YYYY");
+      const bDate = isDailyView
+        ? dayjs(`${b.label} ${dayjs().year()}`, "MMM D YYYY")
+        : dayjs(`${b.label} ${dayjs().year()}`, "MMM YYYY");
+      return aDate.diff(bDate);
+    });
 
     setGroupedData(tableGroup);
     setChartData(chartFormatted);
-  }, [allFilteredTickets, mode, paxFilter]);
+  }, [allFilteredTickets, mode, paxFilter, dateRange.start, dateRange.end]);
 
   const getMonthTotal = days => Object.values(days).reduce((sum, val) => sum + val, 0);
   const getGrandTotal = () =>
@@ -106,6 +170,16 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
       console.error("Image download failed", err);
     }
   };
+  const handleDownloadImageSummary = async () => {
+    if (!tableRefSummary.current) return;
+    try {
+      const dataUrl = await toPng(tableRefSummary.current);
+      download(dataUrl, `tickets_summary_${mode}_${paxFilter}.png`);
+    } catch (err) {
+      console.error("Image download failed", err);
+    }
+  };
+
 
   const handleDownloadExcel = () => {
     const headers = ["Month", ...Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`), "Total"];
@@ -167,18 +241,138 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
     );
   }
 
+  const filteredTicketsInRange = allFilteredTickets.filter(ticket => {
+    let rawDate = ticket.start_date_time;
+    if (rawDate && typeof rawDate.toDate === "function") {
+      rawDate = rawDate.toDate();
+    }
+    const date = dayjs(rawDate);
+    return date.isValid() && !date.isBefore(dateRange.start) && !date.isAfter(dateRange.end);
+  });
+
+  const numberOfDays = dateRange.end.diff(dateRange.start, "day") + 1;
+
+
   return (
     <div className="bg-white" ref={tableRef}>
-      
+
 
 
       <Card className="border rounded p-3 text-muted bg-white mb-4">
+
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="text-muted small fw-semibold">
+            {filterType === "all" ? "All Tickets" : "Scanned Tickets"} for {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")}
+          </div>
+
+
+          <div>
+            <Button variant="light" size="sm" onClick={handleDownloadImage}>
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+          </div>
+
+        </div>
+
+        <Form.Select
+          size="sm"
+          value={dateRangeOption}
+          onChange={e => setDateRangeOption(e.target.value)}
+          style={{ maxWidth: "300px" }}
+        >
+          <option>This Month (the default)</option>
+          <option>This Week</option>
+          <option>1st Half of the Month (1-15)</option>
+          <option>2nd Half of the Month</option>
+          <option>This Year</option>
+        </Form.Select>
+
+
+        <Row className="mb-4 mt-1 g-3">
+          <Col md={3}>
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+              <div>
+                <p className="mb-1 fw-semibold">Daily Avg. Pax</p>
+                <h5 className="mb-0">
+                  <Badge bg="light" text="dark">
+                    {Math.round(
+                      filteredTicketsInRange.reduce((sum, ticket) => {
+                        const addresses = ticket.address || [];
+                        return sum + addresses.reduce((s, addr) => {
+                          const locals = Number(addr.locals || 0);
+                          const foreigns = Number(addr.foreigns || 0);
+                          return s + locals + foreigns;
+                        }, 0);
+                      }, 0) / numberOfDays
+                    ).toLocaleString()}
+                  </Badge>
+                </h5>
+              </div>
+            </div>
+          </Col>
+
+          <Col md={3}>
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+              <div>
+                <p className="mb-1 fw-semibold">Daily Avg. Tickets</p>
+                <h5 className="mb-0">
+                  <Badge bg="light" text="dark">
+                    {Math.round(filteredTicketsInRange.length / numberOfDays).toLocaleString()}
+                  </Badge>
+                </h5>
+              </div>
+            </div>
+          </Col>
+
+          <Col md={3}>
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+              <div>
+                <p className="mb-1 fw-semibold">Daily Avg. Actual Payment</p>
+                <h5 className="mb-0">
+                  <Badge bg="light" text="dark">
+                    {Math.round(
+                      filteredTicketsInRange.reduce((sum, ticket) => sum + (ticket.total_payment || 0), 0) / numberOfDays
+                    ).toLocaleString()}
+                  </Badge>
+                </h5>
+              </div>
+            </div>
+          </Col>
+
+          <Col md={3}>
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+              <div>
+                <p className="mb-1 fw-semibold">Daily Avg. Expected Sale</p>
+                <h5 className="mb-0">
+                  <Badge bg="light" text="dark">
+                    {Math.round(
+                      filteredTicketsInRange.reduce((sum, ticket) => sum + (ticket.total_expected_sale || 0), 0) / numberOfDays
+                    ).toLocaleString()}
+                  </Badge>
+                </h5>
+              </div>
+            </div>
+          </Col>
+        </Row>
+
+
+
+
+
+        {/* <h6 className="fw-bold text-dark mb-3">
+          {mode === "pax" ? "Summary per pax per month" : "Summary per ticket per month"}
+        </h6> */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div className="d-flex gap-2 align-items-center">
             <Form.Select size="sm" value={mode} onChange={e => setMode(e.target.value)}>
-              <option value="frequency">Ticket Frequency</option>
               <option value="pax">Pax Summary</option>
+              <option value="frequency">Ticket Frequency</option>
+
+              <option value="payment">Total Payment</option>
+              <option value="expected_sale">Total Expected Sale</option>
+
             </Form.Select>
+
             {mode === "pax" && (
               <Form.Select size="sm" value={paxFilter} onChange={e => setPaxFilter(e.target.value)}>
                 <option value="all">All</option>
@@ -188,107 +382,132 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false }) {
             )}
           </div>
           <div className="d-flex gap-2">
-            <Button variant="light" size="sm" onClick={handleDownloadImage}>
-              <FontAwesomeIcon icon={faDownload} />
-            </Button>
-            <Button variant="light" size="sm" onClick={handleDownloadExcel}>
-              <FontAwesomeIcon icon={faTable} />
-            </Button>
+
+
           </div>
         </div>
-        <Row className="mb-4">
-        <Col md={4} sm={4}>
-          <Card className="border rounded  text-center  p-3 bg-light">
-            <h6 className="fw-bold text-dark mb-2">Daily Average Pax</h6>
-            <div className="fs-4 text-primary">
-              {Math.round(getGrandTotal() / 365).toLocaleString()}
+
+        {/* Tabbed Panel */}
+        <Tabs defaultActiveKey="chart" id="summary-tabs" className="bg-white mb-3 ">
+          {/* First Tab - Chart */}
+          <Tab eventKey="chart" title="Chart" className="bg-white" ref={chartRef}>
+            <div className="mt-4 bg-white">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="text-muted small fw-semibold">
+
+                  {mode === "pax"
+                    ? "Pax Summary "
+                    : mode === "payment"
+                      ? "Total Payment "
+                      : mode === "expected_sale"
+                        ? "Expected Sale "
+                        : "Ticket Frequency "}
+                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+
+                </div>
+
+                <Button variant="light" size="sm" onClick={handleDownloadChart}>
+                  <FontAwesomeIcon icon={faDownload} />
+                </Button>
+              </div>
             </div>
-          </Card>
-        </Col>
-        <Col md={4} sm={4}>
-          <Card className="border rounded text-center p-3 bg-light">
-            <h6 className="fw-bold text-dark mb-2">Daily Average Tickets</h6>
-            <div className="fs-4 text-primary">
-              {Math.round(allFilteredTickets.length / 365).toLocaleString()}
+            <div className="bg-white p-3 rounded">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" interval={0} />          <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={
+                      mode === "pax"
+                        ? "Pax"
+                        : mode === "payment"
+                          ? "Total Payment"
+                          : mode === "expected_sale"
+                            ? "Expected Sale"
+                            : "Frequency"
+                    }
+
+                    stroke="#007bff"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+
+
             </div>
-          </Card>
-        </Col>
-        <Col md={4} sm={4}>
-          <Card className="border rounded text-center p-3 bg-light">
-            <h6 className="fw-bold text-dark mb-2">Daily Average Expected Sale</h6>
-            <div className="fs-4 text-primary">
-              {Math.round(
-                allFilteredTickets.reduce((sum, ticket) => sum + (ticket.total_expected_sale || 0), 0) / 365
-              ).toLocaleString()}
+          </Tab>
+
+          {/* Second Tab - Table */}
+          <Tab eventKey="table" title="Table" className="bg-white">
+            <div className="mt-4 bg-white" >
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="text-muted small fw-semibold">
+                  {mode === "pax"
+                    ? "Pax Summary "
+                    : mode === "payment"
+                      ? "Total Payment "
+                      : mode === "expected_sale"
+                        ? "Expected Sale "
+                        : "Ticket Frequency "}
+                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+                </div>
+                <div>
+                  <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImageSummary}>
+                    <FontAwesomeIcon icon={faDownload} />
+                  </Button>
+                  <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+                    <FontAwesomeIcon icon={faTable} />
+                  </Button>
+                </div>
+
+              </div>
             </div>
-          </Card>
-        </Col>
-      </Row>
+            <div className="bg-white p-3 rounded">
+              <Table striped bordered hover responsive  ref={tableRefSummary}>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    {[...Array(daysInMonth)].map((_, i) => (
+                      <th key={i + 1}>{i + 1}</th>
+                    ))}
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {months.map(month => {
+                    const days = groupedData[month] || {};
+                    return (
+                      <tr key={month}>
+                        <td>{month}</td>
+                        {[...Array(daysInMonth)].map((_, i) => (
+                          <td key={i + 1}>{days[i + 1] || ""}</td>
+                        ))}
+                        <td className="fw-bold">{getMonthTotal(days)}</td>
+                      </tr>
+                    );
+                  })}
+                  {months.length > 0 && (
+                    <tr>
+                      <td colSpan={daysInMonth + 1} className="text-end fw-bold">
+                        Grand Total
+                      </td>
+                      <td className="fw-bold">{getGrandTotal()}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+          </Tab>
+        </Tabs>
 
 
-        <h6 className="fw-bold text-dark mb-3">
-          {mode === "pax" ? "Summary per pax per month" : "Summary per ticket per month"}
-        </h6>
 
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>Month</th>
-              {[...Array(daysInMonth)].map((_, i) => (
-                <th key={i + 1}>{i + 1}</th>
-              ))}
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {months.map(month => {
-              const days = groupedData[month] || {};
-              return (
-                <tr key={month}>
-                  <td>{month}</td>
-                  {[...Array(daysInMonth)].map((_, i) => (
-                    <td key={i + 1}>{days[i + 1] || ""}</td>
-                  ))}
-                  <td className="fw-bold">{getMonthTotal(days)}</td>
-                </tr>
-              );
-            })}
-            {months.length > 0 && (
-              <tr>
-                <td colSpan={daysInMonth + 1} className="text-end fw-bold">
-                  Grand Total
-                </td>
-                <td className="fw-bold">{getGrandTotal()}</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-
-        <div className="mt-4 bg-white" ref={chartRef}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6 className="fw-bold text-dark mb-0">
-              {mode === "pax" ? "Monthly Pax Summary" : "Monthly Ticket Frequency"}
-            </h6>
-            <Button variant="light" size="sm" onClick={handleDownloadChart}>
-              <FontAwesomeIcon icon={faDownload} />
-            </Button>
-          </div>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" interval={0} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar
-                dataKey="value"
-                name={mode === "pax" ? "Pax" : "Frequency"}
-                fill="#007bff"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </Card>
 
     </div>
