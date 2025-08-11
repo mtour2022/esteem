@@ -47,30 +47,30 @@ export default function CompanyDashboardPage() {
     }));
 
 
-   const resetTicketForm = () => {
-    setCurrentStep(1);
-    setSavedTicket(null);
-    setTicketData({
-        address: [],
-        activities: [
-            {
-                activity_area: "",
-                activity_date_time_start: "",
-                activity_date_time_end: "",
-                activities_availed: [],
-                activity_num_pax: "",
-                activity_num_unit: "",
-                activity_agreed_price: "",
-                activity_expected_price: "",
-                activity_selected_providers: [],
-                activity_base_price: "",
-            },
-        ],
-        start_date_time: "",
-        end_date_time: "",
-    });
-    setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
-};
+    const resetTicketForm = () => {
+        setCurrentStep(1);
+        setSavedTicket(null);
+        setTicketData({
+            address: [],
+            activities: [
+                {
+                    activity_area: "",
+                    activity_date_time_start: "",
+                    activity_date_time_end: "",
+                    activities_availed: [],
+                    activity_num_pax: "",
+                    activity_num_unit: "",
+                    activity_agreed_price: "",
+                    activity_expected_price: "",
+                    activity_selected_providers: [],
+                    activity_base_price: "",
+                },
+            ],
+            start_date_time: "",
+            end_date_time: "",
+        });
+        setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
+    };
 
 
     const handleChange = (e) => {
@@ -243,50 +243,50 @@ export default function CompanyDashboardPage() {
                                                     required
                                                 />
                                             </Form.Group>
-                                          <Form.Group className="my-3">
-    <Form.Label><strong>Assigned To</strong></Form.Label>
-    <br />
-    <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-        Select designated employee to assist the guests.
-    </Form.Label>
-    <Select
-        options={employees
-            .filter(emp =>
-                emp.status?.toLowerCase() === "approved" &&
-                emp.company_status?.toLowerCase() === "approved"
-            )
-            .map(emp => ({
-                value: emp.employeeId,
-                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                contact: emp.contact,
-                raw: emp
-            }))
-        }
-        placeholder="Select an employee"
-        onChange={(selectedOption) => {
-            setTicketData(prev => ({
-                ...prev,
-                employee_id: selectedOption?.value || ""
-            }));
-            setSelectedEmployee(selectedOption ? selectedOption.raw : null);
-        }}
-        value={
-            employees
-                .filter(emp =>
-                    emp.status?.toLowerCase() === "approved" &&
-                    emp.company_status?.toLowerCase() === "approved"
-                )
-                .map(emp => ({
-                    value: emp.employeeId,
-                    label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                    contact: emp.contact,
-                    raw: emp
-                }))
-                .find(option => option.value === ticketData.employee_id) || null
-        }
-        isClearable
-    />
-</Form.Group>
+                                            <Form.Group className="my-3">
+                                                <Form.Label><strong>Assigned To</strong></Form.Label>
+                                                <br />
+                                                <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+                                                    Select designated employee to assist the guests.
+                                                </Form.Label>
+                                                <Select
+                                                    options={employees
+                                                        .filter(emp =>
+                                                            emp.status?.toLowerCase() === "approved" &&
+                                                            emp.company_status?.toLowerCase() === "approved"
+                                                        )
+                                                        .map(emp => ({
+                                                            value: emp.employeeId,
+                                                            label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                                                            contact: emp.contact,
+                                                            raw: emp
+                                                        }))
+                                                    }
+                                                    placeholder="Select an employee"
+                                                    onChange={(selectedOption) => {
+                                                        setTicketData(prev => ({
+                                                            ...prev,
+                                                            employee_id: selectedOption?.value || ""
+                                                        }));
+                                                        setSelectedEmployee(selectedOption ? selectedOption.raw : null);
+                                                    }}
+                                                    value={
+                                                        employees
+                                                            .filter(emp =>
+                                                                emp.status?.toLowerCase() === "approved" &&
+                                                                emp.company_status?.toLowerCase() === "approved"
+                                                            )
+                                                            .map(emp => ({
+                                                                value: emp.employeeId,
+                                                                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                                                                contact: emp.contact,
+                                                                raw: emp
+                                                            }))
+                                                            .find(option => option.value === ticketData.employee_id) || null
+                                                    }
+                                                    isClearable
+                                                />
+                                            </Form.Group>
 
                                             {selectedEmployee && (
                                                 <Form.Group className="mt-2">
@@ -446,10 +446,10 @@ export default function CompanyDashboardPage() {
 
                     {/* Main Dashboard Content */}
                     <CompanyDashboardPanel
-  company={company}
-  employees={employees}
-  refreshKey={refreshKey}
-/>
+                        company={company}
+                        employees={employees}
+                        refreshKey={refreshKey}
+                    />
 
                 </Col>
 

@@ -38,6 +38,7 @@ import TicketsSummaryTable from "../components/TicketsSummaryTable";
 import PaymentPaxLineChart from "../components/TicketExpectedVsActual";
 import ExpectedSaleForecastChart from "../components/TicketSaleForecast";
 import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
+import TicketLocalVsForeign from "../components/TicketLocalVsForeign";
 
 
 const useMouseDragScroll = (ref) => {
@@ -2007,7 +2008,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                 <Row className="g-3 mt-2">
                   <Col md={12}>
                     <TicketsSummaryTable
-                      allFilteredTickets={filteredSummaryTickets}
+                      allFilteredTickets={allFilteredTickets}
                       loading={!hasFilteredSummaryData}
                       filterType={summaryFilter}
                     />
@@ -2043,6 +2044,15 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
                   <Col md={12}>
                     <PaymentPaxLineChart
+                      title="Expected vs Actual Payment"
+                      tickets={filteredSummaryTickets}
+                      startDate={startDateInput}
+                      endDate={endDateInput}
+                    />
+                  </Col>
+
+                  <Col md={12}>
+                    <TicketLocalVsForeign
                       title="Expected vs Actual Payment"
                       tickets={filteredSummaryTickets}
                       startDate={startDateInput}

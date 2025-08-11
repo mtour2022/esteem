@@ -13,7 +13,7 @@ import AppNavBar from "../components/AppNavBar";
 
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
-const EmployeeQRScannerPage = () => {
+const EmployeeQRScannerPage = ({ hideNavAndFooter = false }) => {
     const [searchType, setSearchType] = useState("id");
     const [employeeId, setEmployeeId] = useState("");
     const [firstname, setFirstname] = useState("");
@@ -318,17 +318,17 @@ const EmployeeQRScannerPage = () => {
 
     return (
         <Container fluid>
-            <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
+            {!hideNavAndFooter && <AppNavBar bg="dark" variant="dark" title="Tourism Certificate QR Scanner" />}
             <Container className="my-5 p-4">
                 <Row className="mb-3">
                     <Col className="text-center">
-                        <p id="toppage" className="barabara-label">APPLICATION STATUS CHECKER</p>
-                        <p className="text-muted">Scan QR Code or Enter REGISTRATION ID / Name / Birthday</p>
+                        <p id="toppage" className="barabara-label">REGISTRATION STATUS CHECKER</p>
+                        <p className="text-muted">Scan QR Code or Enter Registration ID / Name / Birthday</p>
                     </Col>
                 </Row>
 
                 <Row className="justify-content-center g-3 mb-4 p-0">
-                    <Col lg={8} md={12} sm={12} xs={12}>
+                    <Col lg={9} md={12} sm={12} xs={12}>
                         <Row className="justify-content-center g-3 mb-4">
                             {/* Scan QR Card */}
                             <Col xs={12} sm={6} md={3}>
@@ -336,7 +336,7 @@ const EmployeeQRScannerPage = () => {
                                     className={`text-center shadow-sm h-100 ${searchType === "scan" ? "border-primary" : ""}`}
                                     role="button"
                                     onClick={() => {
-                                        // Always reset first
+                                        // Always reset firsta
                                         handleReset();
                                         setSearchType("scan");
                                         setScannerRequested(true); // Always re-activate camera
@@ -593,8 +593,12 @@ const EmployeeQRScannerPage = () => {
                     </Col>
                     <div className="my-5" >
                     </div>
-                    <FooterCustomized scrollToId="toppage"/>
-
+                    {!hideNavAndFooter && (
+                        <>
+                            <div className="my-5"></div>
+                            <FooterCustomized scrollToId="toppage" />
+                        </>
+                    )}
                 </Row>
 
             </Container>

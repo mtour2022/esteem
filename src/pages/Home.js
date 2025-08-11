@@ -326,9 +326,11 @@ export default function Home() {
                   <Button className="white-button">
                     <FontAwesomeIcon className="button-icon" icon={faListCheck} size="xs" fixedWidth />See Requirements
                   </Button>
-                  <Button className="white-button">
-                    <FontAwesomeIcon className="button-icon" icon={faQrcode} size="xs" fixedWidth />Cert Verifier
-                  </Button>
+                  
+                   <Link to="/tourism-cert-check" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faQrcode} size="xs" fixedWidth />
+                    Tourism Cert Verifier
+                  </Link>
                  
                   <Link to="/application-status-check" className="btn white-button">
                     <FontAwesomeIcon className="button-icon" icon={faDatabase} size="xs" fixedWidth />

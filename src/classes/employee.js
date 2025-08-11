@@ -46,6 +46,8 @@ class Employee {
     workingPermit = "",
     passportNumber = "",
     agreed = false,
+    isTrained= false,
+        canGenerate= false,
     password = "",
     status = "under review",
     status_history = [],
@@ -60,6 +62,7 @@ class Employee {
       tourism_cert_id: "",
       type: ""
     },
+  
 
   }) {
     this.employeeId = employeeId;
@@ -95,6 +98,8 @@ class Employee {
     this.workingPermit = workingPermit;
     this.passportNumber = passportNumber;
     this.agreed = agreed;
+    this.isTrained = isTrained;
+        this.canGenerate = canGenerate;
     this.password = password;
     this.status = status;
     this.status_history = status_history;

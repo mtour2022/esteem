@@ -18,7 +18,8 @@ import VerifierTicketStatusPage from './VerifierTicketStatusPage';
 import ProviderAdminPage from './Verifier_Providers';
 import ActivityAdminPage from './Verifier_Activities';
 import TourismCertAdminPage from './Verifier_TourismCerts';
-
+import TourismCertQRScannerPage from './Tourism_Cert_Check'
+import TicketQRScanner from './Ticket_QR_Check';
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
 );
@@ -114,8 +115,11 @@ export default function VerifierDashboard() {
         { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
         { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
         { key: 'tickets', label: 'Tourism Tickets', icon: faUser },
+        
         { key: 'scanticket', label: 'Scan Tickets', icon: faQrcode },
          { key: 'tourismCerts', label: 'Tourism Certificates', icon: faCertificate },
+                  { key: 'scanTourismCheck', label: 'Tourism Cert Checker', icon: faCheckSquare },
+
         { key: 'activities', label: 'Activities', icon: faPersonSwimming },
         { key: 'providers', label: 'Providers', icon: faSailboat },
         { key: 'reports', label: 'Save Reports', icon: faFileExport },
@@ -207,7 +211,7 @@ export default function VerifierDashboard() {
                                     </Tab.Pane>
 
                                     <Tab.Pane eventKey="scanticket">
-                                        <ScanTicketTab />
+                                        <TicketQRScanner />
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="tickets">
                                         <TourismTicketsTab />
@@ -218,6 +222,10 @@ export default function VerifierDashboard() {
                                     <Tab.Pane eventKey="tourismCerts">
                                         <TourismCerTab></TourismCerTab>
                                     </Tab.Pane>
+                                    <Tab.Pane eventKey="scanTourismCheck">
+                                        <TourismCertQRScannerPage hideNavAndFooter ></TourismCertQRScannerPage>
+                                    </Tab.Pane>
+                                    
                                     <Tab.Pane eventKey="activities">
                                         <ActivitiesTab></ActivitiesTab>
                                     </Tab.Pane>

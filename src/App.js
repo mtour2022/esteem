@@ -18,6 +18,7 @@ import VerifierDashboard from './pages/Verifier_Dashboard.js';
 import TourismCertView from './components/TourismCertView.js';
 import EditEmployeeForm from './pages/EditEmployee.js';
 import EmployeeQRScannerPage from './pages/ApplicationStatusCheck.js';
+import TourismCertQRScannerPage from './pages/Tourism_Cert_Check.js';
 
 // Private Route
 function PrivateRoute({ element }) {
@@ -41,6 +42,8 @@ function App() {
             <Route path="/tourism-certificate/:tourism_cert_id" element={<TourismCertView />} />
             <Route path="/application-status-check" element={<EmployeeQRScannerPage />} />
             <Route path="/application-status-check/:registration_id" element={<EmployeeQRScannerPage />} />
+            <Route path="/tourism-cert-check" element={<TourismCertQRScannerPage />} />
+
 
             {/* /quickstatus/:employee_quickstatus_id */}
             {/* ✅ Protected Routes */}

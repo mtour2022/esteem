@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import Select from "react-select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEyeSlash, faTrash, faPlus, faCalendar, faFileExport } from "@fortawesome/free-solid-svg-icons";
+import { faEyeSlash, faTrash, faPlus, faCalendar, faFileExport, faEye } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../auth/authentication";
 import TourismCert from "../components/TourismCert";
 import Employee from "../classes/employee";
@@ -29,7 +29,7 @@ const TourismCertAdminPage = () => {
     const [companies, setCompanies] = useState([]);
     const [verifiers, setVerifiers] = useState([]);
 
- 
+
     const [selectedCompany, setSelectedCompany] = useState(null);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [selectedVerifier, setSelectedVerifier] = useState(null);
@@ -71,14 +71,14 @@ const TourismCertAdminPage = () => {
         }
     };
 
- const companyDataMap = useMemo(() => {
+    const companyDataMap = useMemo(() => {
         const map = {};
         companies.forEach((c) => {
             map[c.id] = c;
         });
         return map;
     }, [companies]);
-       const selectedEmp = employees.find((emp) => emp.id === selectedCert?.employee_id);
+    const selectedEmp = employees.find((emp) => emp.id === selectedCert?.employee_id);
     const selectedComp = selectedEmp ? companyDataMap[selectedEmp.companyId] : null;
 
     useEffect(() => {
@@ -168,7 +168,7 @@ const TourismCertAdminPage = () => {
         }
     };
 
-   
+
 
     const exportToExcel = (data, filename = "TourismCertificatesData.xlsx") => {
         const worksheet = XLSX.utils.json_to_sheet(data);
@@ -319,43 +319,45 @@ const TourismCertAdminPage = () => {
                         </Dropdown>
                     </div>
 
-                   
+
 
                 </div>
-                 <div>
-                        <label className="form-label mb-1 small">Download</label> <br></br>
-                        <Dropdown as={ButtonGroup}>
-                            <Button variant="outline-secondary" size="md">
-                                <FontAwesomeIcon icon={faFileExport} className="me-2" />
-                                Export
-                            </Button>
-                            <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="md" />
+                <div>
+                    <label className="form-label mb-1 small">Download</label> <br></br>
+                    <Dropdown as={ButtonGroup}>
+                        <Button variant="outline-secondary" size="md">
+                            <FontAwesomeIcon icon={faFileExport} className="me-2" />
+                            Export
+                        </Button>
+                        <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="md" />
 
-                            <Dropdown.Menu>
-                                <Dropdown.Item onClick={() => exportToExcel(filteredCerts, "Filtered_Employees.xlsx")}>
-                                    <FontAwesomeIcon icon={faDownload} className="me-2" />
-                                    Export Excel
-                                </Dropdown.Item>
-                                <Dropdown.Item onClick={() => exportToPdf(filteredCerts, "Filtered_Employees.pdf")}>
-                                    <FontAwesomeIcon icon={faPrint} className="me-2" />
-                                    Download PDF
-                                </Dropdown.Item>
-                            </Dropdown.Menu>
-                        </Dropdown>
-                    </div>
+                        <Dropdown.Menu>
+                            <Dropdown.Item onClick={() => exportToExcel(filteredCerts, "Filtered_Employees.xlsx")}>
+                                <FontAwesomeIcon icon={faDownload} className="me-2" />
+                                Export Excel
+                            </Dropdown.Item>
+                            <Dropdown.Item onClick={() => exportToPdf(filteredCerts, "Filtered_Employees.pdf")}>
+                                <FontAwesomeIcon icon={faPrint} className="me-2" />
+                                Download PDF
+                            </Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+                </div>
 
             </div>
 
             <Table striped bordered hover responsive>
                 <thead>
                     <tr>
+<th>Control No.</th>
                         <th>Type</th>
+                        <th>Actions</th>
                         <th>Date Issued</th>
                         <th>Date Expired</th>
                         <th>Employee Name</th>
                         <th>Company Name</th>
                         <th>Verifier Name</th>
-                        <th>Actions</th>
+
                     </tr>
                 </thead>
 
@@ -369,29 +371,34 @@ const TourismCertAdminPage = () => {
                             : "—";
                         return (
                             <tr key={cert.id}>
+<td>{cert.id}</td>
                                 <td>{cert.type}</td>
+                                <td>
+                                    <div className="d-flex align-items-center">
+                                        <Button
+                                            size="sm"
+                                            variant="outline-secondary"
+                                            className="me-2"
+                                            onClick={() => setSelectedCert(cert)}
+                                        >
+                                            <FontAwesomeIcon icon={faEye} />
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline-danger"
+                                            onClick={() => handleDelete(cert.id, cert.employee_id)}
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} />
+                                        </Button>
+                                    </div>
+                                </td>
+
                                 <td>{cert.date_Issued}</td>
                                 <td>{cert.date_Expired}</td>
                                 <td>{employee ? `${employee.firstname} ${employee.middlename} ${employee.surname}, ${employee.suffix}` : "—"}</td>
                                 <td>{company ? company.name : "—"}</td>
                                 <td>{verifierName}</td>
-                                <td>
-                                    <Button
-                                        size="sm"
-                                        variant="outline-secondary"
-                                        className="me-2"
-                                        onClick={() => setSelectedCert(cert)}
-                                    >
-                                        View
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline-danger"
-                                        onClick={() => handleDelete(cert.id, cert.employee_id)}
-                                    >
-                                        <FontAwesomeIcon icon={faTrash} />
-                                    </Button>
-                                </td>
+
                             </tr>
                         );
                     })}
@@ -456,6 +463,7 @@ const TourismCertAdminPage = () => {
                         emp={new Employee(selectedEmp)}
                         company={selectedComp}
                         currentUser={currentUser}
+                        hideNavAndFooter
                     />
                     <div className="text-center mt-3 mb-5">
                         <Button

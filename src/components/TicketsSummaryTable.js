@@ -252,6 +252,128 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
 
   const numberOfDays = dateRange.end.diff(dateRange.start, "day") + 1;
 
+  // inside the component:
+
+  // Step 1: Compute previous dateRange for comparison
+  const getPreviousDateRange = (option) => {
+    const now = dayjs();
+    let start, end;
+
+    switch (option) {
+      case "This Week":
+        start = now.startOf("week").subtract(1, "week");
+        end = now.endOf("week").subtract(1, "week");
+        break;
+      case "1st Half of the Month (1-15)":
+        // previous month first half
+        start = now.startOf("month").subtract(1, "month");
+        end = start.add(14, "day");
+        break;
+      case "2nd Half of the Month":
+        // previous month second half
+        start = now.startOf("month").subtract(1, "month").add(15, "day");
+        end = start.endOf("month");
+        break;
+      case "This Year":
+        start = now.startOf("year").subtract(1, "year");
+        end = start.endOf("year");
+        break;
+      default: // "This Month (the default)"
+        start = now.startOf("month").subtract(1, "month");
+        end = start.endOf("month");
+    }
+
+    return { start, end };
+  };
+
+  const previousRange = getPreviousDateRange(dateRangeOption);
+
+  // Step 2: Filter tickets for previous date range
+  const filteredPreviousTickets = allFilteredTickets.filter(ticket => {
+    let rawDate = ticket.start_date_time;
+    if (rawDate && typeof rawDate.toDate === "function") {
+      rawDate = rawDate.toDate();
+    }
+    const date = dayjs(rawDate);
+    return date.isValid() && !date.isBefore(previousRange.start) && !date.isAfter(previousRange.end);
+  });
+
+  // Step 3: Number of days in previous range
+  const previousNumberOfDays = previousRange.end.diff(previousRange.start, "day") + 1;
+
+  // Step 4: Compute averages for previous period (pax, tickets, payment, expected sale)
+  const getAvgPax = tickets => {
+    if (tickets.length === 0) return 0;
+    const totalPax = tickets.reduce((sum, ticket) => {
+      const addresses = ticket.address || [];
+      return sum + addresses.reduce((s, addr) => {
+        const locals = Number(addr.locals || 0);
+        const foreigns = Number(addr.foreigns || 0);
+        return s + locals + foreigns;
+      }, 0);
+    }, 0);
+    return totalPax / (tickets.length > 0 ? tickets.length : 1);
+  };
+
+  const getAvgPaxDaily = tickets => {
+    if (tickets.length === 0) return 0;
+    const totalPax = tickets.reduce((sum, ticket) => {
+      const addresses = ticket.address || [];
+      return sum + addresses.reduce((s, addr) => {
+        const locals = Number(addr.locals || 0);
+        const foreigns = Number(addr.foreigns || 0);
+        return s + locals + foreigns;
+      }, 0);
+    }, 0);
+    return totalPax / previousNumberOfDays;
+  };
+
+  const previousAvgPax = filteredPreviousTickets.length === 0 ? 0 :
+    filteredPreviousTickets.reduce((sum, ticket) => {
+      const addresses = ticket.address || [];
+      return sum + addresses.reduce((s, addr) => {
+        const locals = Number(addr.locals || 0);
+        const foreigns = Number(addr.foreigns || 0);
+        return s + locals + foreigns;
+      }, 0);
+    }, 0) / previousNumberOfDays;
+
+  const previousAvgTickets = filteredPreviousTickets.length === 0 ? 0 : filteredPreviousTickets.length / previousNumberOfDays;
+
+  const previousAvgPayment = filteredPreviousTickets.length === 0 ? 0 :
+    filteredPreviousTickets.reduce((sum, ticket) => sum + (ticket.total_payment || 0), 0) / previousNumberOfDays;
+
+  const previousAvgExpectedSale = filteredPreviousTickets.length === 0 ? 0 :
+    filteredPreviousTickets.reduce((sum, ticket) => sum + (ticket.total_expected_sale || 0), 0) / previousNumberOfDays;
+
+  // Step 5: Helper to compute percent difference and format it
+  const getPercentDiffText = (current, previous) => {
+    if (previous === 0) return ""; // Avoid division by zero or no comparison
+
+    const diff = ((current - previous) / previous) * 100;
+    const sign = diff >= 0 ? "+" : "";
+    return `${sign}${diff.toFixed(1)}%`;
+  };
+
+  // Step 6: Map dateRangeOption to readable text for comparison phrase
+  const previousLabelMap = {
+    "This Month (the default)": "previous month",
+    "This Week": "previous week",
+    "1st Half of the Month (1-15)": "previous month (1st half)",
+    "2nd Half of the Month": "previous month (2nd half)",
+    "This Year": "previous year",
+  };
+
+  // Use previousLabelMap[dateRangeOption] for the "from previous ..." text
+  const formatNumberK = (num) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    }
+    return num.toLocaleString();
+  };
+
+
+
 
   return (
     <div className="bg-white" ref={tableRef}>
@@ -290,12 +412,44 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
 
         <Row className="mb-4 mt-1 g-3">
           <Col md={3}>
-            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
-                <p className="mb-1 fw-semibold">Daily Avg. Pax</p>
-                <h5 className="mb-0">
-                  <Badge bg="light" text="dark">
-                    {Math.round(
+                <small className="mb-1 fw-semibold">Daily Avg. Pax</small>
+                <h1 className="mb-0 d-flex align-items-center gap-2">
+                  <Badge bg="light" text="dark" className="my-2">
+                    {formatNumberK(
+                      Math.round(
+                        filteredTicketsInRange.reduce((sum, ticket) => {
+                          const addresses = ticket.address || [];
+                          return sum + addresses.reduce((s, addr) => {
+                            const locals = Number(addr.locals || 0);
+                            const foreigns = Number(addr.foreigns || 0);
+                            return s + locals + foreigns;
+                          }, 0);
+                        }, 0) / numberOfDays
+                      )
+                    )}
+                  </Badge>
+
+                  <span
+                    className={
+                      getPercentDiffText(
+                        filteredTicketsInRange.reduce((sum, ticket) => {
+                          const addresses = ticket.address || [];
+                          return sum + addresses.reduce((s, addr) => {
+                            const locals = Number(addr.locals || 0);
+                            const foreigns = Number(addr.foreigns || 0);
+                            return s + locals + foreigns;
+                          }, 0);
+                        }, 0) / numberOfDays,
+                        previousAvgPax
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-danger"
+                    }
+                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                  >
+                    {getPercentDiffText(
                       filteredTicketsInRange.reduce((sum, ticket) => {
                         const addresses = ticket.address || [];
                         return sum + addresses.reduce((s, addr) => {
@@ -303,60 +457,147 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                           const foreigns = Number(addr.foreigns || 0);
                           return s + locals + foreigns;
                         }, 0);
-                      }, 0) / numberOfDays
-                    ).toLocaleString()}
-                  </Badge>
-                </h5>
+                      }, 0) / numberOfDays,
+                      previousAvgPax
+                    )}
+                  </span>
+                </h1>
+
+                <small className="text-muted">
+                  from {previousLabelMap[dateRangeOption]}
+                </small>
               </div>
             </div>
           </Col>
 
+
+
           <Col md={3}>
-            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
-                <p className="mb-1 fw-semibold">Daily Avg. Tickets</p>
-                <h5 className="mb-0">
-                  <Badge bg="light" text="dark">
+                <small className="mb-1 fw-semibold">Daily Avg. Tickets</small>
+                <h1 className="mb-0 d-flex align-items-center gap-2">
+                  <Badge bg="light" text="dark" className="my-2">
                     {Math.round(filteredTicketsInRange.length / numberOfDays).toLocaleString()}
                   </Badge>
-                </h5>
+
+                  <span
+                    className={
+                      getPercentDiffText(
+                        filteredTicketsInRange.length / numberOfDays,
+                        previousAvgTickets
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-danger"
+                    }
+                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                  >
+                    {getPercentDiffText(
+                      filteredTicketsInRange.length / numberOfDays,
+                      previousAvgTickets
+                    )}
+                  </span>
+                </h1>
+
+                <small className="text-muted">
+                  from {previousLabelMap[dateRangeOption]}
+                </small>
               </div>
             </div>
           </Col>
 
           <Col md={3}>
-            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
-                <p className="mb-1 fw-semibold">Daily Avg. Actual Payment</p>
-                <h5 className="mb-0">
-                  <Badge bg="light" text="dark">
+                <small className="mb-1 fw-semibold">Daily Avg. Actual Payment</small>
+                <h1 className="mb-0 d-flex align-items-center gap-2">
+                  <Badge bg="light" text="dark" className="my-2">
                     {Math.round(
-                      filteredTicketsInRange.reduce((sum, ticket) => sum + (ticket.total_payment || 0), 0) / numberOfDays
+                      filteredTicketsInRange.reduce(
+                        (sum, ticket) => sum + (ticket.total_payment || 0),
+                        0
+                      ) / numberOfDays
                     ).toLocaleString()}
                   </Badge>
-                </h5>
+
+                  <span
+                    className={
+                      getPercentDiffText(
+                        filteredTicketsInRange.reduce(
+                          (sum, ticket) => sum + (ticket.total_payment || 0),
+                          0
+                        ) / numberOfDays,
+                        previousAvgPayment
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-danger"
+                    }
+                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                  >
+                    {getPercentDiffText(
+                      filteredTicketsInRange.reduce(
+                        (sum, ticket) => sum + (ticket.total_payment || 0),
+                        0
+                      ) / numberOfDays,
+                      previousAvgPayment
+                    )}
+                  </span>
+                </h1>
+
+                <small className="text-muted">
+                  from {previousLabelMap[dateRangeOption]}
+                </small>
               </div>
             </div>
           </Col>
 
+
           <Col md={3}>
-            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+            <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
-                <p className="mb-1 fw-semibold">Daily Avg. Expected Sale</p>
-                <h5 className="mb-0">
-                  <Badge bg="light" text="dark">
+                <small className="mb-1 fw-semibold">Daily Avg. Expected Sale</small>
+                <h1 className="mb-0 d-flex align-items-center gap-2">
+                  <Badge bg="light" text="dark" className="my-2">
                     {Math.round(
-                      filteredTicketsInRange.reduce((sum, ticket) => sum + (ticket.total_expected_sale || 0), 0) / numberOfDays
+                      filteredTicketsInRange.reduce(
+                        (sum, ticket) => sum + (ticket.total_expected_sale || 0),
+                        0
+                      ) / numberOfDays
                     ).toLocaleString()}
                   </Badge>
-                </h5>
+
+                  <span
+                    className={
+                      getPercentDiffText(
+                        filteredTicketsInRange.reduce(
+                          (sum, ticket) => sum + (ticket.total_expected_sale || 0),
+                          0
+                        ) / numberOfDays,
+                        previousAvgExpectedSale
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-danger"
+                    }
+                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                  >
+                    {getPercentDiffText(
+                      filteredTicketsInRange.reduce(
+                        (sum, ticket) => sum + (ticket.total_expected_sale || 0),
+                        0
+                      ) / numberOfDays,
+                      previousAvgExpectedSale
+                    )}
+                  </span>
+                </h1>
+
+                <small className="text-muted">
+                  from {previousLabelMap[dateRangeOption]}
+                </small>
               </div>
             </div>
           </Col>
+
         </Row>
-
-
-
 
 
         {/* <h6 className="fw-bold text-dark mb-3">
@@ -469,7 +710,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
               </div>
             </div>
             <div className="bg-white p-3 rounded">
-              <Table striped bordered hover responsive  ref={tableRefSummary}>
+              <Table striped bordered hover responsive ref={tableRefSummary}>
                 <thead>
                   <tr>
                     <th>Month</th>
