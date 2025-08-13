@@ -349,7 +349,7 @@ const TourismCertAdminPage = () => {
             <Table striped bordered hover responsive>
                 <thead>
                     <tr>
-<th>Control No.</th>
+                        <th>Control No.</th>
                         <th>Type</th>
                         <th>Actions</th>
                         <th>Date Issued</th>
@@ -371,7 +371,7 @@ const TourismCertAdminPage = () => {
                             : "—";
                         return (
                             <tr key={cert.id}>
-<td>{cert.id}</td>
+                                <td>{cert.id}</td>
                                 <td>{cert.type}</td>
                                 <td>
                                     <div className="d-flex align-items-center">
@@ -393,8 +393,36 @@ const TourismCertAdminPage = () => {
                                     </div>
                                 </td>
 
-                                <td>{cert.date_Issued}</td>
-                                <td>{cert.date_Expired}</td>
+                                <td>
+                                    {cert.date_Issued
+                                        ? new Date(
+                                            cert.date_Issued.seconds
+                                                ? cert.date_Issued.toDate()
+                                                : cert.date_Issued
+                                        ).toLocaleDateString("en-US", {
+                                            weekday: "long",
+                                            year: "numeric",
+                                            month: "long",
+                                            day: "numeric",
+                                        })
+                                        : "—"}
+                                </td>
+
+                                <td>
+                                    {cert.date_Expired
+                                        ? new Date(
+                                            cert.date_Expired.seconds
+                                                ? cert.date_Expired.toDate()
+                                                : cert.date_Expired
+                                        ).toLocaleDateString("en-US", {
+                                            weekday: "long",
+                                            year: "numeric",
+                                            month: "long",
+                                            day: "numeric",
+                                        })
+                                        : "—"}
+                                </td>
+
                                 <td>{employee ? `${employee.firstname} ${employee.middlename} ${employee.surname}, ${employee.suffix}` : "—"}</td>
                                 <td>{company ? company.name : "—"}</td>
                                 <td>{verifierName}</td>

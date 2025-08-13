@@ -60,7 +60,7 @@ const FooterCustomized = ({ scrollToId = "page-top" }) => {
             <p><strong>Email:</strong> lgumalaytourism@yahoo.com</p>
             <p><strong>24/7 Tourist Hotline:</strong> (+63) 968 243 1919, (+63) 905 219 1604</p>
             <p><strong>Telephone:</strong> (036) 288-8827, (036) 288-2493</p>
-            <p><strong>Website:</strong> <a className="text-muted" href="https://boracayinformationguide.com" target="_blank" rel="noreferrer">boracayinfoguide.com</a></p>
+            <p><strong>Website:</strong> <a className="text-muted" href="https://boracayinfoguide.com" target="_blank" rel="noreferrer">boracayinfoguide.com</a></p>
             <p><strong>Facebook:</strong> <a className="text-muted" href="https://facebook.com/malaytourism" target="_blank" rel="noreferrer">/malaytourism</a></p>
           </Col>
         </Row>

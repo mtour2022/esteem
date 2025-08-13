@@ -178,8 +178,8 @@ const ActivityAdminPage = () => {
                     <tr>
                         <th>Name</th>
                         <th>Description</th>
-                        <th>Base/Cost Price</th>
-                        <th>Price (SRP)</th>
+                        <th>NET/Base/Cost Price</th>
+                        <th>Published Rate (SRP)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -348,7 +348,8 @@ const ActivityAdminPage = () => {
                                         <option>30 minutes</option>
                                         <option>45 minutes</option>
                                         <option>1 hour</option>
-                                        <option>2 hours</option>
+                                        <option>1 hour and a half</option>
+                                        <option>2 hours and a half</option>
                                         <option>3 hours</option>
                                         <option>4 hours</option>
                                         <option>6 hours</option>

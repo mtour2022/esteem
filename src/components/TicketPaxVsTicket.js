@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -16,8 +16,11 @@ import { toPng } from "html-to-image";
 import download from "downloadjs";
 import dayjs from "dayjs";
 
-const PaxVsTicketLineChart = ({ title = "Pax vs Ticket Report", tickets = [], startDate, endDate }) => {
+const PaxVsTicketLineChart = ({ title = "Pax vs Ticket Report", tickets = [], startDate, endDate, filterType }) => {
   const chartRef = useRef(null);
+
+  const startDateObj = dayjs(startDate).startOf("day");
+  const endDateObj = dayjs(endDate).endOf("day");
 
   const chartData = useMemo(() => {
     if (!startDate || !endDate || !tickets.length) return [];
@@ -72,7 +75,7 @@ const PaxVsTicketLineChart = ({ title = "Pax vs Ticket Report", tickets = [], st
 
   if (chartData.length === 0) {
     return (
-      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white my-2 mt-4">
+      <Card className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h6 className="mb-0">{title}</h6>
         </div>
@@ -82,10 +85,12 @@ const PaxVsTicketLineChart = ({ title = "Pax vs Ticket Report", tickets = [], st
   }
 
   return (
-    <Card className="summary-card border rounded p-3 text-muted h-100 bg-white my-2" ref={chartRef}>
+    <Card className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0" ref={chartRef}>
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="mb-0">{title}</h6>
-        <Button variant="light" size="sm" onClick={handleDownload} title="Download chart">
+                <div className="text-muted small fw-semibold">
+          {title} ({startDateObj.format("MMM D")} - {endDateObj.format("MMM D, YYYY")}) (
+          {filterType === "all" ? "All Tickets" : "Scanned Tickets"})
+        </div>        <Button variant="light" size="sm" onClick={handleDownload} title="Download chart">
           <FontAwesomeIcon icon={faDownload} />
         </Button>
       </div>

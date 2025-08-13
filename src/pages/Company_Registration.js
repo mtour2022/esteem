@@ -19,7 +19,7 @@ import FooterCustomized from '../components/Footer';
 
 
 
-export default function CompanyRegistrationPage() {
+export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
 
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -298,7 +298,7 @@ export default function CompanyRegistrationPage() {
     return (
         <>
             <Row className="justify-content-center">
-                <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
+                {!hideNavAndFooter && <AppNavBar bg="dark" variant="dark" title="Tourism Certificate QR Scanner" />}
 
                 <Col md={6} className="p-0">
                     <Container className="container" id="toppage">
@@ -814,7 +814,12 @@ export default function CompanyRegistrationPage() {
                     </Container>
                 </Col>
 
-                <FooterCustomized scrollToId="toppage" />
+                {!hideNavAndFooter && (
+                    <>
+                        <div className="my-5"></div>
+                        <FooterCustomized scrollToId="toppage" />
+                    </>
+                )}
 
             </Row>
             {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}

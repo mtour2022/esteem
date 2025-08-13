@@ -145,14 +145,6 @@ ticket.total_expected_sale = Math.max(agreedTotal - baseTotal, 0);
 ticket.total_markup =
   baseTotal > 0 ? (ticket.total_expected_sale / baseTotal) * 100 : 0;
 
-
-      // 🔍 Final logs for verification
-      console.log("✔ Base total:", baseTotal);
-      console.log("✔ Expected SRP:", expectedSRP);
-      console.log("✔ Agreed total (payment):", agreedTotal);
-      console.log("✔ Total Expected Sale:", ticket.total_expected_sale);
-      console.log("✔ Markup %:", ticket.total_markup.toFixed(2) + "%");
-
       // Prepare for Firestore
       ticket.userUID = currentUserUID;
       ticket.company_id = companyID;

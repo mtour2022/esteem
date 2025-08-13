@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   Table,
   Spinner,
@@ -23,11 +23,16 @@ import {
   Legend,
 } from "recharts";
 import { Tabs, Tab } from "react-bootstrap";
+import { collection, doc, getDoc, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
+import { db } from "../config/firebase"; // adjust path to your Firebase config
+import Swal from 'sweetalert2';
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const daysInMonth = 31;
 
-function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterType }) {
+function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) {
+  const [tickets, setTickets] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
   const [mode, setMode] = useState("pax");
   const [paxFilter, setPaxFilter] = useState("all");
   const [groupedData, setGroupedData] = useState({});
@@ -37,11 +42,10 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
   const tableRefSummary = useRef();
 
   const [dateRangeOption, setDateRangeOption] = useState("This Month (the default)");
-  const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
+  // const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
   const isDailyView = ["This Month (the default)", "This Week", "1st Half of the Month (1-15)", "2nd Half of the Month"].includes(dateRangeOption);
 
-
-  useEffect(() => {
+  const dateRange = useMemo(() => {
     const now = dayjs();
     let start, end;
 
@@ -62,13 +66,66 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
         start = now.startOf("year");
         end = now;
         break;
-      default:
+      default: // "This Month (the default)"
         start = now.startOf("month");
         end = now;
     }
 
-    setDateRange({ start, end });
+    return { start, end };
   }, [dateRangeOption]);
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setLoadingTickets(true);
+      try {
+        let docs = [];
+
+        if (Array.isArray(ticketsList) && ticketsList.length > 0) {
+          // Fetch by specific IDs
+          const ticketRefs = ticketsList.map(id => doc(db, "tickets", id));
+          const snapshots = await Promise.all(ticketRefs.map(ref => getDoc(ref)));
+          docs = snapshots
+            .filter(snap => snap.exists())
+            .map(snap => ({ id: snap.id, ...snap.data() }));
+
+        } else if (Array.isArray(ticketsList) && ticketsList.length === 0) {
+          // Fetch ALL tickets
+          const snapshot = await getDocs(collection(db, "tickets"));
+          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        } else {
+          // Fetch by date range
+          const startTimestamp = Timestamp.fromDate(dateRange.start.toDate());
+          const endTimestamp = Timestamp.fromDate(dateRange.end.endOf("day").toDate());
+
+          const q = query(
+            collection(db, "tickets"),
+            where("start_date_time", ">=", startTimestamp),
+            where("start_date_time", "<=", endTimestamp),
+            orderBy("start_date_time", "asc")
+          );
+
+          const snapshot = await getDocs(q);
+          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        setTickets(docs);
+      } catch (err) {
+        console.error("Error fetching tickets:", err);
+      } finally {
+        setLoadingTickets(false);
+      }
+    };
+
+    fetchTickets();
+  }, [
+    ticketsList?.length, // ensures it runs when list changes length
+    JSON.stringify(ticketsList), // ensures it runs when list contents change
+    dateRange.start.valueOf(),
+    dateRange.end.valueOf()
+  ]);
+
+
 
   useEffect(() => {
     const now = dayjs();
@@ -91,7 +148,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
     }
 
 
-    for (const ticket of allFilteredTickets) {
+    for (const ticket of tickets) {
       let rawDate = ticket.start_date_time;
       if (rawDate && typeof rawDate.toDate === "function") {
         rawDate = rawDate.toDate();
@@ -153,7 +210,27 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
 
     setGroupedData(tableGroup);
     setChartData(chartFormatted);
-  }, [allFilteredTickets, mode, paxFilter, dateRange.start, dateRange.end]);
+  }, [tickets, mode, paxFilter, dateRange.start, dateRange.end]);
+
+
+
+  if (loadingTickets) {
+    return (
+      <div className="text-center my-5">
+        <Spinner animation="border" />
+        <p>Loading summary...</p>
+      </div>
+    );
+  }
+
+  if (!loadingTickets && tickets.length === 0) {
+    return (
+      <Card className="border rounded p-3 text-muted mb-5 text-center">
+        <h6>No data available.</h6>
+      </Card>
+    );
+  }
+
 
   const getMonthTotal = days => Object.values(days).reduce((sum, val) => sum + val, 0);
   const getGrandTotal = () =>
@@ -224,7 +301,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
     }
   };
 
-  if (loading && !allFilteredTickets.length) {
+  if (loading && !tickets.length) {
     return (
       <div className="text-center my-5">
         <Spinner animation="border" />
@@ -233,7 +310,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
     );
   }
 
-  if (!loading && allFilteredTickets.length === 0) {
+  if (!loading && tickets.length === 0) {
     return (
       <Card className="border rounded p-3 text-muted mb-5 text-center">
         <h6>No data available.</h6>
@@ -241,7 +318,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
     );
   }
 
-  const filteredTicketsInRange = allFilteredTickets.filter(ticket => {
+  const filteredTicketsInRange = tickets.filter(ticket => {
     let rawDate = ticket.start_date_time;
     if (rawDate && typeof rawDate.toDate === "function") {
       rawDate = rawDate.toDate();
@@ -289,7 +366,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
   const previousRange = getPreviousDateRange(dateRangeOption);
 
   // Step 2: Filter tickets for previous date range
-  const filteredPreviousTickets = allFilteredTickets.filter(ticket => {
+  const filteredPreviousTickets = tickets.filter(ticket => {
     let rawDate = ticket.start_date_time;
     if (rawDate && typeof rawDate.toDate === "function") {
       rawDate = rawDate.toDate();
@@ -431,25 +508,11 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                     )}
                   </Badge>
 
-                  <span
-                    className={
-                      getPercentDiffText(
-                        filteredTicketsInRange.reduce((sum, ticket) => {
-                          const addresses = ticket.address || [];
-                          return sum + addresses.reduce((s, addr) => {
-                            const locals = Number(addr.locals || 0);
-                            const foreigns = Number(addr.foreigns || 0);
-                            return s + locals + foreigns;
-                          }, 0);
-                        }, 0) / numberOfDays,
-                        previousAvgPax
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-danger"
-                    }
-                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
-                  >
-                    {getPercentDiffText(
+
+                </h1>
+                <span
+                  className={
+                    getPercentDiffText(
                       filteredTicketsInRange.reduce((sum, ticket) => {
                         const addresses = ticket.address || [];
                         return sum + addresses.reduce((s, addr) => {
@@ -459,11 +522,25 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                         }, 0);
                       }, 0) / numberOfDays,
                       previousAvgPax
-                    )}
-                  </span>
-                </h1>
-
-                <small className="text-muted">
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                  style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                >
+                  {getPercentDiffText(
+                    filteredTicketsInRange.reduce((sum, ticket) => {
+                      const addresses = ticket.address || [];
+                      return sum + addresses.reduce((s, addr) => {
+                        const locals = Number(addr.locals || 0);
+                        const foreigns = Number(addr.foreigns || 0);
+                        return s + locals + foreigns;
+                      }, 0);
+                    }, 0) / numberOfDays,
+                    previousAvgPax
+                  )}
+                </span>
+                <small className="text-muted ms-2">
                   from {previousLabelMap[dateRangeOption]}
                 </small>
               </div>
@@ -481,25 +558,25 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                     {Math.round(filteredTicketsInRange.length / numberOfDays).toLocaleString()}
                   </Badge>
 
-                  <span
-                    className={
-                      getPercentDiffText(
-                        filteredTicketsInRange.length / numberOfDays,
-                        previousAvgTickets
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-danger"
-                    }
-                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
-                  >
-                    {getPercentDiffText(
+
+                </h1>
+                <span
+                  className={
+                    getPercentDiffText(
                       filteredTicketsInRange.length / numberOfDays,
                       previousAvgTickets
-                    )}
-                  </span>
-                </h1>
-
-                <small className="text-muted">
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                  style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                >
+                  {getPercentDiffText(
+                    filteredTicketsInRange.length / numberOfDays,
+                    previousAvgTickets
+                  )}
+                </span>
+                <small className="text-muted ms-2">
                   from {previousLabelMap[dateRangeOption]}
                 </small>
               </div>
@@ -520,31 +597,31 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                     ).toLocaleString()}
                   </Badge>
 
-                  <span
-                    className={
-                      getPercentDiffText(
-                        filteredTicketsInRange.reduce(
-                          (sum, ticket) => sum + (ticket.total_payment || 0),
-                          0
-                        ) / numberOfDays,
-                        previousAvgPayment
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-danger"
-                    }
-                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
-                  >
-                    {getPercentDiffText(
+
+                </h1>
+                <span
+                  className={
+                    getPercentDiffText(
                       filteredTicketsInRange.reduce(
                         (sum, ticket) => sum + (ticket.total_payment || 0),
                         0
                       ) / numberOfDays,
                       previousAvgPayment
-                    )}
-                  </span>
-                </h1>
-
-                <small className="text-muted">
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                  style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                >
+                  {getPercentDiffText(
+                    filteredTicketsInRange.reduce(
+                      (sum, ticket) => sum + (ticket.total_payment || 0),
+                      0
+                    ) / numberOfDays,
+                    previousAvgPayment
+                  )}
+                </span>
+                <small className="text-muted ms-2">
                   from {previousLabelMap[dateRangeOption]}
                 </small>
               </div>
@@ -566,31 +643,31 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                     ).toLocaleString()}
                   </Badge>
 
-                  <span
-                    className={
-                      getPercentDiffText(
-                        filteredTicketsInRange.reduce(
-                          (sum, ticket) => sum + (ticket.total_expected_sale || 0),
-                          0
-                        ) / numberOfDays,
-                        previousAvgExpectedSale
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-danger"
-                    }
-                    style={{ fontSize: "0.9rem", fontWeight: "normal" }}
-                  >
-                    {getPercentDiffText(
+
+                </h1>
+                <span
+                  className={
+                    getPercentDiffText(
                       filteredTicketsInRange.reduce(
                         (sum, ticket) => sum + (ticket.total_expected_sale || 0),
                         0
                       ) / numberOfDays,
                       previousAvgExpectedSale
-                    )}
-                  </span>
-                </h1>
-
-                <small className="text-muted">
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                  style={{ fontSize: "0.9rem", fontWeight: "normal" }}
+                >
+                  {getPercentDiffText(
+                    filteredTicketsInRange.reduce(
+                      (sum, ticket) => sum + (ticket.total_expected_sale || 0),
+                      0
+                    ) / numberOfDays,
+                    previousAvgExpectedSale
+                  )}
+                </span>
+                <small className="text-muted ms-2">
                   from {previousLabelMap[dateRangeOption]}
                 </small>
               </div>
@@ -679,11 +756,8 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
                   />
                 </LineChart>
               </ResponsiveContainer>
-
-
             </div>
           </Tab>
-
           {/* Second Tab - Table */}
           <Tab eventKey="table" title="Table" className="bg-white">
             <div className="mt-4 bg-white" >
@@ -746,11 +820,7 @@ function TicketsSummaryTable({ allFilteredTickets = [], loading = false, filterT
             </div>
           </Tab>
         </Tabs>
-
-
-
       </Card>
-
     </div>
 
   );

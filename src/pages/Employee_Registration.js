@@ -30,7 +30,7 @@ import { useParams } from "react-router-dom";
 import FileUploader from '../components/UploadImageFile';
 
 
-export default function EmployeeRegistrationForm() {
+export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
     const { residency } = useParams();
 
     const [currentStep, setCurrentStep] = useState(1);
@@ -222,7 +222,7 @@ export default function EmployeeRegistrationForm() {
     return (
         <>
             <Row className="justify-content-center">
-                <AppNavBar bg="dark" variant="dark" title="Left Appbar" />
+                {!hideNavAndFooter && <AppNavBar bg="dark" variant="dark" title="Tourism Certificate QR Scanner" />}
 
                 <Col md={6} className="p-0">
                     <Container className="container" id="toppage">
@@ -960,8 +960,12 @@ export default function EmployeeRegistrationForm() {
                         </Container>
                     </Container>
                 </Col>
-                <FooterCustomized scrollToId="toppage" />
-            </Row>
+                {!hideNavAndFooter && (
+                    <>
+                        <div className="my-5"></div>
+                        <FooterCustomized scrollToId="toppage" />
+                    </>
+                )}            </Row>
             {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
         </>
     );

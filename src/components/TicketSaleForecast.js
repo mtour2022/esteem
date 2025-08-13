@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -20,10 +20,12 @@ const ExpectedSaleForecastChart = ({
   title = "Expected Sale Forecast",
   tickets = [],
   startDate,
-  endDate,
+  endDate, filterType
 }) => {
   const chartRef = useRef(null);
 
+   const startDateObj = dayjs(startDate).startOf("day");
+   const endDateObj = dayjs(endDate).endOf("day");
   const chartData = useMemo(() => {
     if (!startDate || !endDate || !tickets.length) return [];
 
@@ -73,7 +75,7 @@ const ExpectedSaleForecastChart = ({
 
   if (chartData.length === 0) {
     return (
-      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white">
+      <Card className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h6 className="mb-0">{title}</h6>
         </div>
@@ -84,12 +86,14 @@ const ExpectedSaleForecastChart = ({
 
   return (
     <Card
-      className="summary-card border rounded p-3 text-muted h-100 bg-white my-2"
+      className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0"
       ref={chartRef}
     >
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="mb-0">{title}</h6>
-        <Button
+                <div className="text-muted small fw-semibold">
+          {title} ({startDateObj.format("MMM D")} - {endDateObj.format("MMM D, YYYY")}) (
+          {filterType === "all" ? "All Tickets" : "Scanned Tickets"})
+        </div>        <Button
           variant="light"
           size="sm"
           onClick={handleDownload}

@@ -6,17 +6,20 @@ import { doc, getDoc, collection, query, where, getDocs, documentId } from "fire
 import { db } from "../config/firebase";
 import TicketModel from "../classes/tickets";
 import UpdateTicketToCloud from "../components/UpdateTickets";
-import { Form, Container, Row, Col, Button, Card } from 'react-bootstrap';
+import { Form, Container, Row, Col, Button, Card, InputGroup } from 'react-bootstrap';
 import Select from "react-select";
 import TicketAddressForm from '../components/TicketAddressForm';
 import UpdateTicketActivitiesForm from '../components/UpdateTicketActivitiesForm';
 import TicketSummary from '../components/TicketSummary';
 import { useAuth } from '../auth/authentication';
 import Company from '../classes/company';
+import VerifierModel from "../classes/verifiers"; // your VerifierModel
 
 export default function TicketQRScanner() {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const { currentUser } = useAuth();
+    const [verifier, setVerifier] = useState(null);
+
 
     // QR scanning
     const [scannerRequested, setScannerRequested] = useState(false);
@@ -35,7 +38,7 @@ export default function TicketQRScanner() {
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
     const [savedTicket, setSavedTicket] = useState(null);
-    const totalSteps = 4;
+    const totalSteps = 3;
 
     const nextStep = () => setCurrentStep((prev) => prev + 1);
     const prevStep = () => setCurrentStep((prev) => prev - 1);
@@ -164,6 +167,29 @@ export default function TicketQRScanner() {
         }
     }, [scannerRequested]);
 
+
+    useEffect(() => {
+        const fetchVerifier = async () => {
+            if (!currentUser?.uid) return;
+            try {
+                const q = query(
+                    collection(db, "verifier"),
+                    where("userUID", "==", currentUser.uid)
+                );
+                const snap = await getDocs(q);
+
+                if (!snap.empty) {
+                    const verifierData = snap.docs[0].data();
+                    setVerifier(new VerifierModel(verifierData));
+                }
+            } catch (err) {
+                console.error("Error fetching verifier data:", err);
+            }
+        };
+
+        fetchVerifier();
+    }, [currentUser]);
+
     const fetchEmployeeById = async (employeeId) => {
         if (!employeeId) return null;
         try {
@@ -217,15 +243,55 @@ export default function TicketQRScanner() {
         );
     };
 
+    const handleManualSubmit = async () => {
+        if (!ticketData.ticket_id?.trim()) {
+            Swal.fire("Missing ID", "Please enter a Ticket ID.", "warning");
+            return;
+        }
+
+        try {
+            const q = query(
+                collection(db, "tickets"),
+                where("ticket_id", "==", ticketData.ticket_id.trim())
+            );
+            const snap = await getDocs(q);
+
+            if (!snap.empty) {
+                const ticketDoc = snap.docs[0].data();
+                setTicketData(new TicketModel(ticketDoc));
+
+                if (ticketDoc.employee_id) {
+                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
+                    if (empData) {
+                        setSelectedEmployee(empData);
+                        setEmployees((prev) => {
+                            const exists = prev.some((e) => e.employeeId === empData.employeeId);
+                            return exists ? prev : [...prev, empData];
+                        });
+                    }
+                }
+
+                Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
+                setCurrentStep(1);
+            } else {
+                Swal.fire("Not Found", "No ticket found with that ID.", "warning");
+            }
+        } catch (err) {
+            console.error("Error fetching ticket:", err);
+            Swal.fire("Error", "Failed to fetch ticket data.", "error");
+        }
+    };
+
+
     return (
         <div>
             {/* Search Options */}
-             <Row className="mb-3">
-                      <Col className="text-center">
-                        <p id="toppage" className="barabara-label">TOURIST ACTIVITY TICKET SCANNER</p>
-                        <p className="text-muted">Scan QR Code or Enter Ticket ID</p>
-                      </Col>
-                    </Row>
+            <Row className="mb-3">
+                <Col className="text-center">
+                    <p id="toppage" className="barabara-label">TOURIST ACTIVITY TICKET SCANNER</p>
+                    <p className="text-muted">Scan QR Code or Enter Ticket ID</p>
+                </Col>
+            </Row>
             <Row className="justify-content-center g-3 mb-4 p-0">
                 <Col lg={9} md={12} sm={12} xs={12}>
                     <Row className="justify-content-center g-3 mb-4">
@@ -288,8 +354,62 @@ export default function TicketQRScanner() {
                 </div>
             )}
 
+            {searchType === "id" && (
+                <InputGroup
+                    className="mb-3 justify-content-center"
+                    style={{ maxWidth: "550px", margin: "0 auto" }}
+                >
+                    <Form.Control
+                        type="text"
+                        placeholder="Enter Tourism Certificate ID"
+                        value={ticketData.ticket_id || ""}
+                        onChange={(e) =>
+                            setTicketData((prev) => new TicketModel({
+                                ...prev,
+                                ticket_id: e.target.value
+                            }))
+                        }
+                    />
+                    <Button variant="secondary" onClick={handleManualSubmit}>
+                        Check
+                    </Button>
+                </InputGroup>
+            )}
+
+            {/* Scan Logs Table */}
+            {Array.isArray(ticketData.scan_logs) && ticketData.scan_logs.length > 0 && (
+                <Container className="mb-4">
+                    <p className="fw-bold">Scan Logs</p>
+                    <table className="table table-bordered table-striped table-sm">
+                        <thead className="table-light">
+                            <tr>
+                                <th>Date Updated</th>
+                                <th>Status</th>
+                                <th>Remarks</th>
+                                <th>Verifier / User ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {ticketData.scan_logs.map((log, index) => (
+                                <tr key={index}>
+                                    <td>{log.date_updated ? new Date(log.date_updated).toLocaleString() : "-"}</td>
+                                    <td>{log.status || "-"}</td>
+                                    <td>{log.remarks || "-"}</td>
+                                    <td>{log.userId || "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </Container>
+            )}
+
+
+
+
+
             {/* Main Form */}
-            {!isFullScreen && (
+            {!isFullScreen && ticketData?.ticket_id && (
+
                 <Col md={12} className="p-0">
                     <Container className="container custom-container">
                         <Container className="body-container">
@@ -340,47 +460,47 @@ export default function TicketQRScanner() {
                                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
                                                 Select designated employee to assist the guests.
                                             </Form.Label>
-                                         <Select
-    options={employees
-        .filter(emp =>
-            emp.status?.toLowerCase() === "approved" &&
-            emp.company_status?.toLowerCase() === "approved"
-        )
-        .map(emp => ({
-            value: emp.employeeId,
-            label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-            contact: emp.contact,
-            raw: emp
-        }))
-    }
-    placeholder="Select an employee"
-    onChange={(selectedOption) => {
-        setTicketData(prev => ({
-            ...prev,
-            employee_id: selectedOption?.value || ""
-        }));
-        setSelectedEmployee(selectedOption ? selectedOption.raw : null);
-    }}
-    value={
-        employees
-            .filter(emp => emp.status?.toLowerCase() === "approved" && emp.company_status?.toLowerCase() === "approved")
-            .map(emp => ({
-                value: emp.employeeId,
-                label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
-                contact: emp.contact,
-                raw: emp
-            }))
-            .find(option => option.value === ticketData.employee_id)
-        || (selectedEmployee ? {
-            value: selectedEmployee.employeeId,
-            label: `${selectedEmployee.firstname} ${selectedEmployee.surname} — ${selectedEmployee.designation || "No title"}`,
-            contact: selectedEmployee.contact,
-            raw: selectedEmployee
-        } : null)
-    }
-    isClearable
-    isDisabled  // 🔹 Makes it read-only
-/>
+                                            <Select
+                                                options={employees
+                                                    .filter(emp =>
+                                                        emp.status?.toLowerCase() === "approved" &&
+                                                        emp.company_status?.toLowerCase() === "approved"
+                                                    )
+                                                    .map(emp => ({
+                                                        value: emp.employeeId,
+                                                        label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                                                        contact: emp.contact,
+                                                        raw: emp
+                                                    }))
+                                                }
+                                                placeholder="Select an employee"
+                                                onChange={(selectedOption) => {
+                                                    setTicketData(prev => ({
+                                                        ...prev,
+                                                        employee_id: selectedOption?.value || ""
+                                                    }));
+                                                    setSelectedEmployee(selectedOption ? selectedOption.raw : null);
+                                                }}
+                                                value={
+                                                    employees
+                                                        .filter(emp => emp.status?.toLowerCase() === "approved" && emp.company_status?.toLowerCase() === "approved")
+                                                        .map(emp => ({
+                                                            value: emp.employeeId,
+                                                            label: `${emp.firstname} ${emp.surname} — ${emp.designation || "No title"}`,
+                                                            contact: emp.contact,
+                                                            raw: emp
+                                                        }))
+                                                        .find(option => option.value === ticketData.employee_id)
+                                                    || (selectedEmployee ? {
+                                                        value: selectedEmployee.employeeId,
+                                                        label: `${selectedEmployee.firstname} ${selectedEmployee.surname} — ${selectedEmployee.designation || "No title"}`,
+                                                        contact: selectedEmployee.contact,
+                                                        raw: selectedEmployee
+                                                    } : null)
+                                                }
+                                                isClearable
+                                                isDisabled  // 🔹 Makes it read-only
+                                            />
 
                                         </Form.Group>
 
@@ -414,11 +534,31 @@ export default function TicketQRScanner() {
                                     />
                                 )}
 
-                                {/* Step 4 */}
-                                {currentStep === 4 && savedTicket && (
-                                    <TicketSummary ticket={savedTicket} />
+                                {/* Verifier Info */}
+                                {verifier && (
+                                    <Container className="my-3">
+                                        <Form.Group>
+                                            <Form.Label className="fw-bold">Verifier Name</Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                value={verifier.getFullName()}
+                                                readOnly
+                                            />
+                                        </Form.Group>
+
+                                        <Form.Group className="mt-2">
+                                            <Form.Label className="fw-bold">Verifier Contact</Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                value={verifier.designation || "No contact provided"}
+                                                readOnly
+                                            />
+                                        </Form.Group>
+                                    </Container>
                                 )}
 
+
+                                {/* Navigation */}
                                 {/* Navigation */}
                                 <Container className="d-flex justify-content-between mt-3">
                                     {currentStep > 1 && (
@@ -426,6 +566,7 @@ export default function TicketQRScanner() {
                                             Previous
                                         </Button>
                                     )}
+
                                     {currentStep < 3 ? (
                                         <Button
                                             className="color-blue-button"
@@ -440,15 +581,24 @@ export default function TicketQRScanner() {
                                             setGroupData={setTicketData}
                                             currentUserUID={currentUser.uid}
                                             companyID={company?.company_id}
-                                            onSuccess={(finalTicket) => {
-                                                setSavedTicket(finalTicket);
-                                                setCurrentStep(4);
+                                            onSuccess={() => {
+                                                // Reset to initial state
+                                                setSavedTicket(null);
+                                                setTicketData(new TicketModel({})); // clear form data
+                                                setSelectedEmployee(null);
+                                                setCurrentStep(1);
+                                                setSearchType("manual"); // hides scan/id UI
+                                                handleResetScanner();
                                             }}
                                             disabled={!isStep3FormValid()}
                                         />
+
+
                                     )}
                                 </Container>
 
+
+                                {/* add here the Text field of the verifier name and contact using the currentUser Id in the /verifier collection */}
                                 {/* Step Indicators */}
                                 <Container className="d-flex justify-content-center my-1">
                                     {Array.from({ length: totalSteps }, (_, index) => (

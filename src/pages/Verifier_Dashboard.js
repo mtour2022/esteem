@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Nav, Tab, Row, Col, Card, Image, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat, faRegistered, faBuilding, faTicket, faTable } from '@fortawesome/free-solid-svg-icons';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { auth } from '../config/firebase';
@@ -20,6 +20,10 @@ import ActivityAdminPage from './Verifier_Activities';
 import TourismCertAdminPage from './Verifier_TourismCerts';
 import TourismCertQRScannerPage from './Tourism_Cert_Check'
 import TicketQRScanner from './Ticket_QR_Check';
+import EmployeeRegistrationForm from './Employee_Registration'
+import CompanyRegistrationPage from './Company_Registration'
+import TicketCreationForm from '../components/TicketCreationForm'
+
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
 );
@@ -32,7 +36,7 @@ const ScanTicketTab = () => (
 );
 
 const ApplicationStatusTab = ({ shouldRender }) => {
-    return <>{shouldRender && <EmployeeQRScannerPage />}</>;
+    return <>{shouldRender && <EmployeeQRScannerPage hideNavAndFooter />}</>;
 };
 
 const TourismTicketsTab = () => (
@@ -63,7 +67,7 @@ const SaveReportsTab = () => (
 );
 
 export default function VerifierDashboard() {
-    const [key, setKey] = useState("frontliners");
+    const [key, setKey] = useState("scanticket");
     const [verifier, setVerifier] = useState(null);
     const currentUser = auth.currentUser;
     const navigate = useNavigate();
@@ -112,19 +116,28 @@ export default function VerifierDashboard() {
         fetchVerifierProfile();
     }, []);
     const navItems = [
-        { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
-        { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
-        { key: 'tickets', label: 'Tourism Tickets', icon: faUser },
-        
         { key: 'scanticket', label: 'Scan Tickets', icon: faQrcode },
-         { key: 'tourismCerts', label: 'Tourism Certificates', icon: faCertificate },
-                  { key: 'scanTourismCheck', label: 'Tourism Cert Checker', icon: faCheckSquare },
 
+        { key: 'generatetickets', label: 'Generate Tourism Tickets', icon: faTicket },
+        { key: 'tickets', label: 'Tourism Tickets', icon: faTable },
+        { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
+        { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
+        { key: 'tourismCerts', label: 'Tourism Certificates', icon: faCertificate },
+        { key: 'scanTourismCheck', label: 'Tourism Cert Checker', icon: faCheckSquare },
+
+
+
+        // ✅ New Registration Buttons
+        { key: 'registerCompany', label: 'Register Company', icon: faBuilding },
+        { key: 'registerEmployee', label: 'Register Fronliner', icon: faUser },
         { key: 'activities', label: 'Activities', icon: faPersonSwimming },
         { key: 'providers', label: 'Providers', icon: faSailboat },
+
         { key: 'reports', label: 'Save Reports', icon: faFileExport },
         { key: 'profile', label: 'Profile', icon: faUser },
         { key: 'logout', label: 'Log Out', icon: faDoorOpen },
+
+
     ];
 
 
@@ -203,6 +216,15 @@ export default function VerifierDashboard() {
                         <Col md={9}>
                             <Card className="p-4 shadow-sm border-0 bg-white">
                                 <Tab.Content>
+                                    <Tab.Pane eventKey="scanticket">
+                                        <TicketQRScanner />
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="generatetickets">
+                                        <TicketCreationForm></TicketCreationForm>
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="tickets">
+                                        <TourismTicketsTab />
+                                    </Tab.Pane>
                                     <Tab.Pane eventKey="frontliners">
                                         <TourismFrontlinersTab />
                                     </Tab.Pane>
@@ -210,12 +232,7 @@ export default function VerifierDashboard() {
                                         <ApplicationStatusTab shouldRender={key === 'applicationstatus'} />
                                     </Tab.Pane>
 
-                                    <Tab.Pane eventKey="scanticket">
-                                        <TicketQRScanner />
-                                    </Tab.Pane>
-                                    <Tab.Pane eventKey="tickets">
-                                        <TourismTicketsTab />
-                                    </Tab.Pane>
+
                                     <Tab.Pane eventKey="profile">
                                         <ProfileTab />
                                     </Tab.Pane>
@@ -225,14 +242,28 @@ export default function VerifierDashboard() {
                                     <Tab.Pane eventKey="scanTourismCheck">
                                         <TourismCertQRScannerPage hideNavAndFooter ></TourismCertQRScannerPage>
                                     </Tab.Pane>
-                                    
+                                    <Tab.Pane eventKey="registerCompany">
+                                        <CompanyRegistrationPage hideNavAndFooter></CompanyRegistrationPage>
+                                    </Tab.Pane>
+
+
+                                    <Tab.Pane eventKey="registerEmployee">
+                                        <EmployeeRegistrationForm hideNavAndFooter></EmployeeRegistrationForm>
+                                    </Tab.Pane>
+
+
+
+
                                     <Tab.Pane eventKey="activities">
                                         <ActivitiesTab></ActivitiesTab>
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="providers">
                                         <ProvidersTab></ProvidersTab>
                                     </Tab.Pane>
-                                     
+
+
+
+
                                     <Tab.Pane eventKey="reports">
                                         <SaveReportsTab />
                                     </Tab.Pane>

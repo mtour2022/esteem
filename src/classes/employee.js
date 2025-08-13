@@ -6,7 +6,7 @@ class Employee {
     classification = "",
     companyId = "",
     designation = "",
-        years_in_service= "",
+    years_in_service = "",
     application_type = "",
     unit_id = "",
     unit_owner = "",
@@ -46,8 +46,8 @@ class Employee {
     workingPermit = "",
     passportNumber = "",
     agreed = false,
-    isTrained= false,
-        canGenerate= false,
+    isTrained = false,
+    canGenerate = false,
     password = "",
     status = "under review",
     status_history = [],
@@ -55,14 +55,14 @@ class Employee {
     company_status = "under review",
     company_status_history = [],
     tourism_certificate_ids = [],
-        latest_cert_id = "",
-        latest_cert_summary = {
+    latest_cert_id = "",
+    latest_cert_summary = {
       date_Expired: "",
       date_Issued: "",
       tourism_cert_id: "",
       type: ""
     },
-  
+    tickets = [],
 
   }) {
     this.employeeId = employeeId;
@@ -99,7 +99,7 @@ class Employee {
     this.passportNumber = passportNumber;
     this.agreed = agreed;
     this.isTrained = isTrained;
-        this.canGenerate = canGenerate;
+    this.canGenerate = canGenerate;
     this.password = password;
     this.status = status;
     this.status_history = status_history;
@@ -109,7 +109,8 @@ class Employee {
     this.tourism_certificate_ids = tourism_certificate_ids;
     this.latest_cert_id = latest_cert_id;
     this.latest_cert_summary = latest_cert_summary;
-this.years_in_service = years_in_service;
+    this.years_in_service = years_in_service; this.tickets = tickets;
+
   }
 
   getFullName() {
