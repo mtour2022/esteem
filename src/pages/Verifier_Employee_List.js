@@ -1471,6 +1471,7 @@ export default function VerifierEmployeeListPage() {
                       emp={new Employee(selectedEmp)}
                       company={company}
                       currentUser={currentUser}
+                      hideNavAndFooter
                     />
 
                     <div className="text-center mt-3 mb-5">

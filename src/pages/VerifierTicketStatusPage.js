@@ -40,6 +40,7 @@ import ExpectedSaleForecastChart from "../components/TicketSaleForecast";
 import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
 import TicketLocalVsForeign from "../components/TicketLocalVsForeign";
 import TicketStatusLineChart from "../components/TicketScannedVsCreated";
+import AgeGenderLineChart from "../components/TicketAgeSexComparative";
 
 
 const useMouseDragScroll = (ref) => {
@@ -1866,25 +1867,24 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       </div> */}
 
       <>
-        <div className="d-flex justify-content-between align-items-center mb-5 mt-5">
+        <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
           {/* Filter Buttons */}
           <div>
-            <Button
-              variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
-              size="sm"
-              className="me-2"
-              onClick={() => setSummaryFilter("all")}
-            >
-              All Tickets
-            </Button>
-            <Button
-              variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
-              size="sm"
-              onClick={() => setSummaryFilter("scanned")}
-            >
-              Scanned Tickets Only
-            </Button>
+            <Form.Group controlId="statusFilter" style={{ display: "inline-block" }}>
+              <Form.Label className="me-2 ms-2">Status Filter:</Form.Label>
+              <Form.Select
+                size="sm"
+                value={summaryFilter}
+                onChange={(e) => setSummaryFilter(e.target.value)}
+                style={{ width: "200px", display: "inline-block" }}
+              >
+                <option value="all">All Tickets</option>
+                <option value="scanned">Scanned Tickets Only</option>
+              </Form.Select>
+            </Form.Group>
           </div>
+
+
 
           {/* Title + Download */}
           <div>
@@ -1893,7 +1893,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
               size="sm"
               onClick={handleDownloadImage}
             >
-              <FontAwesomeIcon icon={faDownload} /> Download Report
+              <FontAwesomeIcon icon={faDownload} />
             </Button>
           </div>
         </div>
@@ -1905,29 +1905,30 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
             <Tab eventKey="summary" title="Summary">
               <h6 className="mt-4">Summary</h6>
               <small className="text-muted">
-  Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
-</small>
-             <p className="text-muted mt-2">
-  <Badge bg="secondary" className="me-1 mt-2">
-    {summary.totalTickets}
-  </Badge>{" "}
-  ticket(s) from{" "}
-  <strong>
-    {new Date(startDateInput).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    })}
-  </strong>{" "}
-  to{" "}
-  <strong>
-    {new Date(endDateInput).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    })}
-  </strong>
-</p>
+                Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
+              </small>
+              <br></br>
+              <small className="text-muted mt-2 mb-4">
+                <Badge bg="secondary" className="me-1 mt-2">
+                  {summary.totalTickets}
+                </Badge>{" "}
+                ticket(s) from{" "}
+                <strong>
+                  {new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>{" "}
+                to{" "}
+                <strong>
+                  {new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>
+              </small>
 
               {(!isSmallScreen || showFullSummary) && (
                 <>
@@ -1989,7 +1990,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                       />
                     </Col>
                   </Row>
-                  
+
                   <Row className="g-3 mt-2">
                     <Col md={4}>
                       <TopRankingChart
@@ -2020,9 +2021,28 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
             {/* Insights Tab */}
             <Tab eventKey="insights" title="Insights">
               <h6 className="mt-4">Insights</h6>
-<small className="text-muted">
-  Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
-</small>
+              <small className="text-muted">
+                Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
+              </small>
+              <br></br>
+              <small className="text-muted mt-2">
+                Insights from data dated{" "}
+                <strong>
+                  {new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>{" "}
+                to{" "}
+                <strong>
+                  {new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>
+              </small>
 
 
               <Row className="mb-4 mt-2 g-3">
@@ -2037,14 +2057,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                         endDate={endDateInput}
                       />
                     </Tab>
-                    <Tab eventKey="ticketVsPax" title="Ticket Vs Pax Forecast">
-                      <TicketPaxVsTicket
-                        title="Ticket Vs Pax Forecast"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                      />
-                    </Tab>
+
                     <Tab eventKey="paymentVsActual" title="Expected vs Actual Payment">
                       <PaymentPaxLineChart
                         title="Expected vs Actual Payment"
@@ -2072,7 +2085,25 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
                       />
                     </Tab>
-                    
+                    <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
+                      <AgeGenderLineChart
+                        title="Age Gender Comparative"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                        filterType={summaryFilter}
+
+                      />
+                    </Tab>
+                    <Tab eventKey="ticketVsPax" title="Ticket Vs Pax Forecast">
+                      <TicketPaxVsTicket
+                        title="Ticket Vs Pax Forecast"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                      />
+                    </Tab>
+
 
 
                   </Tabs>
@@ -2085,9 +2116,9 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
             {/* Performance Tab */}
             <Tab eventKey="performance" title="Performance">
               <h6 className="mt-4">Performance</h6>
-                <small className="text-muted">
-    This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-  </small>
+              <small className="text-muted">
+                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+              </small>
               <Row className="g-3 mt-2">
                 <Col md={12}>
                   <TicketsSummaryTable

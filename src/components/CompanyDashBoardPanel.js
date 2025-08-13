@@ -3,7 +3,7 @@ import {
   Container,
   Row,
   Col,
-  Image,
+  Image, Tabs, Tab,
   Button
 } from "react-bootstrap";
 import { doc, getDoc } from "firebase/firestore";
@@ -62,29 +62,48 @@ const CompanyDashboardPanel = ({ company }) => {
 
       {/* Tab Buttons */}
       <div className="mb-4 d-flex gap-2">
-        <Button
-          variant={activeTab === "dashboard" ? "secondary" : "outline-secondary"}
-          className={activeTab === "dashboard" ? "text-white" : ""}
-          onClick={() => setActiveTab("dashboard")}
+        <Tabs
+          defaultActiveKey="ticketboard"
+          activeKey={activeTab}
+          onSelect={(k) => setActiveTab(k)}
+          className="mb-4"
         >
-          <FontAwesomeIcon icon={faTicket} /> Ticket Status Board
-        </Button>
+          {/* Ticket Status Board Tab */}
+          <Tab
+            eventKey="dashboard"
+            title={
+              <>
+                <FontAwesomeIcon icon={faTicket} size="sm" className="me-2"/> Tickets
+              </>
+            }
+          />
 
-        <Button
-          variant={activeTab === "employees" ? "secondary" : "outline-secondary"}
-          className={activeTab === "employees" ? "text-white" : ""}
-          onClick={() => setActiveTab("employees")}
-        >
-          <FontAwesomeIcon icon={faUserGroup} /> Employee List
-        </Button>
+          {/* Employee List Tab */}
+          <Tab
+            eventKey="employees"
+            title={
+              <>
+                <FontAwesomeIcon icon={faUserGroup} size="sm" className="me-2" /> Employees
+              </>
+            }
+          />
 
-        <Button
-          variant={activeTab === "reports" ? "secondary" : "outline-secondary"}
-          className={activeTab === "reports" ? "text-white" : ""}
-          onClick={() => setActiveTab("reports")}
-        >
-          <FontAwesomeIcon icon={faLineChart} /> Generate Report
-        </Button>
+          {/* Generate Report Tab */}
+          <Tab
+            eventKey="reports"
+            title={
+              <>
+                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2"/> Reports
+              </>
+            }
+          />
+        </Tabs>
+
+
+
+
+
+
       </div>
 
       {/* Tab Content */}
@@ -94,10 +113,10 @@ const CompanyDashboardPanel = ({ company }) => {
 
       {activeTab === "employees" && (
         <CompanyEmployeeListPage
-  employeeIds={company.employee}
-  companyId={company.company_id}
-  companyName={company.name}
-/>
+          employeeIds={company.employee}
+          companyId={company.company_id}
+          companyName={company.name}
+        />
       )}
 
       {activeTab === "reports" && (

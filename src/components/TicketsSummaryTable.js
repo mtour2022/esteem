@@ -73,57 +73,65 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
     return { start, end };
   }, [dateRangeOption]);
+useEffect(() => {
+  const fetchTickets = async () => {
+    setLoadingTickets(true);
+    try {
+      let docs = [];
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      setLoadingTickets(true);
-      try {
-        let docs = [];
+      if (Array.isArray(ticketsList) && ticketsList.length > 0) {
+        // Fetch by specific IDs
+        const ticketRefs = ticketsList.map(id => doc(db, "tickets", id));
+        const snapshots = await Promise.all(ticketRefs.map(ref => getDoc(ref)));
+        docs = snapshots
+          .filter(snap => snap.exists())
+          .map(snap => ({ id: snap.id, ...snap.data() }));
 
-        if (Array.isArray(ticketsList) && ticketsList.length > 0) {
-          // Fetch by specific IDs
-          const ticketRefs = ticketsList.map(id => doc(db, "tickets", id));
-          const snapshots = await Promise.all(ticketRefs.map(ref => getDoc(ref)));
-          docs = snapshots
-            .filter(snap => snap.exists())
-            .map(snap => ({ id: snap.id, ...snap.data() }));
+      } else if (Array.isArray(ticketsList) && ticketsList.length === 0) {
+        // Fetch ALL tickets
+        const snapshot = await getDocs(collection(db, "tickets"));
+        docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        } else if (Array.isArray(ticketsList) && ticketsList.length === 0) {
-          // Fetch ALL tickets
-          const snapshot = await getDocs(collection(db, "tickets"));
-          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } else {
+        // Fetch by date range
+        const startTimestamp = Timestamp.fromDate(dateRange.start.toDate());
+        const endTimestamp = Timestamp.fromDate(dateRange.end.endOf("day").toDate());
 
-        } else {
-          // Fetch by date range
-          const startTimestamp = Timestamp.fromDate(dateRange.start.toDate());
-          const endTimestamp = Timestamp.fromDate(dateRange.end.endOf("day").toDate());
+        const q = query(
+          collection(db, "tickets"),
+          where("start_date_time", ">=", startTimestamp),
+          where("start_date_time", "<=", endTimestamp),
+          orderBy("start_date_time", "asc")
+        );
 
-          const q = query(
-            collection(db, "tickets"),
-            where("start_date_time", ">=", startTimestamp),
-            where("start_date_time", "<=", endTimestamp),
-            orderBy("start_date_time", "asc")
-          );
-
-          const snapshot = await getDocs(q);
-          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        }
-
-        setTickets(docs);
-      } catch (err) {
-        console.error("Error fetching tickets:", err);
-      } finally {
-        setLoadingTickets(false);
+        const snapshot = await getDocs(q);
+        docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       }
-    };
 
-    fetchTickets();
-  }, [
-    ticketsList?.length, // ensures it runs when list changes length
-    JSON.stringify(ticketsList), // ensures it runs when list contents change
-    dateRange.start.valueOf(),
-    dateRange.end.valueOf()
-  ]);
+      // ✅ Apply filterType logic here
+      if (filterType !== "all") {
+        if (filterType === "scanned") {
+          docs = docs.filter(ticket => ticket.status === "scanned");
+        }
+      }
+
+      setTickets(docs);
+    } catch (err) {
+      console.error("Error fetching tickets:", err);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  fetchTickets();
+}, [
+  ticketsList?.length,
+  JSON.stringify(ticketsList),
+  dateRange.start.valueOf(),
+  dateRange.end.valueOf(),
+  filterType // ✅ Make sure to re-run when filterType changes
+]);
+
 
 
 

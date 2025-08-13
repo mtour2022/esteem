@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Card, Table, Badge, Row, Col, Form } from "react-bootstrap";
+import { Card, Table, Badge, Row, Col, Form, Tabs, Tab } from "react-bootstrap";
 import { FormControl, Button, Dropdown } from "react-bootstrap";
 import { db } from "../config/firebase"; // adjust path as needed
 import { toPng } from "html-to-image";
@@ -18,6 +18,10 @@ import TicketsSummaryTable from "../components/TicketsSummaryTable";
 import PaymentPaxLineChart from "../components/TicketExpectedVsActual";
 import ExpectedSaleForecastChart from "../components/TicketSaleForecast";
 import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
+import TicketLocalVsForeign from "./TicketLocalVsForeign";
+import TicketStatusLineChart from "./TicketScannedVsCreated";
+import AgeGenderLineChart from "./TicketAgeSexComparative";
+
 import Select from "react-select";
 
 import {
@@ -236,6 +240,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     const bTime = new Date(b.start_date_time);
     return Math.abs(aTime - now) - Math.abs(bTime - now);
   });
+  const reportRef = useRef(null);
   const summaryRef = useRef(null);
 
 
@@ -282,72 +287,72 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   }, []);
 
   const handleRefresh = () => {
-  setTickets([]);
-  setAllFilteredTickets([]);
-  setFilteredTickets([]);
-  setTriggerSearch(prev => !prev); // Toggle to ensure re-run even if already true
-};
-
-useEffect(() => {
-  const fetchTickets = async () => {
     setTickets([]);
     setAllFilteredTickets([]);
     setFilteredTickets([]);
-    setSearchText(searchTextInput);
-
-    if (!ticket_ids || ticket_ids.length === 0) return;
-
-    Swal.fire({
-      title: "Fetching data...",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
-    try {
-      setIsLoading(true);
-
-      const chunks = [];
-      for (let i = 0; i < ticket_ids.length; i += 10) {
-        chunks.push(ticket_ids.slice(i, i + 10));
-      }
-
-      const allTickets = [];
-      for (const chunk of chunks) {
-        const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
-        const snapshot = await getDocs(q);
-        snapshot.forEach((doc) => {
-          allTickets.push({ id: doc.id, ...doc.data() });
-        });
-      }
-
-      const start = new Date(startDateInput);
-      const end = new Date(endDateInput);
-      end.setHours(23, 59, 59, 999);
-
-      const filtered = allTickets.filter((t) => {
-        const tStart = new Date(t.start_date_time);
-        return tStart >= start && tStart <= end;
-      });
-
-      setTickets(filtered);
-      setAllFilteredTickets(filtered);
-
-    } catch (err) {
-      console.error("Error fetching tickets:", err);
-      Swal.fire("Error", "Failed to fetch tickets", "error");
-    } finally {
-      Swal.close();
-      setIsLoading(false);
-    }
+    setTriggerSearch(prev => !prev); // Toggle to ensure re-run even if already true
   };
 
-  if (triggerSearch) {
-    fetchTickets();
-    setTriggerSearch(false); // Reset after triggering
-  }
-}, [triggerSearch, ticket_ids, startDateInput, endDateInput, searchTextInput]);
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setTickets([]);
+      setAllFilteredTickets([]);
+      setFilteredTickets([]);
+      setSearchText(searchTextInput);
+
+      if (!ticket_ids || ticket_ids.length === 0) return;
+
+      Swal.fire({
+        title: "Fetching data...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        setIsLoading(true);
+
+        const chunks = [];
+        for (let i = 0; i < ticket_ids.length; i += 10) {
+          chunks.push(ticket_ids.slice(i, i + 10));
+        }
+
+        const allTickets = [];
+        for (const chunk of chunks) {
+          const q = query(collection(db, "tickets"), where("__name__", "in", chunk));
+          const snapshot = await getDocs(q);
+          snapshot.forEach((doc) => {
+            allTickets.push({ id: doc.id, ...doc.data() });
+          });
+        }
+
+        const start = new Date(startDateInput);
+        const end = new Date(endDateInput);
+        end.setHours(23, 59, 59, 999);
+
+        const filtered = allTickets.filter((t) => {
+          const tStart = new Date(t.start_date_time);
+          return tStart >= start && tStart <= end;
+        });
+
+        setTickets(filtered);
+        setAllFilteredTickets(filtered);
+
+      } catch (err) {
+        console.error("Error fetching tickets:", err);
+        Swal.fire("Error", "Failed to fetch tickets", "error");
+      } finally {
+        Swal.close();
+        setIsLoading(false);
+      }
+    };
+
+    if (triggerSearch) {
+      fetchTickets();
+      setTriggerSearch(false); // Reset after triggering
+    }
+  }, [triggerSearch, ticket_ids, startDateInput, endDateInput, searchTextInput]);
 
 
 
@@ -1180,7 +1185,7 @@ useEffect(() => {
 
 
   const handleDownloadImage = () => {
-    if (summaryRef.current === null) return;
+    if (reportRef.current === null) return;
 
     Swal.fire({
       title: "Preparing image...",
@@ -1191,7 +1196,7 @@ useEffect(() => {
       },
     });
 
-    toPng(summaryRef.current, { cacheBust: true })
+    toPng(reportRef.current, { cacheBust: true })
       .then((dataUrl) => {
         download(dataUrl, "tourism_summary.png");
         Swal.close(); // close the loading alert
@@ -1818,7 +1823,7 @@ useEffect(() => {
           </button>
         </div>
       </div>
-      <div className="d-flex justify-content-center mt-4 mb-5">
+      {/* <div className="d-flex justify-content-center mt-4 mb-5">
         <Button
           variant={showSummary ? "outline-danger" : "outline-secondary"}
           onClick={toggleSummary}
@@ -1830,226 +1835,296 @@ useEffect(() => {
               ? "Hide Summary"
               : "Show Summary"}
         </Button>
-      </div>
-      {showSummary && (
-        <>
+      </div> */}
+      <>
 
-          <div className="d-flex justify-content-between align-items-center mb-5 mt-5">
-            {/* Filter Buttons */}
-            <div>
-              <Button
-                variant={summaryFilter === "all" ? "secondary" : "outline-secondary"}
+        <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
+          {/* Filter Buttons */}
+          <div>
+            <Form.Group controlId="statusFilter" style={{ display: "inline-block" }}>
+              <Form.Label className="me-2 ms-2">Status Filter:</Form.Label>
+              <Form.Select
                 size="sm"
-                className="me-2"
-                onClick={() => setSummaryFilter("all")}
+                value={summaryFilter}
+                onChange={(e) => setSummaryFilter(e.target.value)}
+                style={{ width: "200px", display: "inline-block" }}
               >
-                All Data
-              </Button>
+                <option value="all">All Tickets</option>
+                <option value="scanned">Scanned Tickets Only</option>
+              </Form.Select>
+            </Form.Group>
+          </div>
+
+
+
+          {/* Title + Download */}
+          <div>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={handleDownloadImage}
+            >
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+          </div>
+        </div>
+
+
+        <div className="mt-2 bg-white p-2" ref={reportRef}>
+          <Tabs defaultActiveKey="summary" className="mb-4">
+
+            {/* Summary Tab */}
+            <Tab eventKey="summary" title="Summary" ref={summaryRef}>
+              <h6 className="mt-4">Summary</h6>
+              <small className="text-muted">
+                Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
+              </small>
+              <br></br>
+              <small className="text-muted mb-5">
+                <Badge bg="secondary" className="me-1 mt-2">
+                  {summary.totalTickets}
+                </Badge>{" "}
+                ticket(s) from{" "}
+                <strong>
+                  {new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>{" "}
+                to{" "}
+                <strong>
+                  {new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>
+              </small>
+
+              {(!isSmallScreen || showFullSummary) && (
+                <>
+                  <Row className="mb-3 g-3 mt-3">
+                    {Object.entries(statusCounts).map(([status, count], idx) => (
+                      <Col key={idx} md={2}>
+                        <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                          <div>
+                            <p className="mb-1 fw-semibold">{status}</p>
+                            <h6 className="mb-0 text-dark">
+                              <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                            </h6>
+                          </div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+
+                  <Row className="mb-2 g-3">
+                    {[
+                      { label: "Total Pax", value: summary.totalPax?.toLocaleString() || "0" },
+                      { label: "Expected Payment", value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                      { label: "Actual Payment", value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                      { label: "Expected Sale", value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                      { label: "Avg. Markup", value: `${averageMarkup?.toFixed(2)}%` },
+                      { label: "Avg. Sale per Ticket", value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                    ].map((item, idx) => (
+                      <Col key={idx} md={2}>
+                        <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                          <div>
+                            <p className="mb-1 fw-semibold">{item.label}</p>
+                            <Badge bg="light" text="dark"><h6 className="mb-0 text-dark">{item.value}</h6></Badge>
+
+                          </div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                  <Row className="g-3 mt-2">
+                    <Col md={4}>
+                      <SummaryPieChart
+                        title="Residency Breakdown"
+                        loading={false}
+                        data={hasResidencyData ? residencyData : []}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <SummaryPieChart
+                        title="Sex Breakdown"
+                        loading={false}
+                        data={hasSexData ? sexData : []}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <SummaryPieChart
+                        title="Age Breakdown"
+                        loading={false}
+                        data={hasAgeData ? ageData : []}
+                      />
+                    </Col>
+                  </Row>
+
+                  <Row className="g-3 mt-2">
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Activities Availed (by Pax)"
+                        data={topActivities}
+                        loading={allResolvedActivities.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Countries"
+                        data={topCountries}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Domestic Towns (Philippines)"
+                        data={topTowns}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                  </Row>
+                </>
+              )}
+            </Tab>
+
+            {/* Insights Tab */}
+            <Tab eventKey="insights" title="Insights">
+              <h6 className="mt-4">Insights</h6>
+              <small className="text-muted">
+                Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
+              </small>
+              <br></br>
+              <small className="text-muted mt-2">
+                Insights from data dated{" "}
+                <strong>
+                  {new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>{" "}
+                to{" "}
+                <strong>
+                  {new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>
+              </small>
+
+
+              <Row className="mb-4 mt-2 g-3">
+                <Col md={12}>
+                  <Tabs defaultActiveKey="ticketVsPax" id="dashboard-tabs" className="mb-3">
+
+                    <Tab eventKey="expectedSales" title="Expected Sale Forecast">
+                      <ExpectedSaleForecastChart
+                        title="Expected Sale Forecast"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                      />
+                    </Tab>
+
+                    <Tab eventKey="paymentVsActual" title="Expected vs Actual Payment">
+                      <PaymentPaxLineChart
+                        title="Expected vs Actual Payment"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                      />
+                    </Tab>
+
+                    <Tab eventKey="localVsForeign" title="Local vs Foreign">
+                      <TicketLocalVsForeign
+                        title="Local vs Foreign"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                      />
+                    </Tab>
+                    <Tab eventKey="scannedVsCreated" title="Tickets Generated vs Scanned">
+                      <TicketStatusLineChart
+                        title="Ticket Generate vs Scanned"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                        filterType={summaryFilter}
+
+                      />
+                    </Tab>
+                    <Tab eventKey="ticketVsPax" title="Ticket Vs Pax Forecast">
+                      <TicketPaxVsTicket
+                        title="Ticket Vs Pax Forecast"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                      />
+                    </Tab>
+                    <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
+                      <AgeGenderLineChart
+                        title="Age Gender Comparative"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                        filterType={summaryFilter}
+
+                      />
+                    </Tab>
+
+
+
+
+                  </Tabs>
+                </Col>
+              </Row>
+
+            </Tab>
+
+
+            {/* Performance Tab */}
+            <Tab eventKey="performance" title="Performance">
+              <h6 className="mt-4">Performance</h6>
+              <small className="text-muted">
+                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+              </small>
+
+              <Row className="g-3 mt-2">
+                <Col md={12}>
+                  <TicketsSummaryTable
+                    loading={!hasFilteredSummaryData}
+                    filterType={summaryFilter}
+                  />
+                </Col>
+              </Row>
+            </Tab>
+
+          </Tabs>
+
+          {isSmallScreen && (
+            <div className="mt-2">
               <Button
-                variant={summaryFilter === "scanned" ? "secondary" : "outline-secondary"}
                 size="sm"
-                onClick={() => setSummaryFilter("scanned")}
+                variant="link"
+                onClick={() => setShowFullSummary(prev => !prev)}
               >
-                Scanned Data Only
+                {showFullSummary ? "Read less" : "Read more"}
               </Button>
             </div>
+          )}
+          <p className="mt-5 mb-5 text-muted small text-center">
+            <strong>Reminder:</strong> All information displayed is handled in compliance with the
+            <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
+            Please ensure that personal data is accessed and used only for authorized and lawful purposes.
+          </p>
+        </div>
 
-            {/* Title + Download */}
-            <div>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={handleDownloadImage}
-              >
-                <FontAwesomeIcon icon={faDownload} /> Download Report
-              </Button>
-            </div>
-          </div>
-          <div className="mt-5  bg-white p-2" ref={summaryRef}>
+      </>
 
-            <h6>Summary</h6>
-            <p className="text-muted">
-              <strong>{summary.totalTickets}</strong> ticket(s) from{" "}
-              <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-                year: "numeric", month: "long", day: "numeric"
-              })}</strong>{" "}
-              to{" "}
-              <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-                year: "numeric", month: "long", day: "numeric"
-              })}</strong>
-            </p>
-
-
-
-            {(!isSmallScreen || showFullSummary) && (
-              <>
-
-                <Row className="mb-3 g-3">
-                  {Object.entries(statusCounts).map(([status, count], idx) => (
-                    <Col key={idx} md={2}>
-                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                        <div>
-                          <p className="mb-1 fw-semibold">{status}</p>
-                          <h6 className="mb-0 text-dark">
-                            <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-                          </h6>
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-                <Row className="mb-2 g-3">
-                  {[
-                    {
-                      label: "Total Pax",
-                      value: summary.totalPax?.toLocaleString() || "0",
-                    },
-                    {
-                      label: "Expected Payment",
-                      value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Actual Payment",
-                      value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Expected Sale",
-                      value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                    {
-                      label: "Avg. Markup",
-                      value: `${averageMarkup?.toFixed(2)}%`,
-                    },
-                    {
-                      label: "Avg. Sale per Ticket",
-                      value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    },
-                  ].map((item, idx) => (
-                    <Col key={idx} md={2}>
-                      <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                        <div>
-                          <p className="mb-1 fw-semibold">{item.label}</p>
-                          <h6 className="mb-0 text-dark">{item.value}</h6>
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-
-
-                <Row className="g-3 mt-2">
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Residency Breakdown"
-                      loading={false}
-                      data={hasResidencyData ? residencyData : []}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Sex Breakdown"
-                      loading={false}
-                      data={hasSexData ? sexData : []}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <SummaryPieChart
-                      title="Age Breakdown"
-                      loading={false}
-                      data={hasAgeData ? ageData : []}
-                    />
-                  </Col>
-                </Row>
-                <Row className="g-3 mt-2 mb-4">
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Activities Availed (by Pax)"
-                      data={topActivities}
-                      loading={resolvedActivities.length === 0}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Countries"
-                      data={topCountries}
-                      loading={filteredSummaryTickets.length === 0}
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TopRankingChart
-                      title="Top 10 Domestic Towns (Philippines)"
-                      data={topTowns}
-                      loading={filteredSummaryTickets.length === 0}
-                    />
-                  </Col>
-
-
-                </Row>
-
-                <Row className="mb-4 g-3">
-                  <Col md={12}>
-
-                    <TicketPaxVsTicket
-                      title="Ticket Vs Pax Forecast"
-                      tickets={filteredSummaryTickets}
-                      startDate={startDateInput}
-                      endDate={endDateInput}
-                    />
-                  </Col>
-                  <Col md={12}>
-
-                    <ExpectedSaleForecastChart
-                      title="Expected Sale Forecast"
-                      tickets={filteredSummaryTickets}
-                      startDate={startDateInput}
-                      endDate={endDateInput}
-                    />
-                  </Col>
-                  <Col md={12}>
-
-                    <PaymentPaxLineChart
-                      title="Expected vs Actual Payment"
-                      tickets={filteredSummaryTickets}
-                      startDate={startDateInput}
-                      endDate={endDateInput}
-                    />
-                  </Col>
-                  
-
-                </Row>
-                <Row className="g-3 mt-2">
-                  <Col md={12}>
-                    <TicketsSummaryTable
-                      allFilteredTickets={filteredSummaryTickets}
-                      loading={!hasFilteredSummaryData}
-                    />
-
-                  </Col>
-                </Row>
-
-              </>
-            )}
-
-            {isSmallScreen && (
-              <div className="mt-2">
-                <Button
-                  size="sm"
-                  variant="link"
-                  onClick={() => setShowFullSummary(prev => !prev)}
-                >
-                  {showFullSummary ? "Read less" : "Read more"}
-                </Button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      <p className="mt-5 mb-5 text-muted small text-center">
-        <strong>Reminder:</strong> All information displayed is handled in compliance with the
-        <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
-        Please ensure that personal data is accessed and used only for authorized and lawful purposes.
-      </p>
 
 
 
