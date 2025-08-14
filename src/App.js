@@ -19,7 +19,7 @@ import TourismCertView from './components/TourismCertView.js';
 import EditEmployeeForm from './pages/EditEmployee.js';
 import EmployeeQRScannerPage from './pages/ApplicationStatusCheck.js';
 import TourismCertQRScannerPage from './pages/Tourism_Cert_Check.js';
-
+import TourismCertSearchPage from './pages/Tourism_Cert_Search.js'
 // Private Route
 function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
@@ -43,6 +43,8 @@ function App() {
             <Route path="/application-status-check" element={<EmployeeQRScannerPage />} />
             <Route path="/application-status-check/:registration_id" element={<EmployeeQRScannerPage />} />
             <Route path="/tourism-cert-check" element={<TourismCertQRScannerPage />} />
+            <Route path="/find-my-cert" element={<TourismCertSearchPage />} />
+
 
 
             {/* /quickstatus/:employee_quickstatus_id */}

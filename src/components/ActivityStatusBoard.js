@@ -1130,6 +1130,41 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       value,
     }));
 
+    // NEW: Base price map
+const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+  acc[a.id] = Number(a.activity_base_price) || 0;
+  return acc;
+}, {});
+
+ const activitySaleTotals = {};
+
+filteredSummaryTickets.forEach(ticket => {
+  if (!Array.isArray(ticket.activities)) return;
+
+  ticket.activities.forEach(act => {
+    const availedIds = act.activities_availed || [];
+    const pax = Number(act.activity_num_pax || 0);
+
+    availedIds.forEach(id => {
+      if (!id) return;
+
+      const expectedPrice = Number(activityBasePriceMap[id] || 0);
+      const activitySale =  Number(ticket.total_payment || 0) - (expectedPrice * pax);
+
+      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+      activitySaleTotals[id] += activitySale;
+    });
+  });
+});
+
+const topActivitiesBySale = Object.entries(activitySaleTotals)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([activityId, value]) => ({
+    name: activityNameMap[activityId] || activityId,
+    value,
+}));
+
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};
 
@@ -1179,13 +1214,74 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       name: town,
       value,
     }));
+  const employeeTicketCounts = {};
 
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
+
+    // Initialize count if not set
+    if (!employeeTicketCounts[empId]) employeeTicketCounts[empId] = 0;
+
+    // Increment ticket count for this employee
+    employeeTicketCounts[empId] += 1;
+  });
+
+  // Map employee IDs to their names (from employeeMap)
+  const employeeNameMap = Object.values(employeeMap || {}).reduce((acc, emp) => {
+    acc[emp.employeeId] = emp.firstname || "Unknown Employee";
+    return acc;
+  }, {});
+
+  // Create a top employees array
+  const topEmployees = Object.entries(employeeTicketCounts)
+    .sort((a, b) => b[1] - a[1]) // sort by ticket count descending
+    .slice(0, 10) // top 10
+    .map(([empId, value]) => ({
+      name: employeeNameMap[empId] || empId,
+      value,
+    }));
+
+  const employeePaxCounts = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
+
+    // Calculate pax for this ticket
+    let pax = 0;
+    if (Array.isArray(ticket.address)) {
+      ticket.address.forEach(addr => {
+        pax += Number(addr?.males || 0) + Number(addr?.females || 0);
+      });
+    }
+
+    // Add pax to this employee's total
+    if (!employeePaxCounts[empId]) employeePaxCounts[empId] = 0;
+    employeePaxCounts[empId] += pax;
+  });
+
+  // Create top employees array
+  const topEmployeesByPax = Object.entries(employeePaxCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([empId, value]) => {
+      const emp = Array.isArray(employeeMap)
+        ? employeeMap.find(e => String(e.employeeId) === String(empId))
+        : employeeMap?.[empId] || employeeMap?.[String(empId)];
+
+      const name = emp
+        ? `${emp.firstname ?? ""} ${emp.surname ?? ""}`.trim() || String(empId)
+        : String(empId);
+
+      return { name, value };
+    });
 
 
 
 
   const handleDownloadImage = () => {
-    if (reportRef.current === null) return;
+    if (summaryRef.current === null) return;
 
     Swal.fire({
       title: "Preparing image...",
@@ -1196,7 +1292,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       },
     });
 
-    toPng(reportRef.current, { cacheBust: true })
+    toPng(summaryRef.current, { cacheBust: true })
       .then((dataUrl) => {
         download(dataUrl, "tourism_summary.png");
         Swal.close(); // close the loading alert
@@ -1239,13 +1335,20 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
           {/* RIGHT SIDE: Icon Buttons */}
           <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0">
-            <Button variant="outline-secondary" title="Refresh Tickets" onClick={handleRefresh}>
+            <Button
+              variant="outline-secondary"
+              title="Refresh Tickets"
+              size="sm"
+              onClick={handleRefresh}
+            >
               <FontAwesomeIcon icon={faRefresh} /> Refresh
             </Button>
 
-
-            <Dropdown show={showSearchDropdown} onToggle={() => setShowSearchDropdown(!showSearchDropdown)}>
-              <Dropdown.Toggle variant="outline-secondary" as={Button}>
+            <Dropdown
+              show={showSearchDropdown}
+              onToggle={() => setShowSearchDropdown(!showSearchDropdown)}
+            >
+              <Dropdown.Toggle variant="outline-secondary" as={Button} size="sm">
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
               </Dropdown.Toggle>
 
@@ -1256,6 +1359,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     value={searchType}
                     onChange={(e) => setSearchType(e.target.value)}
                     className="mb-2"
+                    size="sm"
                   >
                     <option value="name">Name / Contact</option>
                     <option value="employeeName">Employee Name</option>
@@ -1273,20 +1377,174 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     value={searchTextInput}
                     onChange={(e) => setSearchTextInput(e.target.value)}
                     className="mb-2"
+                    size="sm"
                   />
 
-
-                  <Button variant="primary" size="sm" onClick={() => {
-                    setShowSearchDropdown(false);
-                    handleSearch();
-                  }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setShowSearchDropdown(false);
+                      handleSearch();
+                    }}
+                  >
                     Search
                   </Button>
                 </Form>
               </Dropdown.Menu>
             </Dropdown>
-            <Dropdown show={showDateSearchDropdown} onToggle={() => setShowDateSearchDropdown(!showDateSearchDropdown)}>
-              <Dropdown.Toggle as={Button} variant="outline-secondary" title="Date Range Search">
+
+            <Dropdown
+              show={showGroupFilter}
+              onToggle={() => setShowGroupFilter(!showGroupFilter)}
+            >
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                title="Group Filter"
+                size="sm"
+              >
+                <FontAwesomeIcon icon={faLayerGroup} />
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu
+                style={{ minWidth: "280px", padding: "15px", maxHeight: "400px", overflowY: "auto" }}
+              >
+                <Form>
+                  {/* Status Filter */}
+                  <Form.Group controlId="filter-status" className="mb-3">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">All</option>
+                      <option value="Queued">Queued</option>
+                      <option value="On Time">On Time</option>
+                      <option value="Ongoing">Ongoing</option>
+                      <option value="Done">Done</option>
+                      <option value="Delayed">Delayed</option>
+                      <option value="Canceled">Canceled</option>
+                      <option value="Schedule Change">Schedule Change</option>
+                      <option value="Reassigned">Reassigned</option>
+                      <option value="Relocate">Relocate</option>
+                      <option value="On Emergency">On Emergency</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Country Filter */}
+                  <Form.Group controlId="filter-country" className="mb-3">
+                    <Form.Label>Country</Form.Label>
+                    <Select
+                      options={countryOptions}
+                      value={
+                        filterCountry
+                          ? { value: filterCountry, label: filterCountry }
+                          : { value: "", label: "All Countries" }
+                      }
+                      onChange={(selected) => setFilterCountry(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Country"
+                      styles={{ control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.875rem" }) }}
+                    />
+                  </Form.Group>
+
+                  {/* Town Filter */}
+                  <Form.Group controlId="filter-town" className="mb-3">
+                    <Form.Label>Town</Form.Label>
+                    <Select
+                      options={townOptions}
+                      value={
+                        filterTown
+                          ? { value: filterTown, label: filterTown }
+                          : { value: "", label: "All Towns" }
+                      }
+                      onChange={(selected) => setFilterTown(selected?.value || "")}
+                      isClearable
+                      placeholder="Select Town"
+                      styles={{ control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.875rem" }) }}
+                    />
+                  </Form.Group>
+
+                  {/* Residency Filter */}
+                  <Form.Group controlId="filter-residency" className="mb-3">
+                    <Form.Label>Residency</Form.Label>
+                    <Form.Select
+                      value={filterResidency}
+                      onChange={(e) => setFilterResidency(e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">All</option>
+                      <option value="local">Local</option>
+                      <option value="foreign">Foreign</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Sex Filter */}
+                  <Form.Group controlId="filter-sex" className="mb-3">
+                    <Form.Label>Sex</Form.Label>
+                    <Form.Select
+                      value={filterSex}
+                      onChange={(e) => setFilterSex(e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">All</option>
+                      <option value="males">Male</option>
+                      <option value="females">Female</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {/* Age Bracket Filter */}
+                  <Form.Group controlId="filter-age" className="mb-3">
+                    <Form.Label>Age Bracket</Form.Label>
+                    <Form.Select
+                      value={filterAgeBracket}
+                      onChange={(e) => setFilterAgeBracket(e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">All</option>
+                      <option value="kids">Kids</option>
+                      <option value="teens">Teens</option>
+                      <option value="adults">Adults</option>
+                      <option value="seniors">Seniors</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  <div className="d-grid gap-2 mt-3">
+                    <Button variant="primary" size="sm" onClick={() => handleSearch()}>
+                      Apply Filters
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={() => {
+                        setFilterStatus("");
+                        setFilterResidency("");
+                        setFilterSex("");
+                        setFilterAgeBracket("");
+                        setFilterCountry("");
+                        setFilterTown("");
+                        setFilteredTickets(allFilteredTickets);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </Form>
+              </Dropdown.Menu>
+            </Dropdown>
+
+            <Dropdown
+              show={showDateSearchDropdown}
+              onToggle={() => setShowDateSearchDropdown(!showDateSearchDropdown)}
+            >
+              <Dropdown.Toggle
+                as={Button}
+                variant="outline-secondary"
+                title="Date Range Search"
+                size="sm"
+              >
                 <FontAwesomeIcon icon={faCalendarDays} />
               </Dropdown.Toggle>
 
@@ -1297,6 +1555,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     type="date"
                     value={startDateInput}
                     onChange={(e) => setStartDateInput(e.target.value)}
+                    size="sm"
                   />
                 </Form.Group>
                 <Form.Group className="mb-2">
@@ -1306,6 +1565,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     value={endDateInput}
                     min={startDateInput}
                     onChange={(e) => setEndDateInput(e.target.value)}
+                    size="sm"
                   />
                 </Form.Group>
                 <Form.Label className="small text-muted mt-3">Quick Date Filters</Form.Label>
@@ -1315,11 +1575,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisMonth")}>This Month</Button>
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisHalfOfTheMonth")}>This Half Month</Button>
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisYear")}>This Year</Button>
-
                 </div>
-
-
-
 
                 {/* Select Month Filter */}
                 <Form.Group className="mb-3">
@@ -1329,21 +1585,19 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     value={selectedMonth}
                     onChange={(e) => {
                       setSelectedMonth(e.target.value);
-
                       if (e.target.value) {
                         const [year, month] = e.target.value.split("-");
                         const start = new Date(year, month - 1, 1);
-                        const end = new Date(year, month, 0); // this gives the last day of the correct month
+                        const end = new Date(year, month, 0);
                         end.setHours(23, 59, 59, 999);
-
                         const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
                         setStartDateInput(formatDateLocal(start));
                         setEndDateInput(formatDateLocal(end));
-
                         setSelectedDateFilter("");
                         setSelectedYear("");
                       }
                     }}
+                    size="sm"
                   />
                 </Form.Group>
 
@@ -1359,19 +1613,17 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     onChange={(e) => {
                       const input = e.target.value;
                       setSelectedYear(input);
-
                       if (input.length === 4 && !isNaN(input)) {
                         const start = new Date(input, 0, 1);
                         const end = new Date(input, 11, 31, 23, 59, 59, 999);
-
                         const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
                         setStartDateInput(formatDateLocal(start));
                         setEndDateInput(formatDateLocal(end));
-
                         setSelectedDateFilter("");
                         setSelectedMonth("");
                       }
                     }}
+                    size="sm"
                   />
                 </Form.Group>
 
@@ -1381,22 +1633,29 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   className="w-100 mt-2 mb-4"
                   onClick={() => {
                     setShowDateSearchDropdown(false);
-                    setTriggerSearch(true); // ✅ TRIGGERS the fetching based on inputs
+                    setTriggerSearch(true);
                   }}
                 >
                   Apply Date Filter
                 </Button>
-
               </Dropdown.Menu>
             </Dropdown>
 
-            <Button variant="outline-secondary" title="Download" onClick={handleDownloadTable}>
+            <Button
+              variant="outline-secondary"
+              title="Download"
+              onClick={handleDownloadTable}
+              size="sm"
+            >
               <FontAwesomeIcon icon={faDownload} />
             </Button>
 
-
             <Dropdown>
-              <Dropdown.Toggle variant="outline-secondary" title="Export">
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                title="Export"
+                size="sm"
+              >
                 <FontAwesomeIcon icon={faPrint} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
@@ -1405,12 +1664,21 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
               </Dropdown.Menu>
             </Dropdown>
 
-            <Dropdown show={showColumnDropdown} onToggle={() => setShowColumnDropdown(!showColumnDropdown)}>
-              <Dropdown.Toggle variant="outline-secondary" title="Customize Columns">
+            <Dropdown
+              show={showColumnDropdown}
+              onToggle={() => setShowColumnDropdown(!showColumnDropdown)}
+            >
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                title="Customize Columns"
+                size="sm"
+              >
                 <FontAwesomeIcon icon={faColumns} />
               </Dropdown.Toggle>
 
-              <Dropdown.Menu style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}>
+              <Dropdown.Menu
+                style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}
+              >
                 <div className="d-flex justify-content-between mb-2">
                   <Button
                     variant="link"
@@ -1430,8 +1698,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   </Button>
                 </div>
 
-
-
                 <Form>
                   {allColumns.map(col => (
                     <Form.Check
@@ -1447,119 +1713,9 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                             : [...prev, col.key]
                         );
                       }}
+                      size="sm"
                     />
                   ))}
-                </Form>
-              </Dropdown.Menu>
-            </Dropdown>
-
-            <Dropdown show={showGroupFilter} onToggle={() => setShowGroupFilter(!showGroupFilter)}>
-              <Dropdown.Toggle variant="outline-secondary" title="Group Filter">
-                <FontAwesomeIcon icon={faLayerGroup} />
-              </Dropdown.Toggle>
-
-              <Dropdown.Menu style={{ minWidth: "280px", padding: "15px", maxHeight: "400px", overflowY: "auto" }}>
-                <Form>
-                  {/* Status Filter */}
-                  <Form.Group controlId="filter-status" className="mb-3">
-                    <Form.Label>Status</Form.Label>
-                    <Form.Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="Queued">Queued</option>
-                      <option value="On Time">On Time</option>
-                      <option value="Ongoing">Ongoing</option>
-                      <option value="Done">Done</option>
-                      <option value="Delayed">Delayed</option>
-                      <option value="Canceled">Canceled</option>
-                      <option value="Schedule Change">Schedule Change</option>
-                      <option value="Reassigned">Reassigned</option>
-                      <option value="Relocate">Relocate</option>
-                      <option value="On Emergency">On Emergency</option>
-                    </Form.Select>
-                  </Form.Group>
-                  {/* Country Filter */}
-                  <Form.Group controlId="filter-country" className="mb-3">
-                    <Form.Label>Country</Form.Label>
-                    <Select
-                      options={countryOptions}
-                      value={
-                        filterCountry
-                          ? { value: filterCountry, label: filterCountry }
-                          : { value: "", label: "All Countries" }
-                      }
-                      onChange={(selected) => setFilterCountry(selected?.value || "")}
-                      isClearable
-                      placeholder="Select Country"
-                    />
-                  </Form.Group>
-
-                  {/* Town Filter */}
-                  <Form.Group controlId="filter-town" className="mb-3">
-                    <Form.Label>Town</Form.Label>
-                    <Select
-                      options={townOptions}
-                      value={
-                        filterTown
-                          ? { value: filterTown, label: filterTown }
-                          : { value: "", label: "All Towns" }
-                      }
-                      onChange={(selected) => setFilterTown(selected?.value || "")}
-                      isClearable
-                      placeholder="Select Town"
-                    />
-                  </Form.Group>
-
-                  {/* Residency Filter */}
-                  <Form.Group controlId="filter-residency" className="mb-3">
-                    <Form.Label>Residency</Form.Label>
-                    <Form.Select value={filterResidency} onChange={(e) => setFilterResidency(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="local">Local</option>
-                      <option value="foreign">Foreign</option>
-                    </Form.Select>
-                  </Form.Group>
-
-                  {/* Sex Filter */}
-                  <Form.Group controlId="filter-sex" className="mb-3">
-                    <Form.Label>Sex</Form.Label>
-                    <Form.Select value={filterSex} onChange={(e) => setFilterSex(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="males">Male</option>
-                      <option value="females">Female</option>
-                      <option value="prefer_not_to_say">Prefer not to say</option>
-                    </Form.Select>
-                  </Form.Group>
-
-                  {/* Age Bracket Filter */}
-                  <Form.Group controlId="filter-age" className="mb-3">
-                    <Form.Label>Age Bracket</Form.Label>
-                    <Form.Select value={filterAgeBracket} onChange={(e) => setFilterAgeBracket(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="kids">Kids</option>
-                      <option value="teens">Teens</option>
-                      <option value="adults">Adults</option>
-                      <option value="seniors">Seniors</option>
-                    </Form.Select>
-                  </Form.Group>
-
-                  <div className="d-grid gap-2 mt-3">
-                    <Button variant="primary" onClick={() => handleSearch()}>Apply Filters</Button>
-                    <Button
-                      variant="outline-secondary"
-                      onClick={() => {
-                        setFilterStatus("");
-                        setFilterResidency("");
-                        setFilterSex("");
-                        setFilterAgeBracket("");
-                        setFilterCountry("");
-                        setFilterTown("");
-                        setFilteredTickets(allFilteredTickets); // <-- Reset to full original
-                      }}
-                    >
-                      Reset
-                    </Button>
-
-                  </div>
                 </Form>
               </Dropdown.Menu>
             </Dropdown>
@@ -1857,16 +2013,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
 
 
-          {/* Title + Download */}
-          <div>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={handleDownloadImage}
-            >
-              <FontAwesomeIcon icon={faDownload} />
-            </Button>
-          </div>
+
         </div>
 
 
@@ -1874,8 +2021,18 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
           <Tabs defaultActiveKey="summary" className="mb-4">
 
             {/* Summary Tab */}
-            <Tab eventKey="summary" title="Summary" ref={summaryRef}>
-              <h6 className="mt-4">Summary</h6>
+            <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
+              <div className="d-flex align-items-center justify-content-between mt-4">
+                <h6 className="mb-0">Summary</h6>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={handleDownloadImage}
+                >
+                  <FontAwesomeIcon icon={faDownload} />
+                </Button>
+              </div>
+
               <small className="text-muted">
                 Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
               </small>
@@ -1986,6 +2143,31 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       />
                     </Col>
                   </Row>
+                  <Row className="g-3 mt-2">
+
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Activities (by Expected Sale)"
+                        data={topActivitiesBySale}
+                        loading={allResolvedActivities.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Performing Employees (by Tickets)"
+                        data={topEmployees}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top 10 Performing Employees (by Pax)"
+                        data={topEmployeesByPax}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                  </Row>
+
                 </>
               )}
             </Tab>

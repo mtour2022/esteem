@@ -101,24 +101,36 @@ const ActivityAdminPage = () => {
             showCancelButton: true,
             confirmButtonText: isEditing ? "Yes, update it!" : "Yes, add it!"
         });
-        if (result.isConfirmed) {
+
+        if (!result.isConfirmed) return;
+
+        if (isEditing) {
             const payload = {
                 ...formData,
+                activity_id: editDocId, // ensure id is saved in model
                 activity_providers: formData.activity_providers.map(p => p.value)
             };
+            await updateDoc(doc(db, "activities", editDocId), payload);
+            Swal.fire("Updated!", "Activity updated successfully.", "success");
+        } else {
+            // First add the document without activity_id
+            const docRef = await addDoc(collection(db, "activities"), {
+                ...formData,
+                activity_providers: formData.activity_providers.map(p => p.value)
+            });
 
-            if (isEditing) {
-                await updateDoc(doc(db, "activities", editDocId), payload);
-                Swal.fire("Updated!", "Activity updated successfully.", "success");
-            } else {
-                await addDoc(collection(db, "activities"), payload);
-                Swal.fire("Added!", "Activity added successfully.", "success");
-            }
+            // Then update it with the generated doc ID
+            await updateDoc(doc(db, "activities", docRef.id), {
+                activity_id: docRef.id
+            });
 
-            fetchActivities();
-            handleClear();
+            Swal.fire("Added!", "Activity added successfully.", "success");
         }
+
+        fetchActivities();
+        handleClear();
     };
+
 
     // Filtered + paginated data
     const filteredActivities = activities.filter(p =>
@@ -208,7 +220,7 @@ const ActivityAdminPage = () => {
                             </td>
                         </tr>
                     ))}
-                     {paginatedActivities.length === 0 && (
+                    {paginatedActivities.length === 0 && (
                         <tr>
                             <td colSpan="2" className="text-center text-muted">
                                 No data found

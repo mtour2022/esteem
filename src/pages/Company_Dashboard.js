@@ -417,6 +417,7 @@ export default function CompanyDashboardPage() {
                     {/* Control Bar Row */}
                     <div className="d-flex justify-content-end align-items-center gap-2 p-3 me-0 me-md-4 mt-4">
                         <Button
+                            size='sm'
                             variant="outline-secondary"
                             onClick={() => setIsFullScreen((prev) => !prev)}
                             title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
@@ -428,6 +429,7 @@ export default function CompanyDashboardPage() {
                         <Dropdown align="end">
                             <Dropdown.Toggle
                                 as={Button}
+                                size="sm" // <-- Small size
                                 variant="outline-secondary"
                                 id="dropdown-custom-button"
                             >
@@ -441,6 +443,7 @@ export default function CompanyDashboardPage() {
                                 <Dropdown.Item>Log Out</Dropdown.Item>
                             </Dropdown.Menu>
                         </Dropdown>
+
                     </div>
 
 

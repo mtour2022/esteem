@@ -92,42 +92,57 @@ const TourismCert = ({ emp, company, hideNavAndFooter = false }) => {
         day: "numeric"
     });
 
-    const handleDownloadImage = async () => {
+    const exportWithFixedSize = async (exportType = "image") => {
         if (!certRef.current) return;
 
-        const canvas = await html2canvas(certRef.current, {
-            scale: 300 / 96,
-            useCORS: true
-        });
+        // Save original style
+        const originalWidth = certRef.current.style.width;
+        const originalHeight = certRef.current.style.height;
+        const originalMaxWidth = certRef.current.style.maxWidth;
 
-        const link = document.createElement("a");
-        link.download = `tourism_certificate_${cert.tourism_cert_id}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-    };
+        // Force Letter size for capture
+        certRef.current.style.width = "816px";
+        certRef.current.style.height = "1056px";
+        certRef.current.style.maxWidth = "none";
 
-    const handleDownloadPDF = async () => {
-        if (!certRef.current) return;
+        // Wait a tick so browser applies style
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
+        // Capture with html2canvas
         const canvas = await html2canvas(certRef.current, {
             scale: 2,
             useCORS: true
         });
 
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("portrait", "pt", "letter");
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-        const imgWidth = canvas.width * ratio;
-        const imgHeight = canvas.height * ratio;
+        if (exportType === "image") {
+            const link = document.createElement("a");
+            link.download = `tourism_certificate_${cert.tourism_cert_id}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        } else if (exportType === "pdf") {
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF("portrait", "pt", "letter");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+            const imgWidth = canvas.width * ratio;
+            const imgHeight = canvas.height * ratio;
+            const x = (pageWidth - imgWidth) / 2;
+            const y = 0;
 
-        const x = (pageWidth - imgWidth) / 2;
-        const y = 0;
+            pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight);
+            pdf.save(`tourism_certificate_${cert.tourism_cert_id}.pdf`);
+        }
 
-        pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight);
-        pdf.save(`tourism_certificate_${cert.tourism_cert_id}.pdf`);
+        // Restore original style
+        certRef.current.style.width = originalWidth;
+        certRef.current.style.height = originalHeight;
+        certRef.current.style.maxWidth = originalMaxWidth;
     };
+
+    const handleDownloadImage = () => exportWithFixedSize("image");
+    const handleDownloadPDF = () => exportWithFixedSize("pdf");
+
 
     return (
         <Container fluid>
@@ -135,22 +150,30 @@ const TourismCert = ({ emp, company, hideNavAndFooter = false }) => {
 
             <div className="d-flex flex-column align-items-center mt-5">
                 {/* ✅ Added note below buttons */}
-                <p
-                    className="text-muted px-3 mb-4"
+                <div
+                    className="alert alert-info px-3 py-3 mb-4"
                     style={{
-                        maxWidth: "800px",
+                        marginLeft: "10px",
+                        marginRight: "10px",
+                        maxWidth: "750px",
                         fontSize: "12px",
                         textAlign: "justify",
+                        backgroundColor: "#e8f4fa",
+                        borderLeft: "4px solid #17a2b8",
                     }}
                 >
-                    The generated Tourism Certificate is an official digital copy issued by the
-                    Local Government Unit of Malay through the Municipal Tourism Office,
-                    certifying compliance with the applicable Municipal Tourism requirements
-                    pursuant to Section 3, letters D and E of Municipal Ordinance No. 150,
-                    Series of 2022 (Creating the Municipal Tourism Office and Defining its Duties
-                    and Functions). Printed copies are considered valid reproductions of the
-                    original digital certificate.
-                </p>
+                    <p className="mb-0 text-muted">
+                        The generated Tourism Certificate is an official digital copy issued by the
+                        Local Government Unit of Malay through the Municipal Tourism Office,
+                        certifying compliance with the applicable Municipal Tourism requirements
+                        pursuant to Section 3, letters D and E of Municipal Ordinance No. 150,
+                        Series of 2022 (Creating the Municipal Tourism Office and Defining its Duties
+                        and Functions). Printed copies are considered valid reproductions of the
+                        original digital certificate.
+                    </p>
+                </div>
+
+
 
                 <div className="d-flex justify-content-center gap-3 mb-3 mt-5">
                     <Button variant="outline-secondary" size="md" onClick={handleDownloadImage}>
@@ -173,22 +196,22 @@ const TourismCert = ({ emp, company, hideNavAndFooter = false }) => {
                     backgroundColor: "white"
                 }}>
 
-                {/* ✅ Background Image */}
-<div
-    style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundImage: `url(${require('../assets/images/lgu.png')})`,
-        backgroundSize: "80%", // ✅ Size reduced to 80%
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center", // ✅ Perfectly centered
-        opacity: 0.05,
-        zIndex: 0
-    }}
-></div>
+                    {/* ✅ Background Image */}
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            backgroundImage: `url(${require('../assets/images/lgu.png')})`,
+                            backgroundSize: "80%", // ✅ Size reduced to 80%
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "center", // ✅ Perfectly centered
+                            opacity: 0.05,
+                            zIndex: 0
+                        }}
+                    ></div>
 
                     <div style={{ position: "relative", zIndex: 1 }}>
                         {/* Header */}
@@ -273,7 +296,7 @@ const TourismCert = ({ emp, company, hideNavAndFooter = false }) => {
                         {/* QR and footer */}
                         <div className="d-flex align-items-center mt-3" style={{ fontSize: "12px" }}>
                             <QRCodeCanvas
-                                value={`https://projectesteem.com/tourism_certificate/verification/${cert.tourism_cert_id}`}
+                                value={`https://projectesteem.com/tourism_certificate/${cert.tourism_cert_id}`}
                                 size={100}
                             />
                             <div className="ms-3">
@@ -281,27 +304,27 @@ const TourismCert = ({ emp, company, hideNavAndFooter = false }) => {
                                 <div className="text-muted mt-2">This is an official electronic copy issued by the LGU Malay through the Municipal Tourism Office via Project ESTEEM - Electronic System for Tracking, Evaluating, and Expert Monitoring of Tourism Information in The Municipality of Malay.</div>
                                 <div className="mt-1">
                                     <a
-                                        href={`https://projectesteem.com/tourism_certificate/verification/${cert.tourism_cert_id}`}
+                                        href={`https://projectesteem.com/tourism_certificate/${cert.tourism_cert_id}`}
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        Verify: projectesteem.com/tourism_certificate/verification/{cert.tourism_cert_id}
+                                        Verify: projectesteem.com/tourism_certificate/{cert.tourism_cert_id}
                                     </a>
                                 </div>
                             </div>
                         </div>
 
                         <hr className="my-4" />
-                       <p
-  className="text-muted small text-justify"
-  style={{ fontSize: "10px" }}
->
-  <strong>Note on Data Privacy:</strong> This certificate contains personal
-  information protected under the Data Privacy Act of 2012 (Republic Act No.
-  10173). Any unauthorized collection, use, disclosure, or processing of this
-  information is strictly prohibited. This document is issued solely for its
-  intended purpose and should be handled with utmost confidentiality.
-</p>
+                        <p
+                            className="text-muted small text-justify"
+                            style={{ fontSize: "10px" }}
+                        >
+                            <strong>Note on Data Privacy:</strong> This certificate contains personal
+                            information protected under the Data Privacy Act of 2012 (Republic Act No.
+                            10173). Any unauthorized collection, use, disclosure, or processing of this
+                            information is strictly prohibited. This document is issued solely for its
+                            intended purpose and should be handled with utmost confidentiality.
+                        </p>
 
                         <hr className="mt-1 mb-4" />
 

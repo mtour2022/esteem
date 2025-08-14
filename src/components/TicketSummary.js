@@ -4,9 +4,6 @@ import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import download from "downloadjs";
 import Swal from "sweetalert2";
-import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
-import { db } from "../config/firebase"; // adjust based on your project structure
-import { useEffect, useState } from "react";
 import useResolvedActivities from "../services/GetActivitiesDetails";
 import useResolvedProviders from "../services/GetProvidersDetails"
 import useCompanyInfo from "../services/GetCompanyDetails";
@@ -74,52 +71,126 @@ const TicketSummary = ({ ticket }) => {
     .filter((v, i, arr) => arr.indexOf(v) === i) // remove duplicates
     .join(", ");
 
-  const handleDownloadImage = () => {
-    if (exportRef.current === null) return;
+  // const handleDownloadImage = () => {
+  //   if (exportRef.current === null) return;
 
-    const now = new Date();
+  //   const now = new Date();
 
-    // Format: Jan162025-08:15AM
-    const options = { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true };
-    const formatted = now.toLocaleString("en-US", options)
-      .replace(",", "")                // Remove comma after date
-      .replace(/ /g, "")               // Remove spaces
-      .replace("AM", "AM")             // Keep AM/PM clean
-      .replace("PM", "PM")             // (not lowercase)
-      .replace(":", "");               // Optional: remove colon if you want `0815AM`
+  //   // Format: Jan162025-08:15AM
+  //   const options = { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true };
+  //   const formatted = now.toLocaleString("en-US", options)
+  //     .replace(",", "")                // Remove comma after date
+  //     .replace(/ /g, "")               // Remove spaces
+  //     .replace("AM", "AM")             // Keep AM/PM clean
+  //     .replace("PM", "PM")             // (not lowercase)
+  //     .replace(":", "");               // Optional: remove colon if you want `0815AM`
 
-    const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
+  //   const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
 
-    Swal.fire({
-      title: "Generating image...",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
+  //   Swal.fire({
+  //     title: "Generating image...",
+  //     allowOutsideClick: false,
+  //     didOpen: () => {
+  //       Swal.showLoading();
+  //     },
+  //   });
 
-    toPng(exportRef.current, { cacheBust: true })
-      .then((dataUrl) => {
-        download(dataUrl, filename);
-        Swal.close();
-        Swal.fire({
-          icon: "success",
-          title: "Downloaded!",
-          text: "Your image has been downloaded successfully.",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      })
-      .catch((err) => {
-        Swal.close();
-        console.error("Could not generate image", err);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Something went wrong while generating the image.",
-        });
-      });
+  //   toPng(exportRef.current, { cacheBust: true })
+  //     .then((dataUrl) => {
+  //       download(dataUrl, filename);
+  //       Swal.close();
+  //       Swal.fire({
+  //         icon: "success",
+  //         title: "Downloaded!",
+  //         text: "Your image has been downloaded successfully.",
+  //         timer: 2000,
+  //         showConfirmButton: false,
+  //       });
+  //     })
+  //     .catch((err) => {
+  //       Swal.close();
+  //       console.error("Could not generate image", err);
+  //       Swal.fire({
+  //         icon: "error",
+  //         title: "Error",
+  //         text: "Something went wrong while generating the image.",
+  //       });
+  //     });
+  // };
+
+const handleDownloadImage = async () => {
+  if (!exportRef.current) return;
+
+  const now = new Date();
+  const options = {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
   };
+  const formatted = now
+    .toLocaleString("en-US", options)
+    .replace(",", "")
+    .replace(/ /g, "")
+    .replace(":", "");
+
+  const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
+
+  Swal.fire({
+    title: "Generating image...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  // Save original styles
+  const originalPadding = exportRef.current.style.padding;
+  const originalBackground = exportRef.current.style.backgroundColor;
+  const originalMaxWidth = exportRef.current.style.maxWidth;
+
+  // Apply export-friendly styles
+  exportRef.current.style.padding = "10px";
+  exportRef.current.style.backgroundColor = "#ffffff";
+  exportRef.current.style.maxWidth = "none";
+
+  // Wait a tick so browser applies style
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Export using html-to-image (fit to content size)
+  toPng(exportRef.current, { 
+    cacheBust: true, 
+    pixelRatio: 2,
+    backgroundColor: "#ffffff" // Ensure white background in output
+  })
+    .then((dataUrl) => {
+      download(dataUrl, filename);
+      Swal.close();
+      Swal.fire({
+        icon: "success",
+        title: "Downloaded!",
+        text: "Your image has been downloaded successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    })
+    .catch((err) => {
+      Swal.close();
+      console.error("Could not generate image", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Something went wrong while generating the image.",
+      });
+    })
+    .finally(() => {
+      // Restore original styles
+      exportRef.current.style.padding = originalPadding;
+      exportRef.current.style.backgroundColor = originalBackground;
+      exportRef.current.style.maxWidth = originalMaxWidth;
+    });
+};
+
 
 
   const getActivityDetails = (id) => {
@@ -142,7 +213,7 @@ const TicketSummary = ({ ticket }) => {
           <div className="mb-4 text-center">
             <QRCodeCanvas
               value={ticket_id}
-              size={400}
+              size={380}
               bgColor="#ffffff"
               fgColor="#000000"
               level="H"
@@ -153,15 +224,15 @@ const TicketSummary = ({ ticket }) => {
         {/* Basic Details */}
         <Row className="row justify-content-center align-items-center">
           <Col md={6} sm={12} className="col">
-<p className="m-1">
-  <strong>Created By:</strong>{" "}
-  {createdByCompany?.name ||
-    (createdByEmployee?.firstname && createdByEmployee?.surname
-      ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
-      : "Unknown")}
-  <br />
-  <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
-</p>
+            <p className="m-1">
+              <strong>Created By:</strong>{" "}
+              {createdByCompany?.name ||
+                (createdByEmployee?.firstname && createdByEmployee?.surname
+                  ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
+                  : "Unknown")}
+              <br />
+              <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
+            </p>
 
             <p className="m-1"><strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}</p>
           </Col>

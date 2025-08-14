@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Card, Spinner, Button } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -13,6 +13,7 @@ const COLORS = [
 
 function SummaryPieChart({ title = "", data = [], loading = false }) {
     const chartRef = useRef();
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const validData = useMemo(() =>
         (data || []).filter(d => typeof d.value === 'number' && d.value > 0),
@@ -27,22 +28,25 @@ function SummaryPieChart({ title = "", data = [], loading = false }) {
     const handleDownload = async () => {
         if (!chartRef.current) return;
         try {
+            setIsDownloading(true); // hide button
             const dataUrl = await toPng(chartRef.current, {
                 backgroundColor: '#ffffff'
             });
             download(dataUrl, `${title || 'chart'}.png`, 'image/png');
         } catch (error) {
             console.error('Failed to download chart image:', error);
+        } finally {
+            setIsDownloading(false); // show button again
         }
     };
 
     const showNoData = !loading && validData.length === 0;
 
     return (
-        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white"  ref={chartRef}>
+        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={chartRef}>
             <div className="d-flex justify-content-between align-items-center mb-2">
                 <h6 className="mb-0">{title}</h6>
-                {!loading && total > 0 && (
+                {!loading && total > 0 && !isDownloading && (
                     <Button
                         variant="light"
                         size="sm"
@@ -84,30 +88,32 @@ function SummaryPieChart({ title = "", data = [], loading = false }) {
                     </ResponsiveContainer>
 
                     <div className="mt-2 small">
-                        {validData.map((item, index) => (
-                            <div key={index} className="d-flex justify-content-between px-2">
-                                <span>
-                                    <span
-                                        style={{
-                                            display: 'inline-block',
-                                            width: 12,
-                                            height: 12,
-                                            borderRadius: '50%',
-                                            backgroundColor: COLORS[index % COLORS.length],
-                                            marginRight: 8
-                                        }}
-                                    />
-                                    {item.name}: {item.value}
-                                </span>
-                            </div>
-                        ))}
+                        {validData.map((item, index) => {
+                            const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+                            return (
+                                <div key={index} className="d-flex justify-content-between px-2">
+                                    <span>
+                                        <span
+                                            style={{
+                                                display: 'inline-block',
+                                                width: 12,
+                                                height: 12,
+                                                borderRadius: '50%',
+                                                backgroundColor: COLORS[index % COLORS.length],
+                                                marginRight: 8
+                                            }}
+                                        />
+                                        {item.name}: {item.value} ({percentage}%)
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
+
             )}
         </Card>
     );
 }
 
 export default React.memo(SummaryPieChart);
-
-

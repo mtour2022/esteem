@@ -3,7 +3,7 @@ import { Container, Row, Col, Button, Card, Form, InputGroup, Dropdown } from "r
 import AppNavBar from "../components/AppNavBar";
 import { useMediaQuery } from "react-responsive";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faListCheck, faQrcode, faBarChart, faChartGantt, faDownload, faUserGroup, faDatabase } from '@fortawesome/free-solid-svg-icons';
+import { faListCheck, faQrcode, faBarChart, faChartGantt, faDownload, faUserGroup, faDatabase, faSearch } from '@fortawesome/free-solid-svg-icons';
 import lgu from '../assets/images/lgu.png';
 import bagongpilipinas from '../assets/images/bagongpilipinas.png';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
@@ -326,6 +326,10 @@ export default function Home() {
                   <Button className="white-button">
                     <FontAwesomeIcon className="button-icon" icon={faListCheck} size="xs" fixedWidth />See Requirements
                   </Button>
+                  <Link to="/find-my-cert" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faSearch} size="xs" fixedWidth />
+                    Find My Tourism Cert
+                  </Link>
                   
                    <Link to="/tourism-cert-check" className="btn white-button">
                     <FontAwesomeIcon className="button-icon" icon={faQrcode} size="xs" fixedWidth />
