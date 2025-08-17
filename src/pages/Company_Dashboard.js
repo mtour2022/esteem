@@ -69,6 +69,7 @@ export default function CompanyDashboardPage() {
             start_date_time: "",
             end_date_time: "",
         });
+        setSelectedEmployee(null);
         setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
     };
 
@@ -342,6 +343,7 @@ export default function CompanyDashboardPage() {
                                     </Container>
                                     {currentStep === 4 ? (
                                         <Container className="d-flex justify-content-between mt-3">
+                                            
                                             <Button
                                                 className="color-blue-button"
                                                 variant="primary"
@@ -422,8 +424,8 @@ export default function CompanyDashboardPage() {
                             onClick={() => setIsFullScreen((prev) => !prev)}
                             title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                         >
-                            {isFullScreen ? "Collapse" : "Expand"}
-                            <FontAwesomeIcon className="ms-2" icon={isFullScreen ? faCompress : faExpand} />
+                            {/* {isFullScreen ? "Collapse" : "Expand"} */}
+                            <FontAwesomeIcon icon={isFullScreen ? faCompress : faExpand} />
                         </Button>
 
                         <Dropdown align="end">

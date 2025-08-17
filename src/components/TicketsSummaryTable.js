@@ -528,7 +528,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
       <Card className="border rounded p-3 text-muted bg-white mb-4">
 
-        <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="d-flex justify-content-between align-items-center mb-3 mx-2">
           <div className="text-muted small fw-semibold">
             {filterType === "all" ? "All Tickets" : "Scanned Tickets"} for {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")}
           </div>
@@ -544,6 +544,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
         <Form.Select
           size="sm"
+          className="mx-2"
           value={dateRangeOption}
           onChange={e => setDateRangeOption(e.target.value)}
           style={{ maxWidth: "300px" }}
@@ -557,7 +558,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
 
         <Row className="mb-4 mt-1 g-3">
-          <Col md={3}>
+          <Col md={3} sm={6} xs={6}>
             <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
                 <small className="mb-1 fw-semibold">Daily Avg. Pax</small>
@@ -618,7 +619,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
 
 
-          <Col md={3}>
+          <Col md={3} sm={6} xs={6}>
             <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
                 <small className="mb-1 fw-semibold">Daily Avg. Tickets</small>
@@ -652,7 +653,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
             </div>
           </Col>
 
-          <Col md={3}>
+          <Col md={3} sm={6} xs={6}>
             <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
                 <small className="mb-1 fw-semibold">Daily Avg. Actual Payment</small>
@@ -698,7 +699,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           </Col>
 
 
-          <Col md={3}>
+          <Col md={3} sm={6} xs={6}>
             <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-start text-start">
               <div>
                 <small className="mb-1 fw-semibold">Daily Avg. Expected Sale</small>
@@ -749,7 +750,129 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
         {/* <h6 className="fw-bold text-dark mb-3">
           {mode === "pax" ? "Summary per pax per month" : "Summary per ticket per month"}
         </h6> */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
+
+        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white mb-3 mx-2">
+
+
+          <div className=" bg-white">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="text-muted small fw-semibold">
+                {/* Detailed Tickets
+                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
+                  ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} ) */}
+              </div>
+              <div>
+                <Button
+                  variant="light"
+                  size="sm"
+                  className="me-2"
+                  onClick={handleDownloadImageSummaryDetailed}
+                >
+                  <FontAwesomeIcon icon={faDownload} />
+                </Button>
+                <Button
+                  variant="light"
+                  size="sm"
+                  onClick={handleDownloadExcelSummaryDetailed}
+                >
+                  <FontAwesomeIcon icon={faTable} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded mt-2">
+            <Table striped bordered hover responsive ref={tableRefSummaryDetailed}>
+              <thead className="table-light text-center">
+                <tr>
+                  <th>Month</th>
+                  <th>Total Pax</th>
+                  <th>Expected Payment</th>
+                  <th>Actual Payment</th>
+                  <th>Difference (%)</th>
+                  <th>Expected Sale</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(
+                  filteredTicketsInRange.reduce((acc, ticket) => {
+                    const month = ticket.start_date_time?.toDate
+                      ? dayjs(ticket.start_date_time.toDate()).format("MMM YYYY")
+                      : dayjs(ticket.start_date_time).format("MMM YYYY");
+
+                    if (!acc[month]) {
+                      acc[month] = {
+                        totalPax: 0,
+                        expectedPayment: 0,
+                        actualPayment: 0,
+                        expectedSale: 0
+                      };
+                    }
+
+                    acc[month].totalPax += ticket.total_pax || 0;
+
+                    acc[month].expectedPayment += ticket.total_expected_payment || 0;
+                    acc[month].actualPayment += ticket.total_payment || 0;
+                    acc[month].expectedSale += ticket.total_expected_sale || 0;
+
+                    return acc;
+                  }, {})
+                ).map(([month, data]) => {
+                  const percentDiff = data.expectedPayment
+                    ? ((data.actualPayment - data.expectedPayment) / data.expectedPayment) * 100
+                    : 0;
+
+                  return (
+                    <tr key={month}>
+                      <td>{month}</td>
+                      <td className="text-center">{data.totalPax.toLocaleString()}</td>
+                      <td className="text-end">{data.expectedPayment.toLocaleString()}</td>
+                      <td className="text-end">{data.actualPayment.toLocaleString()}</td>
+                      <td className={`text-end ${percentDiff >= 0 ? "text-success" : "text-danger"}`}>
+                        {percentDiff.toFixed(2)}%
+                      </td>
+                      <td className="text-end">{data.expectedSale.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+
+                {filteredTicketsInRange.length > 0 && (() => {
+                  const totalExpected = filteredTicketsInRange.reduce(
+                    (sum, t) => sum + (t.total_expected_payment || 0), 0
+                  );
+                  const totalActual = filteredTicketsInRange.reduce(
+                    (sum, t) => sum + (t.total_payment || 0), 0
+                  );
+                  const totalPercentDiff = totalExpected
+                    ? ((totalActual - totalExpected) / totalExpected) * 100
+                    : 0;
+
+                  return (
+                    <tr className="fw-bold">
+                      <td>Grand Total</td>
+                      <td className="text-center">
+                        {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_pax || 0), 0).toLocaleString()}
+                      </td>
+
+                      <td className="text-end">{totalExpected.toLocaleString()}</td>
+                      <td className="text-end">{totalActual.toLocaleString()}</td>
+                      <td className={`text-end ${totalPercentDiff >= 0 ? "text-success" : "text-danger"}`}>
+                        {totalPercentDiff.toFixed(2)}%
+                      </td>
+                      <td className="text-end">
+                        {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_sale || 0), 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })()}
+              </tbody>
+            </Table>
+
+
+          </div>
+        </Card>
+
+        <div className="d-flex justify-content-between align-items-center mb-3 mx-2 mt-3">
           <div className="d-flex gap-2 align-items-center">
             <Form.Select size="sm" value={mode} onChange={e => setMode(e.target.value)}>
               <option value="pax">Pax Summary</option>
@@ -774,130 +897,13 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           </div>
         </div>
 
+
         {/* Tabbed Panel */}
-        <Tabs defaultActiveKey="summary" id="summary-tabs" className="bg-white mb-3 ">
+        <Tabs defaultActiveKey="chart" id="summary-tabs" className="bg-white mb-3 mx-2 ">
           {/* First Tab - Chart */}
 
-          <Tab eventKey="summary" title="Summary" className="bg-white">
-            <div className="mt-4 bg-white">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <div className="text-muted small fw-semibold">
-                  Detailed Tickets
-                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
-                  ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
-                </div>
-                <div>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    className="me-2"
-                    onClick={handleDownloadImageSummaryDetailed}
-                  >
-                    <FontAwesomeIcon icon={faDownload} />
-                  </Button>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    onClick={handleDownloadExcelSummaryDetailed}
-                  >
-                    <FontAwesomeIcon icon={faTable} />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-3 rounded">
-              <Table striped bordered hover responsive ref={tableRefSummaryDetailed}>
-                <thead className="table-light text-center">
-                  <tr>
-                    <th>Month</th>
-                    <th>Total Pax</th>
-                    <th>Expected Payment</th>
-                    <th>Actual Payment</th>
-                    <th>Difference (%)</th>
-                    <th>Expected Sale</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(
-                    filteredTicketsInRange.reduce((acc, ticket) => {
-                      const month = ticket.start_date_time?.toDate
-                        ? dayjs(ticket.start_date_time.toDate()).format("MMM YYYY")
-                        : dayjs(ticket.start_date_time).format("MMM YYYY");
-
-                      if (!acc[month]) {
-                        acc[month] = {
-                          totalPax: 0,
-                          expectedPayment: 0,
-                          actualPayment: 0,
-                          expectedSale: 0
-                        };
-                      }
-
-                      acc[month].totalPax += ticket.total_pax || 0;
-
-                      acc[month].expectedPayment += ticket.total_expected_payment || 0;
-                      acc[month].actualPayment += ticket.total_payment || 0;
-                      acc[month].expectedSale += ticket.total_expected_sale || 0;
-
-                      return acc;
-                    }, {})
-                  ).map(([month, data]) => {
-                    const percentDiff = data.expectedPayment
-                      ? ((data.actualPayment - data.expectedPayment) / data.expectedPayment) * 100
-                      : 0;
-
-                    return (
-                      <tr key={month}>
-                        <td>{month}</td>
-                        <td className="text-center">{data.totalPax.toLocaleString()}</td>
-                        <td className="text-end">{data.expectedPayment.toLocaleString()}</td>
-                        <td className="text-end">{data.actualPayment.toLocaleString()}</td>
-                        <td className={`text-end ${percentDiff >= 0 ? "text-success" : "text-danger"}`}>
-                          {percentDiff.toFixed(2)}%
-                        </td>
-                        <td className="text-end">{data.expectedSale.toLocaleString()}</td>
-                      </tr>
-                    );
-                  })}
-
-                  {filteredTicketsInRange.length > 0 && (() => {
-                    const totalExpected = filteredTicketsInRange.reduce(
-                      (sum, t) => sum + (t.total_expected_payment || 0), 0
-                    );
-                    const totalActual = filteredTicketsInRange.reduce(
-                      (sum, t) => sum + (t.total_payment || 0), 0
-                    );
-                    const totalPercentDiff = totalExpected
-                      ? ((totalActual - totalExpected) / totalExpected) * 100
-                      : 0;
-
-                    return (
-                      <tr className="fw-bold">
-                        <td>Grand Total</td>
-                        <td className="text-center">
-                          {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_pax || 0), 0).toLocaleString()}
-                        </td>
-
-                        <td className="text-end">{totalExpected.toLocaleString()}</td>
-                        <td className="text-end">{totalActual.toLocaleString()}</td>
-                        <td className={`text-end ${totalPercentDiff >= 0 ? "text-success" : "text-danger"}`}>
-                          {totalPercentDiff.toFixed(2)}%
-                        </td>
-                        <td className="text-end">
-                          {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_sale || 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </Table>
-
-
-            </div>
-          </Tab>
           <Tab eventKey="chart" title="Chart" className="bg-white" ref={chartRef}>
-            <div className="mt-4 bg-white">
+            <div className="mt-4 bg-white mx-2">
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <div className="text-muted small fw-semibold">
 
@@ -950,7 +956,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           {/* Second Tab - Table */}
           <Tab eventKey="table" title="Table" className="bg-white">
             <div className="mt-4 bg-white" >
-              <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="d-flex justify-content-between align-items-center mb-2 mx-2">
                 <div className="text-muted small fw-semibold">
                   {mode === "pax"
                     ? "Pax Summary "

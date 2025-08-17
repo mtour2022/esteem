@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Image, Tabs, Tab,
-  Button
 } from "react-bootstrap";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -15,10 +14,10 @@ import { faLineChart, faTicket, faUserGroup } from '@fortawesome/free-solid-svg-
 import CompanyTourismCert from "./CompanyTourismCert";
 import { useAuth } from "../auth/authentication";
 
-const CompanyDashboardPanel = ({ company }) => {
+const CompanyDashboardPanel = ({ company, refreshKey }) => {
   const [tickets, setTickets] = useState([]);
-  const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' | 'employees' | 'reports'
- const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -39,7 +38,7 @@ const CompanyDashboardPanel = ({ company }) => {
     };
 
     fetchTickets();
-  }, [company]);
+  }, [company, refreshKey]); // 👈 include refreshKey here
 
   const ticketIds = Array.isArray(company.ticket) ? company.ticket : [];
 
@@ -71,17 +70,14 @@ const CompanyDashboardPanel = ({ company }) => {
           onSelect={(k) => setActiveTab(k)}
           className="mb-4"
         >
-          {/* Ticket Status Board Tab */}
           <Tab
             eventKey="dashboard"
             title={
               <>
-                <FontAwesomeIcon icon={faTicket} size="sm" className="me-2"/> Tickets
+                <FontAwesomeIcon icon={faTicket} size="sm" className="me-2" /> Tickets
               </>
             }
           />
-
-          {/* Employee List Tab */}
           <Tab
             eventKey="employees"
             title={
@@ -90,13 +86,11 @@ const CompanyDashboardPanel = ({ company }) => {
               </>
             }
           />
-
-          {/* Generate Report Tab */}
           <Tab
             eventKey="reports"
             title={
               <>
-                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2"/> Reports
+                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2" /> Reports
               </>
             }
           />
@@ -104,19 +98,19 @@ const CompanyDashboardPanel = ({ company }) => {
             eventKey="certificate"
             title={
               <>
-                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2"/> My Certificate
+                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2" /> My Certificate
               </>
             }
           />
         </Tabs>
-
-
-
       </div>
 
       {/* Tab Content */}
       {activeTab === "dashboard" && (
-        <TouristActivityStatusBoard ticket_ids={ticketIds} />
+        <TouristActivityStatusBoard
+          ticket_ids={ticketIds}
+          refreshKey={refreshKey}   // 👈 pass refreshKey down
+        />
       )}
 
       {activeTab === "employees" && (
@@ -126,11 +120,12 @@ const CompanyDashboardPanel = ({ company }) => {
           companyName={company.name}
         />
       )}
+
       {activeTab === "certificate" && (
         <CompanyTourismCert
-                      company={company}
-                      hideNavAndFooter
-                    />
+          company={company}
+          hideNavAndFooter
+        />
       )}
 
       {activeTab === "reports" && (

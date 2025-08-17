@@ -118,78 +118,78 @@ const TicketSummary = ({ ticket }) => {
   //     });
   // };
 
-const handleDownloadImage = async () => {
-  if (!exportRef.current) return;
+  const handleDownloadImage = async () => {
+    if (!exportRef.current) return;
 
-  const now = new Date();
-  const options = {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
-  };
-  const formatted = now
-    .toLocaleString("en-US", options)
-    .replace(",", "")
-    .replace(/ /g, "")
-    .replace(":", "");
+    const now = new Date();
+    const options = {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    };
+    const formatted = now
+      .toLocaleString("en-US", options)
+      .replace(",", "")
+      .replace(/ /g, "")
+      .replace(":", "");
 
-  const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
+    const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
 
-  Swal.fire({
-    title: "Generating image...",
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  });
-
-  // Save original styles
-  const originalPadding = exportRef.current.style.padding;
-  const originalBackground = exportRef.current.style.backgroundColor;
-  const originalMaxWidth = exportRef.current.style.maxWidth;
-
-  // Apply export-friendly styles
-  exportRef.current.style.padding = "10px";
-  exportRef.current.style.backgroundColor = "#ffffff";
-  exportRef.current.style.maxWidth = "none";
-
-  // Wait a tick so browser applies style
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  // Export using html-to-image (fit to content size)
-  toPng(exportRef.current, { 
-    cacheBust: true, 
-    pixelRatio: 2,
-    backgroundColor: "#ffffff" // Ensure white background in output
-  })
-    .then((dataUrl) => {
-      download(dataUrl, filename);
-      Swal.close();
-      Swal.fire({
-        icon: "success",
-        title: "Downloaded!",
-        text: "Your image has been downloaded successfully.",
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    })
-    .catch((err) => {
-      Swal.close();
-      console.error("Could not generate image", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Something went wrong while generating the image.",
-      });
-    })
-    .finally(() => {
-      // Restore original styles
-      exportRef.current.style.padding = originalPadding;
-      exportRef.current.style.backgroundColor = originalBackground;
-      exportRef.current.style.maxWidth = originalMaxWidth;
+    Swal.fire({
+      title: "Generating image...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
     });
-};
+
+    // Save original styles
+    const originalPadding = exportRef.current.style.padding;
+    const originalBackground = exportRef.current.style.backgroundColor;
+    const originalMaxWidth = exportRef.current.style.maxWidth;
+
+    // Apply export-friendly styles
+    exportRef.current.style.padding = "10px";
+    exportRef.current.style.backgroundColor = "#ffffff";
+    exportRef.current.style.maxWidth = "none";
+
+    // Wait a tick so browser applies style
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Export using html-to-image (fit to content size)
+    toPng(exportRef.current, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: "#ffffff" // Ensure white background in output
+    })
+      .then((dataUrl) => {
+        download(dataUrl, filename);
+        Swal.close();
+        Swal.fire({
+          icon: "success",
+          title: "Downloaded!",
+          text: "Your image has been downloaded successfully.",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      })
+      .catch((err) => {
+        Swal.close();
+        console.error("Could not generate image", err);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Something went wrong while generating the image.",
+        });
+      })
+      .finally(() => {
+        // Restore original styles
+        exportRef.current.style.padding = originalPadding;
+        exportRef.current.style.backgroundColor = originalBackground;
+        exportRef.current.style.maxWidth = originalMaxWidth;
+      });
+  };
 
 
 
@@ -211,13 +211,16 @@ const handleDownloadImage = async () => {
         {/* QR Code */}
         {ticket_id && (
           <div className="mb-4 text-center">
-            <QRCodeCanvas
-              value={ticket_id}
-              size={380}
-              bgColor="#ffffff"
-              fgColor="#000000"
-              level="H"
-            />
+            <div style={{ width: "90%", margin: "0 auto" }}>
+              <QRCodeCanvas
+                value={ticket_id}
+                style={{ width: "100%", height: "auto" }} // 👈 responsive scaling
+                bgColor="#ffffff"
+                fgColor="#000000"
+                level="H"
+              />
+            </div>
+
             <p className="mt-1">{ticket_id}</p>
           </div>
         )}

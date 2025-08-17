@@ -172,7 +172,7 @@ const getStatusBadgeVariant = (status) => {
 
 
 
-const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
+const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   const tableRefSummary = useRef();
   const tableRefSummaryImage = useRef();
 
@@ -292,12 +292,18 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }, 0);
   }, []);
 
+  // const handleRefresh = () => {
+  //   setTickets([]);
+  //   setAllFilteredTickets([]);
+  //   setFilteredTickets([]);
+  //   setHasFiltered(false);
+  //   setTriggerSearch(prev => !prev); // Toggle to ensure re-run even if already true
+  // };
+
   const handleRefresh = () => {
-    setTickets([]);
-    setAllFilteredTickets([]);
-    setFilteredTickets([]);
-    setTriggerSearch(prev => !prev); // Toggle to ensure re-run even if already true
-  };
+  window.location.reload(); // 🔄 Refresh the whole page
+};
+
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -514,11 +520,15 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
             );
           }
 
+          // if (searchType === "employeeName") {
+          //   const emp = employeeMap[t.employee_id];
+          //   const fullName = `${emp?.firstname || ""} ${emp?.middlename || ""} ${emp?.surname || ""}`.toLowerCase();
+          //   return fullName.includes(lower);
+          // }
           if (searchType === "employeeName") {
-            const emp = employeeMap[t.employee_id];
-            const fullName = `${emp?.firstname || ""} ${emp?.middlename || ""} ${emp?.surname || ""}`.toLowerCase();
-            return fullName.includes(lower);
+            return t.employee_id === searchTextInput;
           }
+
 
           if (searchType === "accommodation") {
             return t.accommodation?.toLowerCase().includes(lower);
@@ -963,7 +973,6 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
             }).join("\n");
           }).filter(Boolean).join("\n\n")
           : "-"
-
         ,
         `₱${t.total_expected_payment?.toLocaleString() || "0"}`,
         `₱${t.total_payment?.toLocaleString() || "0"}`,
@@ -1010,27 +1019,27 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   const [groupedData, setGroupedData] = useState({});
   const daysInMonth = 31;
 
- useEffect(() => {
-  const tableGroup = {};
+  useEffect(() => {
+    const tableGroup = {};
 
-  for (const ticket of filteredSummaryTickets) {
-    const rawDate = ticket.start_date_time?.toDate
-      ? ticket.start_date_time.toDate()
-      : new Date(ticket.start_date_time);
+    for (const ticket of filteredSummaryTickets) {
+      const rawDate = ticket.start_date_time?.toDate
+        ? ticket.start_date_time.toDate()
+        : new Date(ticket.start_date_time);
 
-    const dateObj = new Date(rawDate);
-    const month = dateObj.toLocaleString("default", { month: "long" });
-    const day = dateObj.getDate();
+      const dateObj = new Date(rawDate);
+      const month = dateObj.toLocaleString("default", { month: "long" });
+      const day = dateObj.getDate();
 
-    if (!tableGroup[month]) tableGroup[month] = {};
-    if (!tableGroup[month][day]) tableGroup[month][day] = 0;
+      if (!tableGroup[month]) tableGroup[month] = {};
+      if (!tableGroup[month][day]) tableGroup[month][day] = 0;
 
-    // Use ticket.total_pax directly
-    tableGroup[month][day] += Number(ticket.total_pax) || 0;
-  }
+      // Use ticket.total_pax directly
+      tableGroup[month][day] += Number(ticket.total_pax) || 0;
+    }
 
-  setGroupedData(tableGroup);
-}, [filteredSummaryTickets]);
+    setGroupedData(tableGroup);
+  }, [filteredSummaryTickets]);
 
 
   const months = Object.keys(groupedData);
@@ -1074,7 +1083,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     XLSX.writeFile(workbook, `tickets_summary.xlsx`);
   };
 
-  
+
 
 
 
@@ -1395,6 +1404,10 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     }
   };
 
+  const handleSearchReset = () => {
+    setFilteredTickets(allFilteredTickets); // or whatever your original dataset state is
+    setHasFiltered(false);
+  };
 
   return (
     <>
@@ -1436,7 +1449,10 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   <Form.Label className="small text-muted mb-1">Search Filter</Form.Label>
                   <Form.Select
                     value={searchType}
-                    onChange={(e) => setSearchType(e.target.value)}
+                    onChange={(e) => {
+                      setSearchType(e.target.value);
+                      setSearchTextInput(""); // clear text when switching type
+                    }}
                     className="mb-2"
                     size="sm"
                   >
@@ -1444,20 +1460,35 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     <option value="employeeName">Employee Name</option>
                     <option value="accommodation">Accommodation</option>
                   </Form.Select>
-                  <FormControl
-                    type="text"
-                    placeholder={
-                      searchType === "name"
-                        ? "Search by name or contact"
-                        : searchType === "employeeName"
-                          ? "Search by employee name"
+
+                  {searchType === "employeeName" ? (
+                    <Form.Select
+                      value={searchTextInput}
+                      onChange={(e) => setSearchTextInput(e.target.value)}
+                      className="mb-2"
+                      size="sm"
+                    >
+                      <option value="">Select Employee</option>
+                      {Object.values(employeeMap).map((emp) => (
+                        <option key={emp.employeeId} value={emp.employeeId}>
+                          {emp.firstname} {emp.surname}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <FormControl
+                      type="text"
+                      placeholder={
+                        searchType === "name"
+                          ? "Search by name or contact"
                           : "Search by accommodation"
-                    }
-                    value={searchTextInput}
-                    onChange={(e) => setSearchTextInput(e.target.value)}
-                    className="mb-2"
-                    size="sm"
-                  />
+                      }
+                      value={searchTextInput}
+                      onChange={(e) => setSearchTextInput(e.target.value)}
+                      className="mb-2"
+                      size="sm"
+                    />
+                  )}
 
                   <Button
                     variant="primary"
@@ -1469,7 +1500,23 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   >
                     Search
                   </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="ms-2"
+                    onClick={() => {
+                      setSearchTextInput(""); // clear input
+                      setSearchType("name"); // reset dropdown
+                      setShowSearchDropdown(false);
+                      handleSearchReset?.();      // optional custom reset function
+
+                      // setFilteredTickets(allFilteredTickets);
+                    }}
+                  >
+                    Reset
+                  </Button>
                 </Form>
+
               </Dropdown.Menu>
             </Dropdown>
 
@@ -1509,6 +1556,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       <option value="Relocate">Relocate</option>
                       <option value="On Emergency">On Emergency</option>
                     </Form.Select>
+
                   </Form.Group>
 
                   {/* Country Filter */}
@@ -2101,7 +2149,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
             {/* Summary Tab */}
             <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
-              <div className="d-flex align-items-center justify-content-between mt-4">
+              <div className="d-flex align-items-center justify-content-between mt-4 mx-2">
                 <h6 className="mb-0">Summary</h6>
                 <Button
                   variant="outline-secondary"
@@ -2112,11 +2160,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                 </Button>
               </div>
 
-              <small className="text-muted">
+              <small className="text-muted mx-2">
                 Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
               </small>
               <br></br>
-              <small className="text-muted mb-5">
+              <small className="text-muted mb-5 mx-2">
                 <Badge bg="secondary" className="me-1 mt-2">
                   {summary.totalTickets}
                 </Badge>{" "}
@@ -2142,7 +2190,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                 <>
                   <Row className="mb-3 g-3 mt-3">
                     {Object.entries(statusCounts).map(([status, count], idx) => (
-                      <Col key={idx} md={2}>
+                      <Col key={idx} md={2} sm={6} xs={6}>
                         <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
                           <div>
                             <p className="mb-1 fw-semibold">{status}</p>
@@ -2164,7 +2212,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                       { label: "Avg. Markup", value: `${averageMarkup?.toFixed(2)}%` },
                       { label: "Avg. Sale per Ticket", value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
                     ].map((item, idx) => (
-                      <Col key={idx} md={2}>
+                      <Col key={idx} md={2} sm={6} xs={6}>
                         <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
                           <div>
                             <p className="mb-1 fw-semibold">{item.label}</p>
@@ -2177,7 +2225,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                   </Row>
                   <Row className="g-3 mt-2">
                     <Col md={12}>
-                      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white"  ref={tableRefSummaryImage}>
+                      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={tableRefSummaryImage}>
 
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <div className="text-muted small fw-semibold">
@@ -2319,7 +2367,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                     </Col>
 
                   </Row>
-                  
+
 
                 </>
               )}
@@ -2327,8 +2375,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
             {/* Performance Tab */}
             <Tab eventKey="performance" title="Performance">
-              <h6 className="mt-4">Performance</h6>
-              <small className="text-muted">
+              <h6 className="mt-4 mx-2">Performance</h6>
+              <small className="text-muted  mx-2">
                 This section shows performance metrics compared to previous data, helping identify trends and changes over time.
               </small>
 
@@ -2344,12 +2392,12 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
 
             {/* Insights Tab */}
             <Tab eventKey="insights" title="Insights">
-              <h6 className="mt-4">Insights</h6>
-              <small className="text-muted">
+              <h6 className="mt-4  mx-2">Insights</h6>
+              <small className="text-muted  mx-2">
                 Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
               </small>
               <br></br>
-              <small className="text-muted mt-2">
+              <small className="text-muted mt-2  mx-2">
                 Insights from data dated{" "}
                 <strong>
                   {new Date(startDateInput).toLocaleDateString("en-US", {
@@ -2437,7 +2485,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
                         endDate={endDateInput}
                       />
                     </Tab>
-                    
+
 
 
 

@@ -312,8 +312,15 @@ th {
 /* Containers */
 /* Apply gradient background and center text */
 .custom-container {
-  background: linear-gradient(180deg, rgba(4, 157, 217, 0.66) 0%, rgba(255, 255, 255, 0.00) 34.4%);
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(4, 157, 217, 0.66) 0%,
+    rgba(222, 222, 222, 0) 34.4%
+  );
+  border-right: 1px solid #ccc; /* 👈 thin grey border */
 }
+
 .blue-container {
   background: rgba(4, 157, 217, 0.66) !important}
 

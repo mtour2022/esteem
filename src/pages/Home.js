@@ -163,7 +163,7 @@ export default function Home() {
         // ❌ Show error modal
         Swal.fire({
           title: "Login Failed",
-          text: error.message,
+          text: "Your password is incorrect, you may reach the tourism office for password recovery or visit the activity area verification table.",
           icon: "error"
         });
       } finally {
