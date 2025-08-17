@@ -41,7 +41,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
   const chartRef = useRef();
   const tableRefSummary = useRef();
   const tableRefSummaryDetailed = useRef();
-
+  const tableRefComparativeSummaryDetailed = useRef();
   const [dateRangeOption, setDateRangeOption] = useState("This Month (the default)");
   // const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
   const isDailyView = ["This Month (the default)", "This Week", "1st Half of the Month (1-15)", "2nd Half of the Month"].includes(dateRangeOption);
@@ -267,6 +267,17 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
     }
   };
 
+  const handleDownloadImageComparativeSummary = async () => {
+    if (!tableRefComparativeSummaryDetailed.current) return;
+    try {
+      const dataUrl = await toPng(tableRefComparativeSummaryDetailed.current);
+      download(dataUrl, `tickets_summary_${mode}_${paxFilter}.png`);
+    } catch (err) {
+      console.error("Image download failed", err);
+    }
+  };
+
+
 
 
 
@@ -459,6 +470,84 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
       return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
     }
     return num.toLocaleString();
+  };
+
+  // ✅ Step: Compute Pax for current & previous ranges
+  const computeTotalPax = (tickets) => {
+    return tickets.reduce((sum, ticket) => {
+      const addresses = ticket.address || [];
+      return sum + addresses.reduce((s, addr) => {
+        const locals = Number(addr.locals || 0);
+        const foreigns = Number(addr.foreigns || 0);
+        return s + locals + foreigns;
+      }, 0);
+    }, 0);
+  };
+
+  const currentTotalPax = computeTotalPax(filteredTicketsInRange);
+  const previousTotalPax = computeTotalPax(filteredPreviousTickets);
+
+  // ✅ Step: Format labels for table headers
+  let column1Label = "";
+  let column2Label = "";
+
+  switch (dateRangeOption) {
+    case "This Week":
+      column1Label = `${previousRange.start.format("MMM D")} - ${previousRange.end.format("MMM D")}`;
+      column2Label = `${dateRange.start.format("MMM D")} - ${dateRange.end.format("MMM D")}`;
+      break;
+    case "This Month (the default)":
+      column1Label = previousRange.start.format("MMMM YYYY");
+      column2Label = dateRange.start.format("MMMM YYYY");
+      break;
+    case "1st Half of the Month (1-15)":
+      column1Label = `${previousRange.start.format("MMM D")} - ${previousRange.end.format("MMM D")}`;
+      column2Label = `${dateRange.start.format("MMM D")} - ${dateRange.end.format("MMM D")}`;
+      break;
+    case "2nd Half of the Month":
+      column1Label = `${previousRange.start.format("MMM D")} - ${previousRange.end.format("MMM D")}`;
+      column2Label = `${dateRange.start.format("MMM D")} - ${dateRange.end.format("MMM D")}`;
+      break;
+    case "This Year":
+      column1Label = previousRange.start.format("YYYY");
+      column2Label = dateRange.start.format("YYYY");
+      break;
+    default:
+      column1Label = "Previous";
+      column2Label = "Current";
+  }
+  const percentageChange =
+    previousTotalPax > 0
+      ? ((currentTotalPax - previousTotalPax) / previousTotalPax) * 100
+      : 0;
+
+  const handleDownloadExcelComparativeSummary = () => {
+    // 🧮 Compute percentage change
+    const percentageChange =
+      previousTotalPax > 0
+        ? (((currentTotalPax - previousTotalPax) / previousTotalPax) * 100).toFixed(2)
+        : "N/A";
+
+    // Build the worksheet data
+    const worksheetData = [
+      ["Comparative Pax Summary"],
+      [column1Label, column2Label, "Percentage Change"],
+      [
+        previousTotalPax.toLocaleString(),
+        currentTotalPax.toLocaleString(),
+        percentageChange === "N/A" ? "N/A" : `${percentageChange}%`,
+      ],
+    ];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Pax Summary");
+
+    // Export to file
+    XLSX.writeFile(workbook, "Comparative_Pax_Summary.xlsx");
   };
 
 
@@ -751,15 +840,80 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           {mode === "pax" ? "Summary per pax per month" : "Summary per ticket per month"}
         </h6> */}
 
+
+
+        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white mb-3 mx-2">
+
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="text-muted small fw-semibold">
+              Comparative Summary by Pax ({dateRangeOption ? `${dateRangeOption} vs Previous` : "N/A"})
+            </div>
+
+            <div>
+              <Button
+                variant="light"
+                size="sm"
+                className="me-2"
+                onClick={handleDownloadImageComparativeSummary}
+              >
+                <FontAwesomeIcon icon={faDownload} />
+              </Button>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={handleDownloadExcelComparativeSummary}
+              >
+                <FontAwesomeIcon icon={faTable} />
+              </Button>
+            </div>
+          </div>
+          <div className="bg-white rounded mt-2">
+
+            <Table striped bordered hover responsive ref={tableRefComparativeSummaryDetailed}>
+              <thead>
+                <tr>
+                  <th>{column1Label}</th>
+                  <th>{column2Label}</th>
+                  <th>Difference (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{previousTotalPax.toLocaleString()}</td>
+                  <td>{currentTotalPax.toLocaleString()}</td>
+                  <td
+                    className={
+                      percentageChange > 0
+                        ? "text-success fw-semibold"
+                        : percentageChange < 0
+                          ? "text-danger fw-semibold"
+                          : "text-muted"
+                    }
+                  >
+                    {percentageChange === "N/A"
+                      ? "N/A"
+                      : `${percentageChange > 0 ? "+" : percentageChange < 0 ? "-" : ""}${Math.abs(percentageChange).toFixed(2)}%`}
+                  </td>
+
+                </tr>
+              </tbody>
+            </Table>
+
+          </div>
+
+        </Card>
+
+
+
         <Card className="summary-card border rounded p-3 text-muted h-100 bg-white mb-3 mx-2">
 
 
           <div className=" bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <div className="text-muted small fw-semibold">
-                {/* Detailed Tickets
-                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
-                  ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} ) */}
+                Summary
+                ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
+                ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
               </div>
               <div>
                 <Button
@@ -828,9 +982,12 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
                       <td className="text-center">{data.totalPax.toLocaleString()}</td>
                       <td className="text-end">{data.expectedPayment.toLocaleString()}</td>
                       <td className="text-end">{data.actualPayment.toLocaleString()}</td>
-                      <td className={`text-end ${percentDiff >= 0 ? "text-success" : "text-danger"}`}>
-                        {percentDiff.toFixed(2)}%
+                      <td className={`text-end ${percentDiff > 0 ? "text-success" : percentDiff < 0 ? "text-danger" : "text-muted"}`}>
+                        {percentDiff === 0
+                          ? "0.00%"
+                          : `${percentDiff > 0 ? "+" : "-"}${Math.abs(percentDiff).toFixed(2)}%`}
                       </td>
+
                       <td className="text-end">{data.expectedSale.toLocaleString()}</td>
                     </tr>
                   );
@@ -856,9 +1013,12 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
                       <td className="text-end">{totalExpected.toLocaleString()}</td>
                       <td className="text-end">{totalActual.toLocaleString()}</td>
-                      <td className={`text-end ${totalPercentDiff >= 0 ? "text-success" : "text-danger"}`}>
-                        {totalPercentDiff.toFixed(2)}%
+                      <td className={`text-end ${totalPercentDiff > 0 ? "text-success" : totalPercentDiff < 0 ? "text-danger" : "text-muted"}`}>
+                        {totalPercentDiff === 0
+                          ? "0.00%"
+                          : `${totalPercentDiff > 0 ? "+" : "-"}${Math.abs(totalPercentDiff).toFixed(2)}%`}
                       </td>
+
                       <td className="text-end">
                         {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_sale || 0), 0).toLocaleString()}
                       </td>

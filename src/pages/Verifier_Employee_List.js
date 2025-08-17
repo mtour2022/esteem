@@ -283,107 +283,115 @@ export default function VerifierEmployeeListPage() {
 
     if (employees.length) fetchCompanies();
   }, [employees]);
-
-  const handleChangeStatus = async (employee, newStatus) => {
-    const { value: formValues, isConfirmed } = await Swal.fire({
-      title: `Change status to "${newStatus}"?`,
-      html: `
+const handleChangeStatus = async (employee, newStatus) => {
+  const { value: formValues, isConfirmed } = await Swal.fire({
+    title: `Change status to "${newStatus}"?`,
+    html: `
       <p class="text-start">You may add remarks about this status change.</p>
       <input id="remarks" class="swal2-input" placeholder="Remarks (optional)">
     `,
-      showCancelButton: true,
-      confirmButtonText: "Confirm",
-      preConfirm: () => {
-        const remarks = document.getElementById("remarks").value.trim();
-        return { remarks };
-      },
-    });
+    showCancelButton: true,
+    confirmButtonText: "Confirm",
+    preConfirm: () => {
+      const remarks = document.getElementById("remarks").value.trim();
+      return { remarks };
+    },
+  });
 
-    if (!isConfirmed) return;
+  if (!isConfirmed) return;
 
-    try {
-      const historyEntry = {
-        status: newStatus,
-        date_updated: new Date().toISOString(),
-        remarks: formValues.remarks || "",
-        userId: currentUser?.uid || null,
-      };
+  try {
+    const historyEntry = {
+      status: newStatus,
+      date_updated: new Date().toISOString(),
+      remarks: formValues.remarks || "",
+      userId: currentUser?.uid || null,
+    };
 
-      const updates = {
-        status: newStatus,
-        status_history: [...(employee.status_history || []), historyEntry],
-        recent_certificate_id: employee.recent_certificate_id || "",
-        recent_certificate_type: employee.recent_certificate_type || "",
-      };
+    const updates = {
+      status: newStatus,
+      status_history: [...(employee.status_history || []), historyEntry],
+      recent_certificate_id: employee.recent_certificate_id || "",
+      recent_certificate_type: employee.recent_certificate_type || "",
+    };
 
-      const employeeRef = doc(db, "employee", employee.employeeId);
+    const employeeRef = doc(db, "employee", employee.employeeId);
 
-      // ✅ Handle certificate creation if approved
+    // ✅ Handle certificate creation if approved
+    if (newStatus.toLowerCase() === "approved") {
+      const dateNow = new Date();
+      const currentYear = dateNow.getFullYear();
+      const oneYearLater = new Date(currentYear, 11, 31);
 
-      if (newStatus.toLowerCase() === "approved") {
-        const dateNow = new Date();
-        const currentYear = dateNow.getFullYear();
-        const oneYearLater = new Date(currentYear, 11, 31);
+      const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
+      let tourismCertId = "";
 
-        const counterRef = doc(db, "counters", `tourism_cert_${currentYear}`);
-        let tourismCertId = "";
+      await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        let lastNumber = 0;
 
-        await runTransaction(db, async (transaction) => {
-          const counterDoc = await transaction.get(counterRef);
-          let lastNumber = 0;
+        if (counterDoc.exists()) {
+          lastNumber = counterDoc.data().last_number;
+        }
 
-          if (counterDoc.exists()) {
-            lastNumber = counterDoc.data().last_number;
-          }
+        const nextNumber = lastNumber + 1;
+        const paddedNumber = String(nextNumber).padStart(4, "0");
+        tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
 
-          const nextNumber = lastNumber + 1;
-          const paddedNumber = String(nextNumber).padStart(4, "0");
-          tourismCertId = `TOURISM-${paddedNumber}-${currentYear}`;
-
-          transaction.set(counterRef, {
-            year: currentYear,
-            last_number: nextNumber,
-          });
+        transaction.set(counterRef, {
+          year: currentYear,
+          last_number: nextNumber,
         });
+      });
 
-        const certRef = doc(db, "tourism_cert", tourismCertId);
+      const certRef = doc(db, "tourism_cert", tourismCertId);
 
-        const cert = {
-          tourism_cert_id: tourismCertId,
-          type: employee.trainingCert ? "Endorsement" : "Recommendation",
-          date_Issued: dateNow.toISOString(),
-          date_Expired: oneYearLater.toISOString(),
-          company_id: employee.companyId,
-          employee_id: employee.employeeId,
-          verifier_id: currentUser?.uid || "system",
-          tourism_cert_history: "",
-        };
+      const cert = {
+        tourism_cert_id: tourismCertId,
+        type: employee.trainingCert ? "Endorsement" : "Recommendation",
+        date_Issued: dateNow.toISOString(),
+        date_Expired: oneYearLater.toISOString(),
+        company_id: employee.companyId,
+        employee_id: employee.employeeId,
+        verifier_id: currentUser?.uid || "system",
+        tourism_cert_history: "",
+      };
 
-        await setDoc(certRef, cert);
+      await setDoc(certRef, cert);
 
-        updates.tourism_certificate_ids = [...(employee.tourism_certificate_ids || []), tourismCertId];
-        updates.recent_certificate_id = tourismCertId;
-        updates.recent_certificate_type = cert.type;
+      // 🔹 Update employee with cert list + summary
+      updates.tourism_certificate_ids = [
+        ...(employee.tourism_certificate_ids || []),
+        tourismCertId,
+      ];
+      updates.recent_certificate_id = tourismCertId;
+      updates.recent_certificate_type = cert.type;
 
-        setShowCertificateFor(employee.employeeId);
-      }
+      updates.latest_cert_summary = {
+        tourism_cert_id: tourismCertId,
+        type: cert.type,
+        date_Issued: cert.date_Issued,
+        date_Expired: cert.date_Expired,
+      };
 
-
-
-      await updateDoc(employeeRef, updates);
-      await fetchEmployeeDetails();
-      await new Promise(res => setTimeout(res, 500));
-
-      if (newStatus.toLowerCase() === "approved") {
-        setShowCertificateFor(employee.employeeId);
-      }
-
-      Swal.fire("Success", "Status updated successfully.", "success");
-    } catch (err) {
-      console.error("Error updating status:", err);
-      Swal.fire("Error", "Failed to update status.", "error");
+      setShowCertificateFor(employee.employeeId);
     }
-  };
+
+    await updateDoc(employeeRef, updates);
+    await fetchEmployeeDetails();
+    await new Promise((res) => setTimeout(res, 500));
+
+    if (newStatus.toLowerCase() === "approved") {
+      setShowCertificateFor(employee.employeeId);
+    }
+
+    Swal.fire("Success", "Status updated successfully.", "success");
+  } catch (err) {
+    console.error("Error updating status:", err);
+    Swal.fire("Error", "Failed to update status.", "error");
+  }
+};
+
 
   const getStatusBadgeVariant = (status) => {
     if (!status) return "secondary";

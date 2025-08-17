@@ -301,8 +301,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   // };
 
   const handleRefresh = () => {
-  window.location.reload(); // 🔄 Refresh the whole page
-};
+    window.location.reload(); // 🔄 Refresh the whole page
+  };
 
 
   useEffect(() => {
@@ -1364,8 +1364,80 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
       return { name, value };
     });
+  // 🔹 Compute total expected sale per employee
+  const employeeSaleTotals = {};
 
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
 
+    const sale = Number(ticket.total_expected_sale || 0);
+
+    if (!employeeSaleTotals[empId]) employeeSaleTotals[empId] = 0;
+    employeeSaleTotals[empId] += sale;
+  });
+
+  // 🔹 Create Top Employees by Expected Sale
+  const topEmployeesBySale = Object.entries(employeeSaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
+    .map(([empId, value]) => ({
+      name: employeeNameMap[empId] || empId,
+      value,
+    }));
+
+  // Aggregate total expected sale per country
+  const countrySaleTotals = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.address)) return;
+
+    ticket.address.forEach(addr => {
+      const country = addr?.country?.trim();
+      if (!country) return;
+
+      const sale = Number(ticket.total_expected_sale || 0);
+
+      if (!countrySaleTotals[country]) countrySaleTotals[country] = 0;
+      countrySaleTotals[country] += sale;
+    });
+  });
+
+  // Create Top 10 Countries by Expected Sale
+  const topCountriesBySale = Object.entries(countrySaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
+    .map(([country, value]) => ({
+      name: country,
+      value,
+    }));
+
+  // Aggregate total expected sale per town (Philippines only)
+  const townSaleTotals = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.address)) return;
+
+    ticket.address.forEach(addr => {
+      const country = addr?.country?.trim();
+      const town = addr?.town?.trim();
+      if (country !== "Philippines" || !town) return;
+
+      const sale = Number(ticket.total_expected_sale || 0);
+
+      if (!townSaleTotals[town]) townSaleTotals[town] = 0;
+      townSaleTotals[town] += sale;
+    });
+  });
+
+  // Create Top 10 Philippine Towns by Expected Sale
+  const topTownsBySale = Object.entries(townSaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
+    .map(([town, value]) => ({
+      name: town,
+      value,
+    }));
 
 
   const handleDownloadImage = () => {
@@ -1426,7 +1498,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
 
           {/* RIGHT SIDE: Icon Buttons */}
-          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0">
+          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0 ps-0 ms-0">
             <Button
               variant="outline-secondary"
               title="Refresh Tickets"
@@ -2320,51 +2392,78 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                   </Row>
 
                   <Row className="g-3 mt-2">
+
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Activities Availed (by Pax)"
-                        data={topActivities}
-                        loading={allResolvedActivities.length === 0}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Top 10 Countries"
+                        title="Top Countries by Pax"
                         data={topCountries}
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Domestic Towns (Philippines)"
+                        title="Top Domestic Towns by Pax (Philippines)"
                         data={topTowns}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Generating Countries (by Expected Sale)"
+                        data={topCountriesBySale}
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
                   </Row>
                   <Row className="g-3 mt-2">
-
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Activities (by Expected Sale)"
-                        data={topActivitiesBySale}
+                        title="Top Generating Philippine Towns (by Expected Sale)"
+                        data={topTownsBySale}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Activities Availed (by Pax)"
+                        data={topActivities}
                         loading={allResolvedActivities.length === 0}
                       />
                     </Col>
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Performing Employees (by Tickets)"
+                        title="Top Generating Activities (by Expected Sale)"
+                        data={topActivitiesBySale}
+                        loading={allResolvedActivities.length === 0}
+                      />
+                    </Col>
+                  </Row>
+
+                  <Row className="g-3 mt-2">
+
+
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Performing Employees (by Tickets)"
                         data={topEmployees}
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Performing Employees (by Pax)"
+                        title="TopPerforming Employees (by Pax)"
                         data={topEmployeesByPax}
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Employees (by Expected Sale)"
+                        data={topEmployeesBySale}
+                        loading={filteredSummaryTickets.length === 0}
+                      />
+                    </Col>
+
 
                   </Row>
 

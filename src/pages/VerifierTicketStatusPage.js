@@ -2007,21 +2007,21 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   <Row className="g-3 mt-2">
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Activities Availed (by Pax)"
+                        title="Activities Availed (by Pax)"
                         data={topActivities}
                         loading={allResolvedActivities.length === 0}
                       />
                     </Col>
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Countries"
+                        title="Countries"
                         data={topCountries}
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
                     <Col md={4}>
                       <TopRankingChart
-                        title="Top 10 Domestic Towns (Philippines)"
+                        title="Domestic Towns (Philippines)"
                         data={topTowns}
                         loading={filteredSummaryTickets.length === 0}
                       />

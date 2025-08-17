@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Card, Table, Spinner, Button } from 'react-bootstrap';
+import { Card, Table, Spinner, Button, Form } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload } from '@fortawesome/free-solid-svg-icons';
 import { toPng } from 'html-to-image';
@@ -8,14 +8,16 @@ import download from 'downloadjs';
 export default function TopRankingChart({ title = '', data = [], loading = false }) {
   const chartRef = useRef();
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  const validData = data?.filter((d) => d?.value > 0).sort((a, b) => b.value - a.value).slice(0, 10) || [];
+  const [topCount, setTopCount] = useState(10); // Default = Top 10
+
+  const sortedData = data?.filter((d) => d?.value > 0).sort((a, b) => b.value - a.value) || [];
+  const validData = topCount === "all" ? sortedData : sortedData.slice(0, topCount);
   const isReady = !loading && validData.length > 0;
 
   const handleDownload = async () => {
     if (!chartRef.current) return;
     try {
-      setIsDownloading(true); // Hide button
+      setIsDownloading(true);
       const dataUrl = await toPng(chartRef.current, {
         backgroundColor: '#ffffff',
       });
@@ -23,7 +25,7 @@ export default function TopRankingChart({ title = '', data = [], loading = false
     } catch (error) {
       console.error('Failed to download chart image:', error);
     } finally {
-      setIsDownloading(false); // Show button again
+      setIsDownloading(false);
     }
   };
 
@@ -31,16 +33,20 @@ export default function TopRankingChart({ title = '', data = [], loading = false
     <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={chartRef}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h6 className="mb-0">{title}</h6>
-        {!loading && validData.length > 0 && !isDownloading && (
-          <Button
-            variant="light"
-            size="sm"
-            onClick={handleDownload}
-            title="Download chart"
-          >
-            <FontAwesomeIcon icon={faDownload} />
-          </Button>
-        )}
+        <div className="d-flex align-items-center gap-2">
+
+
+          {!loading && sortedData.length > 0 && !isDownloading && (
+            <Button
+              variant="light"
+              size="sm"
+              onClick={handleDownload}
+              title="Download chart"
+            >
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -72,6 +78,23 @@ export default function TopRankingChart({ title = '', data = [], loading = false
           </Table>
         </div>
       )}
+      {/* Dropdown for Top N selection */}
+
+      <div className="d-flex justify-content-end mt-2">
+        <Form.Select
+          size="sm"
+          value={topCount}
+          onChange={(e) => setTopCount(e.target.value === "all" ? "all" : Number(e.target.value))}
+          style={{ width: "auto" }}
+        >
+          <option value={3}>Top 3</option>
+          <option value={5}>Top 5</option>
+          <option value={10}>Top 10</option>
+          <option value={20}>Top 20</option>
+          <option value="all">All Data</option>
+        </Form.Select>
+      </div>
+
     </Card>
   );
 }

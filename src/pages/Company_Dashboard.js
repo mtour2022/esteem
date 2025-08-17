@@ -15,6 +15,9 @@ import TicketSummary from '../components/TicketSummary';
 import CompanyDashboardPanel from '../components/CompanyDashBoardPanel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand, faCompress, faBars, faUserGroup, faLineChart } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from "react-router-dom";
+import { doSignOut } from "../config/auth"; // <-- import your logout helper
+import Swal from 'sweetalert2';
 
 export default function CompanyDashboardPage() {
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -24,6 +27,8 @@ export default function CompanyDashboardPage() {
     const [loading, setLoading] = useState(true);
     const { currentUser } = useAuth();
     const [refreshKey, setRefreshKey] = useState(0);
+  const navigate = useNavigate();
+
 
     // Initial state (when setting up groupData for the first time)
     const [ticketData, setTicketData] = useState(new TicketModel({
@@ -73,6 +78,27 @@ export default function CompanyDashboardPage() {
         setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
     };
 
+const handleLogout = async () => {
+  try {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will be logged out of your session.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, log out',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (result.isConfirmed) {
+      await doSignOut(); // ✅ Firebase sign out
+      Swal.fire('Logged out!', 'You have been successfully signed out.', 'success');
+      navigate("/home"); // ✅ Redirect to /home
+    }
+  } catch (err) {
+    console.error("Logout failed:", err);
+    Swal.fire('Error', 'Something went wrong while logging out.', 'error');
+  }
+};
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -186,7 +212,6 @@ export default function CompanyDashboardPage() {
             ticketData.activities.length > 0
         );
     };
-
 
 
 
@@ -428,23 +453,25 @@ export default function CompanyDashboardPage() {
                             <FontAwesomeIcon icon={isFullScreen ? faCompress : faExpand} />
                         </Button>
 
-                        <Dropdown align="end">
-                            <Dropdown.Toggle
-                                as={Button}
-                                size="sm" // <-- Small size
-                                variant="outline-secondary"
-                                id="dropdown-custom-button"
-                            >
-                                <FontAwesomeIcon icon={faBars} />
-                            </Dropdown.Toggle>
+                       <Dropdown align="end">
+        <Dropdown.Toggle
+          as={Button}
+          size="sm"
+          variant="outline-secondary"
+          id="dropdown-custom-button"
+        >
+          <FontAwesomeIcon icon={faBars} />
+        </Dropdown.Toggle>
 
-                            <Dropdown.Menu>
-                                <Dropdown.Item>Advisories</Dropdown.Item>
-                                <Dropdown.Item>Profile</Dropdown.Item>
-                                <Dropdown.Item>Saved Reports</Dropdown.Item>
-                                <Dropdown.Item>Log Out</Dropdown.Item>
-                            </Dropdown.Menu>
-                        </Dropdown>
+        <Dropdown.Menu>
+          <Dropdown.Item>Advisories</Dropdown.Item>
+          <Dropdown.Item>Profile</Dropdown.Item>
+          <Dropdown.Item>Saved Reports</Dropdown.Item>
+
+          {/* 🔹 Log Out with redirect */}
+          <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
 
                     </div>
 
