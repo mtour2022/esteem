@@ -21,7 +21,7 @@ import TicketPaxVsTicket from "../components/TicketPaxVsTicket";
 import TicketLocalVsForeign from "./TicketLocalVsForeign";
 import TicketStatusLineChart from "./TicketScannedVsCreated";
 import AgeGenderLineChart from "./TicketAgeSexComparative";
-
+import ActivitiesHeatmapChart from "./TicketActivitiesHeatMap.js"
 import Select from "react-select";
 
 import {
@@ -32,6 +32,7 @@ import {
   faLayerGroup, faCalendarDays, faColumns,
   faCopy,
   faRefresh,
+  faTable,
 
 } from "@fortawesome/free-solid-svg-icons";
 import SummaryPieChart from './PieChart';
@@ -172,6 +173,9 @@ const getStatusBadgeVariant = (status) => {
 
 
 const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
+  const tableRefSummary = useRef();
+  const tableRefSummaryImage = useRef();
+
   const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
   const [showFullSummary, setShowFullSummary] = useState(false);
 
@@ -183,6 +187,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+
 
   const allColumns = [
     { key: "actions", label: "Actions" },
@@ -484,6 +490,8 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       setEndDateInput(formatDateLocal(end));
     }
   };
+
+
 
   const handleSearch = () => {
     setIsLoading(true);
@@ -994,9 +1002,80 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
   }, [allFilteredTickets, summaryFilter]);
 
 
+
   useEffect(() => {
     console.log("filteredSummaryTickets:", filteredSummaryTickets);
   }, [filteredSummaryTickets]);
+
+  const [groupedData, setGroupedData] = useState({});
+  const daysInMonth = 31;
+
+ useEffect(() => {
+  const tableGroup = {};
+
+  for (const ticket of filteredSummaryTickets) {
+    const rawDate = ticket.start_date_time?.toDate
+      ? ticket.start_date_time.toDate()
+      : new Date(ticket.start_date_time);
+
+    const dateObj = new Date(rawDate);
+    const month = dateObj.toLocaleString("default", { month: "long" });
+    const day = dateObj.getDate();
+
+    if (!tableGroup[month]) tableGroup[month] = {};
+    if (!tableGroup[month][day]) tableGroup[month][day] = 0;
+
+    // Use ticket.total_pax directly
+    tableGroup[month][day] += Number(ticket.total_pax) || 0;
+  }
+
+  setGroupedData(tableGroup);
+}, [filteredSummaryTickets]);
+
+
+  const months = Object.keys(groupedData);
+
+  const getMonthTotal = (days) => Object.values(days).reduce((sum, val) => sum + val, 0);
+  const getGrandTotal = () => Object.values(groupedData).reduce((acc, days) => acc + getMonthTotal(days), 0);
+
+
+  const handleDownloadImageSummary = async () => {
+    if (!tableRefSummaryImage.current) return;
+    try {
+      const dataUrl = await toPng(tableRefSummaryImage.current);
+      download(dataUrl, `tickets_summary.png`);
+    } catch (err) {
+      console.error("Image download failed", err);
+    }
+  };
+
+
+  const handleDownloadExcel = () => {
+    const headers = ["Month", ...Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`), "Total"];
+    const data = months.map(month => {
+      const days = groupedData[month] || {};
+      const total = getMonthTotal(days);
+      const row = [month];
+      for (let i = 1; i <= daysInMonth; i++) {
+        row.push(days[i] || "");
+      }
+      row.push(total);
+      return row;
+    });
+
+    if (months.length > 0) {
+      const grandTotalRow = ["Grand Total", ...Array(daysInMonth).fill(""), getGrandTotal()];
+      data.push(grandTotalRow);
+    }
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tickets Summary");
+    XLSX.writeFile(workbook, `tickets_summary.xlsx`);
+  };
+
+  
+
 
 
   const initialSummary = {
@@ -1130,40 +1209,40 @@ const TouristActivityStatusBoard = ({ ticket_ids = [] }) => {
       value,
     }));
 
-    // NEW: Base price map
-const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
-  acc[a.id] = Number(a.activity_base_price) || 0;
-  return acc;
-}, {});
+  // NEW: Base price map
+  const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+    acc[a.id] = Number(a.activity_base_price) || 0;
+    return acc;
+  }, {});
 
- const activitySaleTotals = {};
+  const activitySaleTotals = {};
 
-filteredSummaryTickets.forEach(ticket => {
-  if (!Array.isArray(ticket.activities)) return;
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.activities)) return;
 
-  ticket.activities.forEach(act => {
-    const availedIds = act.activities_availed || [];
-    const pax = Number(act.activity_num_pax || 0);
+    ticket.activities.forEach(act => {
+      const availedIds = act.activities_availed || [];
+      const pax = Number(act.activity_num_pax || 0);
 
-    availedIds.forEach(id => {
-      if (!id) return;
+      availedIds.forEach(id => {
+        if (!id) return;
 
-      const expectedPrice = Number(activityBasePriceMap[id] || 0);
-      const activitySale =  Number(ticket.total_payment || 0) - (expectedPrice * pax);
+        const expectedPrice = Number(activityBasePriceMap[id] || 0);
+        const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
 
-      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
-      activitySaleTotals[id] += activitySale;
+        if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+        activitySaleTotals[id] += activitySale;
+      });
     });
   });
-});
 
-const topActivitiesBySale = Object.entries(activitySaleTotals)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([activityId, value]) => ({
-    name: activityNameMap[activityId] || activityId,
-    value,
-}));
+  const topActivitiesBySale = Object.entries(activitySaleTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([activityId, value]) => ({
+      name: activityNameMap[activityId] || activityId,
+      value,
+    }));
 
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};
@@ -2097,6 +2176,78 @@ const topActivitiesBySale = Object.entries(activitySaleTotals)
                     ))}
                   </Row>
                   <Row className="g-3 mt-2">
+                    <Col md={12}>
+                      <Card className="summary-card border rounded p-3 text-muted h-100 bg-white"  ref={tableRefSummaryImage}>
+
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <div className="text-muted small fw-semibold">
+                            <h6 className="text-muted mt-2">
+                              Pax Summary from{" "}
+                              {new Date(startDateInput).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric"
+                              })}
+                              {" "}
+                              to{" "}
+                              {new Date(endDateInput).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric"
+                              })}
+                            </h6>
+
+                          </div>
+                          <div>
+                            <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImageSummary}>
+                              <FontAwesomeIcon icon={faDownload} />
+                            </Button>
+                            <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+                              <FontAwesomeIcon icon={faTable} />
+                            </Button>
+                          </div>
+
+                        </div>
+
+                        <Table striped bordered hover responsive ref={tableRefSummary}>
+                          <thead>
+                            <tr>
+                              <th>Month</th>
+                              {[...Array(daysInMonth)].map((_, i) => (
+                                <th key={i + 1}>{i + 1}</th>
+                              ))}
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {months.map(month => {
+                              const days = groupedData[month] || {};
+                              return (
+                                <tr key={month}>
+                                  <td>{month}</td>
+                                  {[...Array(daysInMonth)].map((_, i) => (
+                                    <td key={i + 1}>{days[i + 1] || ""}</td>
+                                  ))}
+                                  <td className="fw-bold">{getMonthTotal(days)}</td>
+                                </tr>
+                              );
+                            })}
+                            {months.length > 0 && (
+                              <tr>
+                                <td colSpan={daysInMonth + 1} className="text-end fw-bold">
+                                  Grand Total
+                                </td>
+                                <td className="fw-bold">{getGrandTotal()}</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </Table>
+                      </Card>
+
+
+                    </Col>
+                  </Row>
+                  <Row className="g-3 mt-2">
                     <Col md={4}>
                       <SummaryPieChart
                         title="Residency Breakdown"
@@ -2166,10 +2317,29 @@ const topActivitiesBySale = Object.entries(activitySaleTotals)
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
+
                   </Row>
+                  
 
                 </>
               )}
+            </Tab>
+
+            {/* Performance Tab */}
+            <Tab eventKey="performance" title="Performance">
+              <h6 className="mt-4">Performance</h6>
+              <small className="text-muted">
+                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+              </small>
+
+              <Row className="g-3 mt-2">
+                <Col md={12}>
+                  <TicketsSummaryTable
+                    loading={!hasFilteredSummaryData}
+                    filterType={summaryFilter}
+                  />
+                </Col>
+              </Row>
             </Tab>
 
             {/* Insights Tab */}
@@ -2211,6 +2381,26 @@ const topActivitiesBySale = Object.entries(activitySaleTotals)
                         endDate={endDateInput}
                       />
                     </Tab>
+                    <Tab eventKey="timeHeatMap" title="Activity Time Heat Map">
+                      <ActivitiesHeatmapChart
+                        title="Activity Time Heat Map"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                        filterType={summaryFilter}
+
+                      />
+                    </Tab>
+                    <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
+                      <AgeGenderLineChart
+                        title="Age Gender Comparative"
+                        tickets={filteredSummaryTickets}
+                        startDate={startDateInput}
+                        endDate={endDateInput}
+                        filterType={summaryFilter}
+
+                      />
+                    </Tab>
 
                     <Tab eventKey="paymentVsActual" title="Expected vs Actual Payment">
                       <PaymentPaxLineChart
@@ -2247,16 +2437,7 @@ const topActivitiesBySale = Object.entries(activitySaleTotals)
                         endDate={endDateInput}
                       />
                     </Tab>
-                    <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
-                      <AgeGenderLineChart
-                        title="Age Gender Comparative"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                        filterType={summaryFilter}
-
-                      />
-                    </Tab>
+                    
 
 
 
@@ -2268,22 +2449,7 @@ const topActivitiesBySale = Object.entries(activitySaleTotals)
             </Tab>
 
 
-            {/* Performance Tab */}
-            <Tab eventKey="performance" title="Performance">
-              <h6 className="mt-4">Performance</h6>
-              <small className="text-muted">
-                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-              </small>
 
-              <Row className="g-3 mt-2">
-                <Col md={12}>
-                  <TicketsSummaryTable
-                    loading={!hasFilteredSummaryData}
-                    filterType={summaryFilter}
-                  />
-                </Col>
-              </Row>
-            </Tab>
 
           </Tabs>
 

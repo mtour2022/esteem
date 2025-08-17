@@ -12,10 +12,13 @@ import TouristActivityStatusBoard from "./ActivityStatusBoard";
 import CompanyEmployeeListPage from "../pages/CompanyEmployeeList";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLineChart, faTicket, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import CompanyTourismCert from "./CompanyTourismCert";
+import { useAuth } from "../auth/authentication";
 
 const CompanyDashboardPanel = ({ company }) => {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' | 'employees' | 'reports'
+ const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -97,10 +100,15 @@ const CompanyDashboardPanel = ({ company }) => {
               </>
             }
           />
+          <Tab
+            eventKey="certificate"
+            title={
+              <>
+                <FontAwesomeIcon icon={faLineChart} size="sm" className="me-2"/> My Certificate
+              </>
+            }
+          />
         </Tabs>
-
-
-
 
 
 
@@ -117,6 +125,12 @@ const CompanyDashboardPanel = ({ company }) => {
           companyId={company.company_id}
           companyName={company.name}
         />
+      )}
+      {activeTab === "certificate" && (
+        <CompanyTourismCert
+                      company={company}
+                      hideNavAndFooter
+                    />
       )}
 
       {activeTab === "reports" && (

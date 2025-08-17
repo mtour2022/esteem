@@ -4,7 +4,7 @@ import Swal from "sweetalert2";
 import { db } from "../config/firebase";
 import { Button } from "react-bootstrap";
 import { docreateUserWithEmailAndPassword } from "../config/auth";
-import { useNavigate } from "react-router-dom"; // <-- Import this
+import { useNavigate } from "react-router-dom";
 
 const SaveGroupToCloud = ({
   fileType = "file",
@@ -16,10 +16,11 @@ const SaveGroupToCloud = ({
   password,
   email,
   setGroupData,
-  onSuccess
+  onSuccess,
+  currentUser // ✅ Pass currentUser from parent
 }) => {
   const [errorMessage, setErrorMessage] = useState("");
-  const navigate = useNavigate(); // <-- Hook for redirect
+  const navigate = useNavigate();
 
   const groupCollectionRef = collection(db, collectionName);
 
@@ -41,19 +42,31 @@ const SaveGroupToCloud = ({
           ? groupData.toObject()
           : new ModelClass(groupData).toObject();
 
+      // Create Firestore doc
       const docRef = await addDoc(groupCollectionRef, groupObject);
-const groupDoc = doc(db, collectionName, docRef.id);
+      const groupDoc = doc(db, collectionName, docRef.id);
 
-// Step 1: Create the Auth user and get UID
-const userCredential = await docreateUserWithEmailAndPassword(groupData.email, password);
-const userUID = userCredential.user.uid;
+      // Create Auth user and get UID
+      const userCredential = await docreateUserWithEmailAndPassword(groupData.email, password);
+      const userUID = userCredential.user.uid;
 
-// Step 2: Update Firestore with document ID + Auth UID
-await updateDoc(groupDoc, {
-  [idName]: docRef.id,
-  userUID: userUID // ✅ save the Auth UID for later login lookup
-});
+      // ✅ Create new status history entry
+      const statusEntry = {
+        date_updated: new Date().toISOString(),
+        remarks: "Under Review",
+        status: "under review",
+        userId: currentUser?.uid || null
+      };
 
+      // Update Firestore with id, userUID, and status history
+      await updateDoc(groupDoc, {
+        [idName]: docRef.id,
+        userUID: userUID,
+        status_history: [
+          ...(groupObject.status_history || []),
+          statusEntry
+        ]
+      });
 
       setGroupData(new ModelClass({}));
 
@@ -68,11 +81,11 @@ await updateDoc(groupDoc, {
           html: `
             <p>Your submission is under review.</p>
             <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
-              <p>You will be <strong>notified via email</strong> at <em>${groupData.email}</em> or may receive a call via your company contact for further instructions.</p>
-        `,
+            <p>You will be <strong>notified via email</strong> at <em>${groupData.email}</em> or may receive a call via your company contact for further instructions.</p>
+          `,
           confirmButtonText: "Okay, got it!"
         }).then(() => {
-          navigate("/home"); // ✅ Redirect after confirmation
+          navigate("/home");
         });
       });
 

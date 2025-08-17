@@ -11,6 +11,7 @@ import download from "downloadjs";
 import jsPDF from "jspdf";
 import logo from "../assets/images/lgu.png";
 import QRCode from "qrcode"; // for rendering QR code into canvas
+import { useAuth } from "../auth/authentication";
 
 const SaveGroupEmployee = ({
   fileType = "file",
@@ -33,6 +34,7 @@ const SaveGroupEmployee = ({
     timeStyle: "short",
     hour12: true,
   });
+ const { currentUser } = useAuth();
 
 
   const groupCollectionRef = collection(db, collectionName);
@@ -111,11 +113,13 @@ const SaveGroupEmployee = ({
         quickstatus_id: docRef.id,
         status: "under review",
         status_history: arrayUnion({
-          date: new Date().toISOString(),
+          date_updated: new Date().toISOString(),
+          remarks: "Under Review",
           status: "under review",
-          changedBy: groupData.employeeId || "system"
+          userId: currentUser?.uid || groupData.employeeId || "system"
         })
       });
+
 
       if (groupData.companyId) {
         const companyRef = doc(db, "company", groupData.companyId);

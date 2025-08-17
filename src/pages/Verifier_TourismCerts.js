@@ -13,6 +13,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEyeSlash, faTrash, faPlus, faCalendar, faFileExport, faEye } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../auth/authentication";
 import TourismCert from "../components/TourismCert";
+import CompanyTourismCert from "../components/CompanyTourismCert";
 import Employee from "../classes/employee";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -25,6 +26,7 @@ const TourismCertAdminPage = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedCert, setSelectedCert] = useState(null);
+
     const [employees, setEmployees] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [verifiers, setVerifiers] = useState([]);
@@ -78,8 +80,16 @@ const TourismCertAdminPage = () => {
         });
         return map;
     }, [companies]);
+
     const selectedEmp = employees.find((emp) => emp.id === selectedCert?.employee_id);
-    const selectedComp = selectedEmp ? companyDataMap[selectedEmp.companyId] : null;
+
+    // If employee exists, get their company; otherwise, get company directly from cert
+    const selectedComp = selectedEmp
+        ? companyDataMap[selectedEmp.companyId]
+        : selectedCert
+            ? companyDataMap[selectedCert.company_id] // <-- use company_id from cert
+            : null;
+
 
     useEffect(() => {
         fetchCerts();
@@ -210,15 +220,33 @@ const TourismCertAdminPage = () => {
             <div className="mb-3 d-flex justify-content-between align-items-center">
                 <div className="d-flex flex-wrap gap-3 mb-3">
                     <div style={{ minWidth: 200 }}>
-                        <label className="form-label mb-1 small">Filter by Company</label>
+                        <label className="form-label mb-0 small">Filter by Company</label>
                         <Select
                             options={companies.map((c) => ({ value: c.id, label: c.name }))}
                             onChange={(selected) => setSelectedCompany(selected)}
                             isClearable
+                            styles={{
+                                control: (base) => ({
+                                    ...base,
+                                    minHeight: '30px',
+                                    height: '30px',
+                                    fontSize: '0.85rem',
+                                }),
+                                valueContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                    padding: '0 6px',
+                                }),
+                                indicatorsContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                }),
+                            }}
                         />
                     </div>
+
                     <div style={{ minWidth: 200 }}>
-                        <label className="form-label mb-1 small">Filter by Employee</label>
+                        <label className="form-label mb-0 small">Filter by Employee</label>
                         <Select
                             options={employees.map((e) => ({
                                 value: e.id,
@@ -226,10 +254,28 @@ const TourismCertAdminPage = () => {
                             }))}
                             onChange={(selected) => setSelectedEmployee(selected)}
                             isClearable
+                            styles={{
+                                control: (base) => ({
+                                    ...base,
+                                    minHeight: '30px',
+                                    height: '30px',
+                                    fontSize: '0.85rem',
+                                }),
+                                valueContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                    padding: '0 6px',
+                                }),
+                                indicatorsContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                }),
+                            }}
                         />
                     </div>
+
                     <div style={{ minWidth: 200 }}>
-                        <label className="form-label mb-1 small">Filter by Verifier</label>
+                        <label className="form-label mb-0 small">Filter by Verifier</label>
                         <Select
                             options={verifiers.map((v) => ({
                                 value: v.verifierId,
@@ -237,12 +283,30 @@ const TourismCertAdminPage = () => {
                             }))}
                             onChange={(selected) => setSelectedVerifier(selected)}
                             isClearable
+                            styles={{
+                                control: (base) => ({
+                                    ...base,
+                                    minHeight: '30px',
+                                    height: '30px',
+                                    fontSize: '0.85rem',
+                                }),
+                                valueContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                    padding: '0 6px',
+                                }),
+                                indicatorsContainer: (base) => ({
+                                    ...base,
+                                    height: '30px',
+                                }),
+                            }}
                         />
                     </div>
+
                     <div>
-                        <label className="form-label mb-1 small">Filter by Date</label>
+                        <label className="form-label mb-1 small"></label>
                         <Dropdown>
-                            <Dropdown.Toggle variant="outline-secondary" size="md">
+                            <Dropdown.Toggle variant="outline-secondary" size="sm">
                                 <FontAwesomeIcon icon={faCalendar} />
                             </Dropdown.Toggle>
 
@@ -319,30 +383,29 @@ const TourismCertAdminPage = () => {
                         </Dropdown>
                     </div>
 
+                    <div>
+                        <label className="form-label mb-1 small"></label> <br></br>
+                        <Dropdown as={ButtonGroup}>
+                            <Button variant="outline-secondary" size="sm">
+                                <FontAwesomeIcon icon={faFileExport} />
+                            </Button>
+                            <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="sm" />
 
+                            <Dropdown.Menu>
+                                <Dropdown.Item onClick={() => exportToExcel(filteredCerts, "Filtered_Employees.xlsx")}>
+                                    <FontAwesomeIcon icon={faDownload} className="me-2" />
+                                    Export Excel
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => exportToPdf(filteredCerts, "Filtered_Employees.pdf")}>
+                                    <FontAwesomeIcon icon={faPrint} className="me-2" />
+                                    Download PDF
+                                </Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    </div>
 
                 </div>
-                <div>
-                    <label className="form-label mb-1 small">Download</label> <br></br>
-                    <Dropdown as={ButtonGroup}>
-                        <Button variant="outline-secondary" size="md">
-                            <FontAwesomeIcon icon={faFileExport} className="me-2" />
-                            Export
-                        </Button>
-                        <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="md" />
 
-                        <Dropdown.Menu>
-                            <Dropdown.Item onClick={() => exportToExcel(filteredCerts, "Filtered_Employees.xlsx")}>
-                                <FontAwesomeIcon icon={faDownload} className="me-2" />
-                                Export Excel
-                            </Dropdown.Item>
-                            <Dropdown.Item onClick={() => exportToPdf(filteredCerts, "Filtered_Employees.pdf")}>
-                                <FontAwesomeIcon icon={faPrint} className="me-2" />
-                                Download PDF
-                            </Dropdown.Item>
-                        </Dropdown.Menu>
-                    </Dropdown>
-                </div>
 
             </div>
 
@@ -423,8 +486,17 @@ const TourismCertAdminPage = () => {
                                         : "—"}
                                 </td>
 
-                                <td>{employee ? `${employee.firstname} ${employee.middlename} ${employee.surname}, ${employee.suffix}` : "—"}</td>
-                                <td>{company ? company.name : "—"}</td>
+<td>
+  {cert.employee_id
+    ? `${employee.firstname} ${employee.middlename} ${employee.surname}${employee.suffix ? `, ${employee.suffix}` : ""}`
+    : selectedComp?.name || "—"}
+</td>
+<td>
+  {cert.employee_id
+    ? company?.name || "—"
+    : selectedComp?.name || "—"}
+</td>
+
                                 <td>{verifierName}</td>
 
                             </tr>
@@ -485,18 +557,27 @@ const TourismCertAdminPage = () => {
                 </div>
             </div>
 
-            {selectedEmp && selectedComp && (
+            {selectedCert && (
                 <>
-                    <TourismCert
-                        emp={new Employee(selectedEmp)}
-                        company={selectedComp}
-                        currentUser={currentUser}
-                        hideNavAndFooter
-                    />
+                    {selectedCert.employee_id ? (
+                        <TourismCert
+                            emp={new Employee(selectedEmp)}
+                            company={selectedComp}
+                            currentUser={currentUser}
+                            hideNavAndFooter
+                        />
+                    ) : (
+                        <CompanyTourismCert
+                            company={selectedComp}
+                            currentUser={currentUser}
+                            hideNavAndFooter
+                        />
+                    )}
+
                     <div className="text-center mt-3 mb-5">
                         <Button
                             variant="outline-danger"
-                            size="md"
+                            size="sm"
                             onClick={() => setSelectedCert(null)}
                         >
                             <FontAwesomeIcon icon={faEyeSlash} className="me-2" />
@@ -505,6 +586,8 @@ const TourismCertAdminPage = () => {
                     </div>
                 </>
             )}
+
+
         </div>
     );
 };

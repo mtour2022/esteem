@@ -40,6 +40,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
   const tableRef = useRef();
   const chartRef = useRef();
   const tableRefSummary = useRef();
+  const tableRefSummaryDetailed = useRef();
 
   const [dateRangeOption, setDateRangeOption] = useState("This Month (the default)");
   // const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
@@ -73,64 +74,64 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
     return { start, end };
   }, [dateRangeOption]);
-useEffect(() => {
-  const fetchTickets = async () => {
-    setLoadingTickets(true);
-    try {
-      let docs = [];
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setLoadingTickets(true);
+      try {
+        let docs = [];
 
-      if (Array.isArray(ticketsList) && ticketsList.length > 0) {
-        // Fetch by specific IDs
-        const ticketRefs = ticketsList.map(id => doc(db, "tickets", id));
-        const snapshots = await Promise.all(ticketRefs.map(ref => getDoc(ref)));
-        docs = snapshots
-          .filter(snap => snap.exists())
-          .map(snap => ({ id: snap.id, ...snap.data() }));
+        if (Array.isArray(ticketsList) && ticketsList.length > 0) {
+          // Fetch by specific IDs
+          const ticketRefs = ticketsList.map(id => doc(db, "tickets", id));
+          const snapshots = await Promise.all(ticketRefs.map(ref => getDoc(ref)));
+          docs = snapshots
+            .filter(snap => snap.exists())
+            .map(snap => ({ id: snap.id, ...snap.data() }));
 
-      } else if (Array.isArray(ticketsList) && ticketsList.length === 0) {
-        // Fetch ALL tickets
-        const snapshot = await getDocs(collection(db, "tickets"));
-        docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } else if (Array.isArray(ticketsList) && ticketsList.length === 0) {
+          // Fetch ALL tickets
+          const snapshot = await getDocs(collection(db, "tickets"));
+          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      } else {
-        // Fetch by date range
-        const startTimestamp = Timestamp.fromDate(dateRange.start.toDate());
-        const endTimestamp = Timestamp.fromDate(dateRange.end.endOf("day").toDate());
+        } else {
+          // Fetch by date range
+          const startTimestamp = Timestamp.fromDate(dateRange.start.toDate());
+          const endTimestamp = Timestamp.fromDate(dateRange.end.endOf("day").toDate());
 
-        const q = query(
-          collection(db, "tickets"),
-          where("start_date_time", ">=", startTimestamp),
-          where("start_date_time", "<=", endTimestamp),
-          orderBy("start_date_time", "asc")
-        );
+          const q = query(
+            collection(db, "tickets"),
+            where("start_date_time", ">=", startTimestamp),
+            where("start_date_time", "<=", endTimestamp),
+            orderBy("start_date_time", "asc")
+          );
 
-        const snapshot = await getDocs(q);
-        docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      }
-
-      // ✅ Apply filterType logic here
-      if (filterType !== "all") {
-        if (filterType === "scanned") {
-          docs = docs.filter(ticket => ticket.status === "scanned");
+          const snapshot = await getDocs(q);
+          docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }
+
+        // ✅ Apply filterType logic here
+        if (filterType !== "all") {
+          if (filterType === "scanned") {
+            docs = docs.filter(ticket => ticket.status === "scanned");
+          }
+        }
+
+        setTickets(docs);
+      } catch (err) {
+        console.error("Error fetching tickets:", err);
+      } finally {
+        setLoadingTickets(false);
       }
+    };
 
-      setTickets(docs);
-    } catch (err) {
-      console.error("Error fetching tickets:", err);
-    } finally {
-      setLoadingTickets(false);
-    }
-  };
-
-  fetchTickets();
-}, [
-  ticketsList?.length,
-  JSON.stringify(ticketsList),
-  dateRange.start.valueOf(),
-  dateRange.end.valueOf(),
-  filterType // ✅ Make sure to re-run when filterType changes
-]);
+    fetchTickets();
+  }, [
+    ticketsList?.length,
+    JSON.stringify(ticketsList),
+    dateRange.start.valueOf(),
+    dateRange.end.valueOf(),
+    filterType // ✅ Make sure to re-run when filterType changes
+  ]);
 
 
 
@@ -255,15 +256,18 @@ useEffect(() => {
       console.error("Image download failed", err);
     }
   };
-  const handleDownloadImageSummary = async () => {
-    if (!tableRefSummary.current) return;
+
+  const handleDownloadImageSummaryDetailed = async () => {
+    if (!tableRefSummaryDetailed.current) return;
     try {
-      const dataUrl = await toPng(tableRefSummary.current);
+      const dataUrl = await toPng(tableRefSummaryDetailed.current);
       download(dataUrl, `tickets_summary_${mode}_${paxFilter}.png`);
     } catch (err) {
       console.error("Image download failed", err);
     }
   };
+
+
 
 
   const handleDownloadExcel = () => {
@@ -457,6 +461,63 @@ useEffect(() => {
     return num.toLocaleString();
   };
 
+
+  const handleDownloadExcelSummaryDetailed = () => {
+    // Group by month
+    const monthlyData = Object.entries(
+      filteredTicketsInRange.reduce((acc, ticket) => {
+        const month = ticket.start_date_time?.toDate
+          ? dayjs(ticket.start_date_time.toDate()).format("MMM YYYY")
+          : dayjs(ticket.start_date_time).format("MMM YYYY");
+
+        if (!acc[month]) {
+          acc[month] = {
+            totalPax: 0,
+            expectedPayment: 0,
+            actualPayment: 0,
+            expectedSale: 0
+          };
+        }
+
+        acc[month].totalPax += ticket.total_pax || 0;
+
+        acc[month].expectedPayment += ticket.total_expected_payment || 0;
+        acc[month].actualPayment += ticket.total_payment || 0;
+        acc[month].expectedSale += ticket.total_expected_sale || 0;
+
+        return acc;
+      }, {})
+    );
+
+    // Convert to array of objects for Excel
+    const excelData = monthlyData.map(([month, data]) => ({
+      Month: month,
+      "Total Pax": data.totalPax,
+      "Expected Payment": data.expectedPayment,
+      "Actual Payment": data.actualPayment,
+      "Expected Sale": data.expectedSale
+    }));
+
+    // Add grand total row
+    if (filteredTicketsInRange.length > 0) {
+      excelData.push({
+        Month: "Grand Total",
+        "Total Pax": filteredTicketsInRange.reduce((sum, t) => sum + (t.total_pax || 0), 0),
+
+        "Expected Payment": filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_payment || 0), 0),
+        "Actual Payment": filteredTicketsInRange.reduce((sum, t) => sum + (t.total_payment || 0), 0),
+        "Expected Sale": filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_sale || 0), 0)
+      });
+    }
+
+    // Create worksheet & workbook
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Detailed Tickets");
+
+    // Save file
+    XLSX.writeFile(wb, `Detailed_Tickets_${dateRange.start.format("YYYYMMDD")}_${dateRange.end.format("YYYYMMDD")}.xlsx`);
+  };
 
 
 
@@ -714,8 +775,127 @@ useEffect(() => {
         </div>
 
         {/* Tabbed Panel */}
-        <Tabs defaultActiveKey="chart" id="summary-tabs" className="bg-white mb-3 ">
+        <Tabs defaultActiveKey="summary" id="summary-tabs" className="bg-white mb-3 ">
           {/* First Tab - Chart */}
+
+          <Tab eventKey="summary" title="Summary" className="bg-white">
+            <div className="mt-4 bg-white">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="text-muted small fw-semibold">
+                  Detailed Tickets
+                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
+                  ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+                </div>
+                <div>
+                  <Button
+                    variant="light"
+                    size="sm"
+                    className="me-2"
+                    onClick={handleDownloadImageSummaryDetailed}
+                  >
+                    <FontAwesomeIcon icon={faDownload} />
+                  </Button>
+                  <Button
+                    variant="light"
+                    size="sm"
+                    onClick={handleDownloadExcelSummaryDetailed}
+                  >
+                    <FontAwesomeIcon icon={faTable} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 rounded">
+              <Table striped bordered hover responsive ref={tableRefSummaryDetailed}>
+                <thead className="table-light text-center">
+                  <tr>
+                    <th>Month</th>
+                    <th>Total Pax</th>
+                    <th>Expected Payment</th>
+                    <th>Actual Payment</th>
+                    <th>Difference (%)</th>
+                    <th>Expected Sale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(
+                    filteredTicketsInRange.reduce((acc, ticket) => {
+                      const month = ticket.start_date_time?.toDate
+                        ? dayjs(ticket.start_date_time.toDate()).format("MMM YYYY")
+                        : dayjs(ticket.start_date_time).format("MMM YYYY");
+
+                      if (!acc[month]) {
+                        acc[month] = {
+                          totalPax: 0,
+                          expectedPayment: 0,
+                          actualPayment: 0,
+                          expectedSale: 0
+                        };
+                      }
+
+                      acc[month].totalPax += ticket.total_pax || 0;
+
+                      acc[month].expectedPayment += ticket.total_expected_payment || 0;
+                      acc[month].actualPayment += ticket.total_payment || 0;
+                      acc[month].expectedSale += ticket.total_expected_sale || 0;
+
+                      return acc;
+                    }, {})
+                  ).map(([month, data]) => {
+                    const percentDiff = data.expectedPayment
+                      ? ((data.actualPayment - data.expectedPayment) / data.expectedPayment) * 100
+                      : 0;
+
+                    return (
+                      <tr key={month}>
+                        <td>{month}</td>
+                        <td className="text-center">{data.totalPax.toLocaleString()}</td>
+                        <td className="text-end">{data.expectedPayment.toLocaleString()}</td>
+                        <td className="text-end">{data.actualPayment.toLocaleString()}</td>
+                        <td className={`text-end ${percentDiff >= 0 ? "text-success" : "text-danger"}`}>
+                          {percentDiff.toFixed(2)}%
+                        </td>
+                        <td className="text-end">{data.expectedSale.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+
+                  {filteredTicketsInRange.length > 0 && (() => {
+                    const totalExpected = filteredTicketsInRange.reduce(
+                      (sum, t) => sum + (t.total_expected_payment || 0), 0
+                    );
+                    const totalActual = filteredTicketsInRange.reduce(
+                      (sum, t) => sum + (t.total_payment || 0), 0
+                    );
+                    const totalPercentDiff = totalExpected
+                      ? ((totalActual - totalExpected) / totalExpected) * 100
+                      : 0;
+
+                    return (
+                      <tr className="fw-bold">
+                        <td>Grand Total</td>
+                        <td className="text-center">
+                          {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_pax || 0), 0).toLocaleString()}
+                        </td>
+
+                        <td className="text-end">{totalExpected.toLocaleString()}</td>
+                        <td className="text-end">{totalActual.toLocaleString()}</td>
+                        <td className={`text-end ${totalPercentDiff >= 0 ? "text-success" : "text-danger"}`}>
+                          {totalPercentDiff.toFixed(2)}%
+                        </td>
+                        <td className="text-end">
+                          {filteredTicketsInRange.reduce((sum, t) => sum + (t.total_expected_sale || 0), 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </tbody>
+              </Table>
+
+
+            </div>
+          </Tab>
           <Tab eventKey="chart" title="Chart" className="bg-white" ref={chartRef}>
             <div className="mt-4 bg-white">
               <div className="d-flex justify-content-between align-items-center mb-2">
@@ -766,6 +946,7 @@ useEffect(() => {
               </ResponsiveContainer>
             </div>
           </Tab>
+
           {/* Second Tab - Table */}
           <Tab eventKey="table" title="Table" className="bg-white">
             <div className="mt-4 bg-white" >
@@ -781,7 +962,7 @@ useEffect(() => {
                   ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
                 </div>
                 <div>
-                  <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImageSummary}>
+                  <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImage}>
                     <FontAwesomeIcon icon={faDownload} />
                   </Button>
                   <Button variant="light" size="sm" onClick={handleDownloadExcel}>

@@ -3,13 +3,14 @@ import { useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import TourismCert from "./TourismCert";
+import CompanyTourismCert from "../components/CompanyTourismCert";
 
 // Hooks
 import useEmployeeInfo from "../services/GetEmployeesDetails";
 import useVerifierInfo from "../services/GetVerifierDetail";
 import useCompanyInfo from "../services/GetCompanyDetails";
 
-const TourismCertView = () => {
+const TourismCertView = ({ currentUser }) => {
   const { tourism_cert_id } = useParams();
   const [certData, setCertData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +18,7 @@ const TourismCertView = () => {
 
   const emp = useEmployeeInfo(certData?.employee_id);
   const verifier = useVerifierInfo(certData?.verifier_id);
-  const company = useCompanyInfo(certData?.company_id); // ✅ You forgot this
+  const company = useCompanyInfo(certData?.company_id);
 
   useEffect(() => {
     const fetchTourismCert = async () => {
@@ -41,15 +42,6 @@ const TourismCertView = () => {
     fetchTourismCert();
   }, [tourism_cert_id]);
 
-  useEffect(() => {
-  console.log("📦 tourism_cert_id:", tourism_cert_id);
-  console.log("📄 certData:", certData);
-  console.log("👤 emp:", emp);
-  console.log("🏢 company:", company);
-  console.log("✅ verifier:", verifier);
-}, [certData, emp, company, verifier]);
-
-
   if (loading) {
     return <p className="text-center mt-5">Loading tourism certificate...</p>;
   }
@@ -58,11 +50,25 @@ const TourismCertView = () => {
     return <p className="text-center mt-5 text-danger">Tourism certificate not found.</p>;
   }
 
-  if (!emp || !verifier || !company) {
-    return <p className="text-center mt-5">Loading referenced employee, company, or verifier...</p>;
+  // If employee_id exists, show TourismCert
+  if (certData.employee_id) {
+    if (!emp || !verifier || !company) {
+      return <p className="text-center mt-5">Loading referenced employee, company, or verifier...</p>;
+    }
+
+    return <TourismCert emp={emp} company={company} />;
   }
 
-  return <TourismCert emp={emp} company={company} />;
+  // If no employee_id, show CompanyTourismCert
+  if (company) {
+    return (
+      <CompanyTourismCert
+        company={company}
+      />
+    );
+  }
+
+  return <p className="text-center mt-5">Loading company information...</p>;
 };
 
 export default TourismCertView;

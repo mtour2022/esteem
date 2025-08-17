@@ -306,7 +306,7 @@ export default function VerifierEmployeeListPage() {
         status: newStatus,
         date_updated: new Date().toISOString(),
         remarks: formValues.remarks || "",
-        userId: currentUser?.email || "system",
+        userId: currentUser?.uid || null,
       };
 
       const updates = {
@@ -790,7 +790,7 @@ export default function VerifierEmployeeListPage() {
               <div className="d-flex justify-content-end align-items-center gap-2 mt-3 mb-3 flex-wrap">
                 <Button
                   variant="outline-secondary"
-                  size="md"
+                  size="sm"
                   onClick={fetchEmployeeDetails}
                 >
                   <FontAwesomeIcon icon={faSyncAlt} />
@@ -799,7 +799,7 @@ export default function VerifierEmployeeListPage() {
                   as={ButtonGroup}
                   variant="outline-secondary"
                   title={<><FontAwesomeIcon icon={faDownload} /></>}
-                  size="md"
+                  size="sm"
 
                 >
                   <Dropdown.Item onClick={() => exportToExcel(employees, "All_Employees.xlsx")}>
@@ -822,11 +822,11 @@ export default function VerifierEmployeeListPage() {
                   show={showColumnDropdown}
                   onToggle={() => setShowColumnDropdown(!showColumnDropdown)}
                 >
-                  <Dropdown.Toggle variant="outline-secondary" title="Customize Columns">
+                  <Dropdown.Toggle variant="outline-secondary" size="sm" title="Customize Columns">
                     <FontAwesomeIcon icon={faColumns} />
                   </Dropdown.Toggle>
 
-                  <Dropdown.Menu style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}>
+                  <Dropdown.Menu  style={{ maxHeight: "300px", overflowY: "auto", padding: "10px 15px", minWidth: "220px" }}>
                     <div className="d-flex justify-content-between mb-2">
                       <Button
                         variant="link"
@@ -868,7 +868,7 @@ export default function VerifierEmployeeListPage() {
                 </Dropdown>
 
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-secondary" size="md">
+                  <Dropdown.Toggle variant="outline-secondary" size="sm">
                     <FontAwesomeIcon icon={faFileCircleCheck} />
                   </Dropdown.Toggle>
                   <Dropdown.Menu style={{ padding: "10px", width: 250 }}>
@@ -897,7 +897,7 @@ export default function VerifierEmployeeListPage() {
                 </Dropdown>
 
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-secondary" size="md">
+                  <Dropdown.Toggle variant="outline-secondary" size="sm">
                     <FontAwesomeIcon icon={faCalendar} />
                   </Dropdown.Toggle>
 
@@ -973,7 +973,7 @@ export default function VerifierEmployeeListPage() {
                   </Dropdown.Menu>
                 </Dropdown>
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-secondary" size="md">
+                  <Dropdown.Toggle variant="outline-secondary" size="sm">
                     <FontAwesomeIcon icon={faFilter} className="me-2" />
                     Filters
                   </Dropdown.Toggle>
@@ -1134,6 +1134,7 @@ export default function VerifierEmployeeListPage() {
                     <div className="mb-3">
                       <label className="form-label fw-semibold small text-muted">Company Status</label>
                       <Select
+                      
                         options={[
                           { value: "", label: "All Company Statuses" },
                           ...Array.from(new Set(employees.map((e) => e.company_status || "")))
@@ -1214,14 +1215,14 @@ export default function VerifierEmployeeListPage() {
                   </Dropdown.Menu>
                 </Dropdown>
                 {/* Search Input */}
-                <InputGroup style={{ maxWidth: "350px" }}>
+                <InputGroup size="sm" style={{ maxWidth: "350px" }}>
                   <FormControl
                     placeholder="Search by name or company..."
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
                   />
                   <Button
-                    variant="outline-secondary"
+                    variant="outline-secondary"size="sm"
                     onClick={() => {
                       setActiveSearchText(searchText);
                       setCurrentPage(1);
@@ -1477,7 +1478,7 @@ export default function VerifierEmployeeListPage() {
                     <div className="text-center mt-3 mb-5">
                       <Button
                         variant="outline-danger"
-                        size="md"
+                        size="sm"
                         onClick={() => setShowCertificateFor(null)}
                       >
                         <FontAwesomeIcon icon={faEyeSlash} className="me-2" />

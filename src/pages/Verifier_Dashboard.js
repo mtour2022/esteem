@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Nav, Tab, Row, Col, Card, Image, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat, faRegistered, faBuilding, faTicket, faTable } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat, faRegistered, faBuilding, faTicket, faTable, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { auth } from '../config/firebase';
@@ -23,6 +23,7 @@ import TicketQRScanner from './Ticket_QR_Check';
 import EmployeeRegistrationForm from './Employee_Registration'
 import CompanyRegistrationPage from './Company_Registration'
 import TicketCreationForm from '../components/TicketCreationForm'
+import CompanyPage from './Verifier_Company_List';
 
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
@@ -121,7 +122,9 @@ export default function VerifierDashboard() {
         { key: 'generatetickets', label: 'Generate Tourism Tickets', icon: faTicket },
         { key: 'tickets', label: 'Tourism Tickets', icon: faTable },
         { key: 'applicationstatus', label: 'Application Status Check', icon: faCheckToSlot },
-        { key: 'frontliners', label: 'Tourism Frontliners', icon: faUsers },
+                { key: 'companyList', label: 'Company List', icon:  faUsers},
+
+        { key: 'frontliners', label: 'Tourism Frontliners', icon:faUserGroup  },
         { key: 'tourismCerts', label: 'Tourism Certificates', icon: faCertificate },
         { key: 'scanTourismCheck', label: 'Tourism Cert Checker', icon: faCheckSquare },
 
@@ -225,10 +228,16 @@ export default function VerifierDashboard() {
                                     <Tab.Pane eventKey="tickets">
                                         <TourismTicketsTab />
                                     </Tab.Pane>
+                                    <Tab.Pane eventKey="companyList">
+                                        <CompanyPage />
+                                    </Tab.Pane>
                                     <Tab.Pane eventKey="frontliners">
                                         <TourismFrontlinersTab />
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="applicationstatus">
+                                        <ApplicationStatusTab shouldRender={key === 'applicationstatus'} />
+                                    </Tab.Pane>
+ <Tab.Pane eventKey="applicationstatus">
                                         <ApplicationStatusTab shouldRender={key === 'applicationstatus'} />
                                     </Tab.Pane>
 

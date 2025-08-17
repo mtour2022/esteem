@@ -1255,14 +1255,27 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
 
           {/* RIGHT SIDE: Icon Buttons */}
-          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0">
-            <Button variant="outline-secondary" title="Refresh Tickets" onClick={handleRefresh}>
+          <Col
+            lg={6}
+            md={12}
+            sm={12}
+            xs={12}
+            className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0"
+          >
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              title="Refresh Tickets"
+              onClick={handleRefresh}
+            >
               <FontAwesomeIcon icon={faRefresh} /> Refresh
             </Button>
 
-
-            <Dropdown show={showSearchDropdown} onToggle={() => setShowSearchDropdown(!showSearchDropdown)}>
-              <Dropdown.Toggle variant="outline-secondary" as={Button}>
+            <Dropdown
+              show={showSearchDropdown}
+              onToggle={() => setShowSearchDropdown(!showSearchDropdown)}
+            >
+              <Dropdown.Toggle variant="outline-secondary" as={Button} size="sm">
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
               </Dropdown.Toggle>
 
@@ -1291,17 +1304,30 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     onChange={(e) => setSearchTextInput(e.target.value)}
                     className="mb-2"
                   />
-                  <Button variant="primary" size="sm" onClick={() => {
-                    setShowSearchDropdown(false);
-                    handleSearch();
-                  }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setShowSearchDropdown(false);
+                      handleSearch();
+                    }}
+                  >
                     Search
                   </Button>
                 </Form>
               </Dropdown.Menu>
             </Dropdown>
-            <Dropdown show={showDateSearchDropdown} onToggle={() => setShowDateSearchDropdown(!showDateSearchDropdown)}>
-              <Dropdown.Toggle as={Button} variant="outline-secondary" title="Date Range Search">
+
+            <Dropdown
+              show={showDateSearchDropdown}
+              onToggle={() => setShowDateSearchDropdown(!showDateSearchDropdown)}
+            >
+              <Dropdown.Toggle
+                as={Button}
+                size="sm"
+                variant="outline-secondary"
+                title="Date Range Search"
+              >
                 <FontAwesomeIcon icon={faCalendarDays} />
               </Dropdown.Toggle>
 
@@ -1330,11 +1356,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisMonth")}>This Month</Button>
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisHalfOfTheMonth")}>This Half Month</Button>
                   <Button variant="outline-secondary" size="sm" onClick={() => applyQuickFilter("thisYear")}>This Year</Button>
-
                 </div>
-
-
-
 
                 {/* Select Month Filter */}
                 <Form.Group className="mb-3">
@@ -1344,17 +1366,14 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     value={selectedMonth}
                     onChange={(e) => {
                       setSelectedMonth(e.target.value);
-
                       if (e.target.value) {
                         const [year, month] = e.target.value.split("-");
                         const start = new Date(year, month - 1, 1);
-                        const end = new Date(year, month, 0); // this gives the last day of the correct month
+                        const end = new Date(year, month, 0);
                         end.setHours(23, 59, 59, 999);
-
                         const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
                         setStartDateInput(formatDateLocal(start));
                         setEndDateInput(formatDateLocal(end));
-
                         setSelectedDateFilter("");
                         setSelectedYear("");
                       }
@@ -1374,15 +1393,12 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     onChange={(e) => {
                       const input = e.target.value;
                       setSelectedYear(input);
-
                       if (input.length === 4 && !isNaN(input)) {
                         const start = new Date(input, 0, 1);
                         const end = new Date(input, 11, 31, 23, 59, 59, 999);
-
                         const formatDateLocal = (date) => date.toLocaleDateString("en-CA");
                         setStartDateInput(formatDateLocal(start));
                         setEndDateInput(formatDateLocal(end));
-
                         setSelectedDateFilter("");
                         setSelectedMonth("");
                       }
@@ -1396,22 +1412,20 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   className="w-100 mt-2 mb-4"
                   onClick={() => {
                     setShowDateSearchDropdown(false);
-                    setTriggerSearch(true); // ✅ TRIGGERS the fetching based on inputs
+                    setTriggerSearch(true);
                   }}
                 >
                   Apply Date Filter
                 </Button>
-
               </Dropdown.Menu>
             </Dropdown>
 
-            <Button variant="outline-secondary" title="Download" onClick={handleDownloadTable}>
+            <Button variant="outline-secondary" size="sm" title="Download" onClick={handleDownloadTable}>
               <FontAwesomeIcon icon={faDownload} />
             </Button>
 
-
             <Dropdown>
-              <Dropdown.Toggle variant="outline-secondary" title="Export">
+              <Dropdown.Toggle variant="outline-secondary" size="sm" title="Export">
                 <FontAwesomeIcon icon={faPrint} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
@@ -1420,8 +1434,11 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
               </Dropdown.Menu>
             </Dropdown>
 
-            <Dropdown show={showColumnDropdown} onToggle={() => setShowColumnDropdown(!showColumnDropdown)}>
-              <Dropdown.Toggle variant="outline-secondary" title="Customize Columns">
+            <Dropdown
+              show={showColumnDropdown}
+              onToggle={() => setShowColumnDropdown(!showColumnDropdown)}
+            >
+              <Dropdown.Toggle variant="outline-secondary" size="sm" title="Customize Columns">
                 <FontAwesomeIcon icon={faColumns} />
               </Dropdown.Toggle>
 
@@ -1444,7 +1461,6 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     Unselect All
                   </Button>
                 </div>
-
                 <Form>
                   {allColumns.map(col => (
                     <Form.Check
@@ -1466,15 +1482,17 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
               </Dropdown.Menu>
             </Dropdown>
 
-            <Dropdown show={showGroupFilter} onToggle={() => setShowGroupFilter(!showGroupFilter)}>
-              <Dropdown.Toggle variant="outline-secondary" title="Group Filter">
+            <Dropdown
+              show={showGroupFilter}
+              onToggle={() => setShowGroupFilter(!showGroupFilter)}
+            >
+              <Dropdown.Toggle variant="outline-secondary" size="sm" title="Group Filter">
                 <FontAwesomeIcon icon={faLayerGroup} />
               </Dropdown.Toggle>
 
               <Dropdown.Menu style={{ minWidth: "280px", padding: "15px", maxHeight: "400px", overflowY: "auto" }}>
                 <Form>
-                  {/* add here  use <Select> import */}
-                  {/* Company Filter with react-select */}
+                  {/* Company Filter */}
                   <Form.Group controlId="filter-company" className="mb-3">
                     <Form.Label>Company</Form.Label>
                     <Select
@@ -1530,9 +1548,6 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     />
                   </Form.Group>
 
-
-
-
                   {/* Status Filter */}
                   <Form.Group controlId="filter-status" className="mb-3">
                     <Form.Label>Status</Form.Label>
@@ -1572,7 +1587,6 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                     </Form.Select>
                   </Form.Group>
 
-
                   {/* Age Bracket Filter */}
                   <Form.Group controlId="filter-age" className="mb-3">
                     <Form.Label>Age Bracket</Form.Label>
@@ -1586,9 +1600,10 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                   </Form.Group>
 
                   <div className="d-grid gap-2 mt-3">
-                    <Button variant="primary" onClick={() => handleSearch()}>Apply Filters</Button>
+                    <Button variant="primary" size="sm" onClick={() => handleSearch()}>Apply Filters</Button>
                     <Button
                       variant="outline-secondary"
+                      size="sm"
                       onClick={() => {
                         setFilterStatus("");
                         setFilterResidency("");
@@ -1597,19 +1612,17 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
                         setFilterCompanyId("");
                         setFilterCountry("");
                         setFilterTown("");
-                        setFilteredTickets(allFilteredTickets); // <-- Reset to full original
+                        setFilteredTickets(allFilteredTickets);
                       }}
                     >
                       Reset
                     </Button>
-
                   </div>
                 </Form>
               </Dropdown.Menu>
             </Dropdown>
-
-
           </Col>
+
         </Row>
 
 
@@ -2018,6 +2031,22 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
               )}
             </Tab>
 
+            {/* Performance Tab */}
+            <Tab eventKey="performance" title="Performance">
+              <h6 className="mt-4">Performance</h6>
+              <small className="text-muted">
+                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+              </small>
+              <Row className="g-3 mt-2">
+                <Col md={12}>
+                  <TicketsSummaryTable
+                    loading={!hasFilteredSummaryData}
+                    filterType={summaryFilter}
+                  />
+                </Col>
+              </Row>
+            </Tab>
+
             {/* Insights Tab */}
             <Tab eventKey="insights" title="Insights">
               <h6 className="mt-4">Insights</h6>
@@ -2113,21 +2142,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
             </Tab>
 
 
-            {/* Performance Tab */}
-            <Tab eventKey="performance" title="Performance">
-              <h6 className="mt-4">Performance</h6>
-              <small className="text-muted">
-                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-              </small>
-              <Row className="g-3 mt-2">
-                <Col md={12}>
-                  <TicketsSummaryTable
-                    loading={!hasFilteredSummaryData}
-                    filterType={summaryFilter}
-                  />
-                </Col>
-              </Row>
-            </Tab>
+
 
           </Tabs>
 

@@ -86,7 +86,16 @@ const TourismCertSearchPage = ({ hideNavAndFooter = false }) => {
           <Col className="text-center">
             <p id="toppage" className="barabara-label">FIND MY TOURISM CERTIFICATE</p>
             <p className="text-muted">Search by Name and Birthday</p>
+
+            {/* Notification box */}
+            <div
+              className="mt-2 p-2 border border-danger bg-danger bg-opacity-10 rounded"
+              style={{ display: "inline-block" }}
+            >
+              <small className="text-danger">Note: This is for employees only.</small>
+            </div>
           </Col>
+
         </Row>
 
         {/* Search Card */}

@@ -1,7 +1,7 @@
 class Company {
     constructor({
         company_id = "",
-                userUID = "",
+        userUID = "",
         address = {
             street: "",
             barangay: "",
@@ -22,8 +22,16 @@ class Company {
             middle: "",
             last: "",
         },
-        status = "",
+        status = "under review",
         status_history = [],
+        tourism_certificate_ids = [],
+        latest_cert_id = "",
+        latest_cert_summary = {
+            date_Expired: "",
+            date_Issued: "",
+            tourism_cert_id: "",
+            type: ""
+        },
         type = "",
         year = "",
         employee = [],
@@ -31,7 +39,7 @@ class Company {
         password = "",
     }) {
         this.company_id = company_id;
-                this.userUID = userUID; 
+        this.userUID = userUID;
         this.address = address;
         this.classification = classification;
         this.contact = contact;
@@ -42,7 +50,10 @@ class Company {
         this.permit = permit;
         this.proprietor = proprietor;
         this.status = status;
-                this.status_history = status_history;
+        this.status_history = status_history;
+        this.tourism_certificate_ids = tourism_certificate_ids;
+        this.latest_cert_id = latest_cert_id;
+        this.latest_cert_summary = latest_cert_summary;
         this.type = type;
         this.year = year;
         this.employee = employee;
