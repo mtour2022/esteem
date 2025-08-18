@@ -23,6 +23,7 @@ import TicketStatusLineChart from "./TicketScannedVsCreated";
 import AgeGenderLineChart from "./TicketAgeSexComparative";
 import ActivitiesHeatmapChart from "./TicketActivitiesHeatMap.js"
 import Select from "react-select";
+import TicketSummary from "../components/TicketSummary.js"; // adjust the path if needed
 
 import {
   faMagnifyingGlass,
@@ -33,6 +34,9 @@ import {
   faCopy,
   faRefresh,
   faTable,
+  faQrcode,
+  faClose,
+  faEyeSlash,
 
 } from "@fortawesome/free-solid-svg-icons";
 import SummaryPieChart from './PieChart';
@@ -277,6 +281,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterTown, setFilterTown] = useState("");
   const [employeeMap, setEmployeeMap] = useState({});
+const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     const today = new Date();
@@ -1492,13 +1497,13 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
       <Card.Body className="mt-5">
         <Row className="align-items-end mb-3">
           {/* LEFT SIDE: Search Field */}
-          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
+          {/* <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
 
-          </Col>
+          </Col> */}
 
 
           {/* RIGHT SIDE: Icon Buttons */}
-          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0 ps-0 ms-0">
+          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-start justify-content-start gap-2 mb-2 me-0 pe-0 ps-0 ms-0">
             <Button
               variant="outline-secondary"
               title="Refresh Tickets"
@@ -2069,6 +2074,14 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                             >
                               <FontAwesomeIcon icon={faCopy} />
                             </Button>
+                              <Button
+      variant="outline-primary"
+      size="sm"
+      onClick={() => setSelectedTicket(t)}
+    >
+                                    <FontAwesomeIcon icon={faQrcode} />
+
+    </Button>
                           </div>
                         ),
 
@@ -2131,9 +2144,33 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
             </div>
           </div>
         )}
+
+        
+
+
       </Card.Body>
 
-      <div className="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-3">
+      {/* qr screen here  */}
+       {selectedTicket && (
+  <div className="mt-4 mb-4">
+    <Row className="justify-content-center">
+      <Col lg={6} md={8} sm={12} xs={12}>
+        <TicketSummary ticket={selectedTicket} />
+        <div className="text-center mt-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setSelectedTicket(null)}
+          >
+            <FontAwesomeIcon icon={faEyeSlash} /> Close
+          </Button>
+        </div>
+      </Col>
+    </Row>
+  </div>
+)}
+
+      <div className="d-flex justify-content-between align-items-center mt-5 px-2 flex-wrap gap-3">
         <div className="d-flex align-items-center gap-3">
 
 
@@ -2299,35 +2336,33 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                     <Col md={12}>
                       <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={tableRefSummaryImage}>
 
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <div className="text-muted small fw-semibold">
-                            <h6 className="text-muted mt-2">
-                              Pax Summary from{" "}
-                              {new Date(startDateInput).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })}
-                              {" "}
-                              to{" "}
-                              {new Date(endDateInput).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })}
-                            </h6>
+                       <div className="d-flex justify-content-between align-items-center mb-2 flex-nowrap">
+  <div className="text-muted small fw-semibold">
+    <h6 className="text-muted mt-2">
+      Pax Summary from{" "}
+      {new Date(startDateInput).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })}{" "}
+      to{" "}
+      {new Date(endDateInput).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })}
+    </h6>
+  </div>
+  <div className="d-flex gap-2 flex-nowrap">
+    <Button variant="light" size="sm" onClick={handleDownloadImageSummary}>
+      <FontAwesomeIcon icon={faDownload} />
+    </Button>
+    <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+      <FontAwesomeIcon icon={faTable} />
+    </Button>
+  </div>
+</div>
 
-                          </div>
-                          <div>
-                            <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImageSummary}>
-                              <FontAwesomeIcon icon={faDownload} />
-                            </Button>
-                            <Button variant="light" size="sm" onClick={handleDownloadExcel}>
-                              <FontAwesomeIcon icon={faTable} />
-                            </Button>
-                          </div>
-
-                        </div>
 
                         <Table striped bordered hover responsive ref={tableRefSummary}>
                           <thead>

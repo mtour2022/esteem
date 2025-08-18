@@ -1,36 +1,30 @@
 import React, { useEffect, useState } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Image, Tabs, Tab,
-} from "react-bootstrap";
+import { Container, Row, Col, Image, Tabs, Tab } from "react-bootstrap";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import TouristActivityStatusBoard from "./ActivityStatusBoard";
-import CompanyEmployeeListPage from "../pages/CompanyEmployeeList";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCertificate, faLineChart, faTicket, faUserGroup } from '@fortawesome/free-solid-svg-icons';
-import CompanyTourismCert from "./CompanyTourismCert";
+import { faCertificate, faLineChart, faTicket } from '@fortawesome/free-solid-svg-icons';
+import CompanyTourismCert from "./CompanyTourismCert"; // still reusable for employee certs
 import { useAuth } from "../auth/authentication";
 
-const CompanyDashboardPanel = ({ company, refreshKey }) => {
+const EmployeeDashboardPanel = ({ employee, refreshKey }) => {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
-  const { currentUser } = useAuth();
   const [selectedCert, setSelectedCert] = useState(null);
 
-  useEffect(() => {
-    console.log("Company prop passed to CompanyDashboardPanel:", company);
-  }, [company]);
+  const ticketIds = Array.isArray(employee.tickets) ? employee.tickets : [];
 
+  useEffect(() => {
+    console.log("Employee prop passed to EmployeeDashboardPanel:", employee);
+  }, [employee]);
 
   useEffect(() => {
     const fetchTickets = async () => {
-      if (!company?.ticket || !Array.isArray(company.ticket)) return;
+      if (!employee?.tickets || !Array.isArray(employee.tickets)) return;
 
       try {
-        const ticketPromises = company.ticket.map((ticketId) =>
+        const ticketPromises = employee.tickets.map((ticketId) =>
           getDoc(doc(db, "tickets", ticketId))
         );
         const snapshots = await Promise.all(ticketPromises);
@@ -44,34 +38,33 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
     };
 
     fetchTickets();
-  }, [company, refreshKey]); // 👈 include refreshKey here
+  }, [employee, refreshKey]);
 
-  const ticketIds = Array.isArray(company.ticket) ? company.ticket : [];
-
-  if (!company) return null;
+  if (!employee) return null;
 
   return (
     <Container className="body-container" id="toppage">
-      {/* Company Header */}
+      {/* Employee Header */}
       <Row className="align-items-center justify-content-between mb-3">
         <Col xs="auto" className="ps-0 d-flex align-items-center gap-3">
-          {company.logo && (
+          {employee.profilePhoto && (
             <Image
-              src={company.logo}
+              src={employee.profilePhoto}
               rounded
               fluid
               style={{ height: 80 }}
-              alt="Company Logo"
+              alt="Employee Photo"
             />
           )}
-          <h2 className="mb-0">{company.name}</h2>
+          <h2 className="mb-0">{employee.getFullName()}</h2>
+          <p className="text-muted mb-0">{employee.designation || "No designation"}</p>
         </Col>
       </Row>
 
-      {/* Tab Buttons */}
+      {/* Tabs */}
       <div className="mb-4 d-flex gap-2">
         <Tabs
-          defaultActiveKey="ticketboard"
+          defaultActiveKey="dashboard"
           activeKey={activeTab}
           onSelect={(k) => setActiveTab(k)}
           className="mb-4"
@@ -85,19 +78,10 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
             }
           />
           <Tab
-            eventKey="employees"
-            title={
-              <>
-                <FontAwesomeIcon icon={faUserGroup} size="sm" className="me-2" /> Employees
-              </>
-            }
-          />
-
-          <Tab
             eventKey="certificate"
             title={
               <>
-                <FontAwesomeIcon icon={faCertificate} size="sm" className="me-2" /> My Certificate
+                <FontAwesomeIcon icon={faCertificate} size="sm" className="me-2" /> My Certificates
               </>
             }
           />
@@ -116,15 +100,7 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
       {activeTab === "dashboard" && (
         <TouristActivityStatusBoard
           ticket_ids={ticketIds}
-          refreshKey={refreshKey}   // 👈 pass refreshKey down
-        />
-      )}
-
-      {activeTab === "employees" && (
-        <CompanyEmployeeListPage
-          employeeIds={company.employee}
-          companyId={company.company_id}
-          companyName={company.name}
+          refreshKey={refreshKey}
         />
       )}
 
@@ -135,7 +111,7 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
             List of your issued tourism certificates.
           </p>
 
-          {Array.isArray(company.tourism_certificate_ids) && company.tourism_certificate_ids.length > 0 ? (
+          {Array.isArray(employee.tourism_certificate_ids) && employee.tourism_certificate_ids.length > 0 ? (
             <table className="table table-striped">
               <thead>
                 <tr>
@@ -145,7 +121,7 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
                 </tr>
               </thead>
               <tbody>
-                {company.tourism_certificate_ids.map((certId, index) => (
+                {employee.tourism_certificate_ids.map((certId, index) => (
                   <tr key={certId}>
                     <td>{index + 1}</td>
                     <td>{certId}</td>
@@ -162,23 +138,20 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
               </tbody>
             </table>
           ) : (
-            <p className="text-muted">No certificates found for this company.</p>
+            <p className="text-muted">No certificates found for this employee.</p>
           )}
 
-          {/* Display the selected certificate below */}
           {selectedCert && (
             <div className="mt-4">
               <CompanyTourismCert
-                company={company}
-                certificateId={selectedCert} // pass the selected cert if needed
+                employee={employee} // pass employee
+                certificateId={selectedCert}
                 hideNavAndFooter
               />
             </div>
           )}
         </div>
       )}
-
-
 
       {activeTab === "reports" && (
         <div className="text-muted">📊 Reports section coming soon.</div>
@@ -187,4 +160,4 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
   );
 };
 
-export default CompanyDashboardPanel;
+export default EmployeeDashboardPanel;

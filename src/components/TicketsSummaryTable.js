@@ -842,66 +842,6 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
 
 
-        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white mb-3 mx-2">
-
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <div className="text-muted small fw-semibold">
-              Comparative Summary by Pax ({dateRangeOption ? `${dateRangeOption} vs Previous` : "N/A"})
-            </div>
-
-            <div>
-              <Button
-                variant="light"
-                size="sm"
-                className="me-2"
-                onClick={handleDownloadImageComparativeSummary}
-              >
-                <FontAwesomeIcon icon={faDownload} />
-              </Button>
-              <Button
-                variant="light"
-                size="sm"
-                onClick={handleDownloadExcelComparativeSummary}
-              >
-                <FontAwesomeIcon icon={faTable} />
-              </Button>
-            </div>
-          </div>
-          <div className="bg-white rounded mt-2">
-
-            <Table striped bordered hover responsive ref={tableRefComparativeSummaryDetailed}>
-              <thead>
-                <tr>
-                  <th>{column1Label}</th>
-                  <th>{column2Label}</th>
-                  <th>Difference (%)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{previousTotalPax.toLocaleString()}</td>
-                  <td>{currentTotalPax.toLocaleString()}</td>
-                  <td
-                    className={
-                      percentageChange > 0
-                        ? "text-success fw-semibold"
-                        : percentageChange < 0
-                          ? "text-danger fw-semibold"
-                          : "text-muted"
-                    }
-                  >
-                    {percentageChange === "N/A"
-                      ? "N/A"
-                      : `${percentageChange > 0 ? "+" : percentageChange < 0 ? "-" : ""}${Math.abs(percentageChange).toFixed(2)}%`}
-                  </td>
-
-                </tr>
-              </tbody>
-            </Table>
-
-          </div>
-
-        </Card>
 
 
 
@@ -915,11 +855,10 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
                 ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} )
                 ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
               </div>
-              <div>
+              <div className="d-flex gap-2 flex-nowrap">
                 <Button
                   variant="light"
                   size="sm"
-                  className="me-2"
                   onClick={handleDownloadImageSummaryDetailed}
                 >
                   <FontAwesomeIcon icon={faDownload} />
@@ -934,7 +873,6 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded mt-2">
             <Table striped bordered hover responsive ref={tableRefSummaryDetailed}>
               <thead className="table-light text-center">
@@ -1032,6 +970,68 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           </div>
         </Card>
 
+        <Card className="summary-card border rounded p-3 text-muted h-100 bg-white mb-3 mx-2">
+
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="text-muted small fw-semibold">
+              Comparative Summary by Pax ({dateRangeOption ? `${dateRangeOption} vs Previous` : "N/A"})
+            </div>
+
+            <div className="d-flex gap-2 flex-nowrap">
+              <Button
+                variant="light"
+                size="sm"
+                onClick={handleDownloadImageComparativeSummary}
+              >
+                <FontAwesomeIcon icon={faDownload} />
+              </Button>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={handleDownloadExcelComparativeSummary}
+              >
+                <FontAwesomeIcon icon={faTable} />
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded mt-2">
+
+            <Table striped bordered hover responsive ref={tableRefComparativeSummaryDetailed}>
+              <thead>
+                <tr>
+                  <th>{column1Label}</th>
+                  <th>{column2Label}</th>
+                  <th>Difference (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{previousTotalPax.toLocaleString()}</td>
+                  <td>{currentTotalPax.toLocaleString()}</td>
+                  <td
+                    className={
+                      percentageChange > 0
+                        ? "text-success fw-semibold"
+                        : percentageChange < 0
+                          ? "text-danger fw-semibold"
+                          : "text-muted"
+                    }
+                  >
+                    {percentageChange === "N/A"
+                      ? "N/A"
+                      : `${percentageChange > 0 ? "+" : percentageChange < 0 ? "-" : ""}${Math.abs(percentageChange).toFixed(2)}%`}
+                  </td>
+
+                </tr>
+              </tbody>
+            </Table>
+
+          </div>
+
+        </Card>
+
+
         <div className="d-flex justify-content-between align-items-center mb-3 mx-2 mt-3">
           <div className="d-flex gap-2 align-items-center">
             <Form.Select size="sm" value={mode} onChange={e => setMode(e.target.value)}>
@@ -1127,16 +1127,16 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
                         : "Ticket Frequency "}
                   ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
                 </div>
-                <div>
-                  <Button variant="light" size="sm" className="me-2" onClick={handleDownloadImage}>
+                <div className="d-flex gap-2 flex-nowrap">
+                  <Button variant="light" size="sm" onClick={handleDownloadImage}>
                     <FontAwesomeIcon icon={faDownload} />
                   </Button>
                   <Button variant="light" size="sm" onClick={handleDownloadExcel}>
                     <FontAwesomeIcon icon={faTable} />
                   </Button>
                 </div>
-
               </div>
+
             </div>
             <div className="bg-white p-3 rounded">
               <Table striped bordered hover responsive ref={tableRefSummary}>

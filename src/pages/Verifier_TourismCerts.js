@@ -245,63 +245,64 @@ const TourismCertAdminPage = () => {
                         />
                     </div>
 
-                    <div style={{ minWidth: 200 }}>
-                        <label className="form-label mb-0 small">Filter by Employee</label>
-                        <Select
-                            options={employees.map((e) => ({
-                                value: e.id,
-                                label: `${e.firstname} ${e.middlename || ""} ${e.surname}`.trim(),
-                            }))}
-                            onChange={(selected) => setSelectedEmployee(selected)}
-                            isClearable
-                            styles={{
-                                control: (base) => ({
-                                    ...base,
-                                    minHeight: '30px',
-                                    height: '30px',
-                                    fontSize: '0.85rem',
-                                }),
-                                valueContainer: (base) => ({
-                                    ...base,
-                                    height: '30px',
-                                    padding: '0 6px',
-                                }),
-                                indicatorsContainer: (base) => ({
-                                    ...base,
-                                    height: '30px',
-                                }),
-                            }}
-                        />
-                    </div>
+                   <div style={{ minWidth: 200 }}>
+  <label className="form-label mb-0 small">Filter by Employee</label>
+  <Select
+    options={employees.map((e) => ({
+      value: e.id,
+      label: `${e?.firstname || ""} ${e?.middlename || ""} ${e?.surname || ""}`.trim(),
+    }))}
+    onChange={(selected) => setSelectedEmployee(selected)}
+    isClearable
+    styles={{
+      control: (base) => ({
+        ...base,
+        minHeight: '30px',
+        height: '30px',
+        fontSize: '0.85rem',
+      }),
+      valueContainer: (base) => ({
+        ...base,
+        height: '30px',
+        padding: '0 6px',
+      }),
+      indicatorsContainer: (base) => ({
+        ...base,
+        height: '30px',
+      }),
+    }}
+  />
+</div>
 
-                    <div style={{ minWidth: 200 }}>
-                        <label className="form-label mb-0 small">Filter by Verifier</label>
-                        <Select
-                            options={verifiers.map((v) => ({
-                                value: v.verifierId,
-                                label: `${v.firstname} ${v.middlename?.charAt(0) || ""}. ${v.surname} ${v.suffix || ""}`.trim(),
-                            }))}
-                            onChange={(selected) => setSelectedVerifier(selected)}
-                            isClearable
-                            styles={{
-                                control: (base) => ({
-                                    ...base,
-                                    minHeight: '30px',
-                                    height: '30px',
-                                    fontSize: '0.85rem',
-                                }),
-                                valueContainer: (base) => ({
-                                    ...base,
-                                    height: '30px',
-                                    padding: '0 6px',
-                                }),
-                                indicatorsContainer: (base) => ({
-                                    ...base,
-                                    height: '30px',
-                                }),
-                            }}
-                        />
-                    </div>
+                   <div style={{ minWidth: 200 }}>
+  <label className="form-label mb-0 small">Filter by Verifier</label>
+  <Select
+    options={verifiers.map((v) => ({
+      value: v?.verifierId || "",
+      label: `${v?.firstname || ""} ${v?.middlename ? v.middlename.charAt(0) + "." : ""} ${v?.surname || ""} ${v?.suffix || ""}`.trim(),
+    }))}
+    onChange={(selected) => setSelectedVerifier(selected)}
+    isClearable
+    styles={{
+      control: (base) => ({
+        ...base,
+        minHeight: '30px',
+        height: '30px',
+        fontSize: '0.85rem',
+      }),
+      valueContainer: (base) => ({
+        ...base,
+        height: '30px',
+        padding: '0 6px',
+      }),
+      indicatorsContainer: (base) => ({
+        ...base,
+        height: '30px',
+      }),
+    }}
+  />
+</div>
+
 
                     <div>
                         <label className="form-label mb-1 small"></label>
@@ -488,9 +489,10 @@ const TourismCertAdminPage = () => {
 
 <td>
   {cert.employee_id
-    ? `${employee.firstname} ${employee.middlename} ${employee.surname}${employee.suffix ? `, ${employee.suffix}` : ""}`
+    ? `${employee?.firstname || ""} ${employee?.middlename || ""} ${employee?.surname || ""}${employee?.suffix ? `, ${employee.suffix}` : ""}`.trim()
     : selectedComp?.name || "—"}
 </td>
+
 <td>
   {cert.employee_id
     ? company?.name || "—"

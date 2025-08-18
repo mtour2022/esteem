@@ -71,52 +71,6 @@ const TicketSummary = ({ ticket }) => {
     .filter((v, i, arr) => arr.indexOf(v) === i) // remove duplicates
     .join(", ");
 
-  // const handleDownloadImage = () => {
-  //   if (exportRef.current === null) return;
-
-  //   const now = new Date();
-
-  //   // Format: Jan162025-08:15AM
-  //   const options = { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true };
-  //   const formatted = now.toLocaleString("en-US", options)
-  //     .replace(",", "")                // Remove comma after date
-  //     .replace(/ /g, "")               // Remove spaces
-  //     .replace("AM", "AM")             // Keep AM/PM clean
-  //     .replace("PM", "PM")             // (not lowercase)
-  //     .replace(":", "");               // Optional: remove colon if you want `0815AM`
-
-  //   const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
-
-  //   Swal.fire({
-  //     title: "Generating image...",
-  //     allowOutsideClick: false,
-  //     didOpen: () => {
-  //       Swal.showLoading();
-  //     },
-  //   });
-
-  //   toPng(exportRef.current, { cacheBust: true })
-  //     .then((dataUrl) => {
-  //       download(dataUrl, filename);
-  //       Swal.close();
-  //       Swal.fire({
-  //         icon: "success",
-  //         title: "Downloaded!",
-  //         text: "Your image has been downloaded successfully.",
-  //         timer: 2000,
-  //         showConfirmButton: false,
-  //       });
-  //     })
-  //     .catch((err) => {
-  //       Swal.close();
-  //       console.error("Could not generate image", err);
-  //       Swal.fire({
-  //         icon: "error",
-  //         title: "Error",
-  //         text: "Something went wrong while generating the image.",
-  //       });
-  //     });
-  // };
 
   const handleDownloadImage = async () => {
     if (!exportRef.current) return;

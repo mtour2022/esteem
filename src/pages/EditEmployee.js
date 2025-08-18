@@ -13,7 +13,8 @@ import UpdateGroupEmployee from "../components/UpdateGroupEmployee copy";
 import Employee from '../classes/employee';
 import AppNavBar from "../components/AppNavBar";
 import FooterCustomized from '../components/Footer';
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 const EditEmployeeForm = () => {
 
     const [formData, setFormData] = useState({
@@ -56,6 +57,7 @@ const EditEmployeeForm = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const { employee_id } = useParams();
     const employee = useEmployeeInfo(employee_id);
+    const [showPasswordFields, setShowPasswordFields] = useState(false);
 
     useEffect(() => {
         if (employee) {
@@ -76,6 +78,7 @@ const EditEmployeeForm = () => {
                 birthPlace: {
                     town: employee.birthPlace?.town || "",
                     province: employee.birthPlace?.province || "",
+                    region: employee.birthPlace?.region || "",
                     country: employee.birthPlace?.country || "",
                 },
                 presentAddress: {
@@ -113,8 +116,20 @@ const EditEmployeeForm = () => {
                 tourism_certificate_ids: employee.tourism_certificate_ids || [],
             };
 
+
             setFormData(newFormData);
-            console.log("FormData set from fetched employee:", newFormData);
+            // Set selectedDesignationOption from employee.designation
+            const designationOption = designationOptions[newFormData.classification]?.find(
+                (d) => d === newFormData.designation
+            );
+            if (designationOption) {
+                setSelectedDesignationOption({ label: designationOption, value: designationOption });
+            } else if (newFormData.designation) {
+                // For "Others (Specify)" or unknown designation
+                setSelectedDesignationOption({ label: "Others (Specify)", value: "Others (Specify)" });
+            }
+
+            // console.log("FormData set from fetched employee:", newFormData);
         }
     }, [employee]);
 
@@ -154,6 +169,12 @@ const EditEmployeeForm = () => {
             ...prev,
             [name]: type === "checkbox" ? checked : value,
         }));
+    };
+
+    const handleChangePasswordClick = () => {
+        setShowPasswordFields(true);
+        // Clear password fields when showing them
+        setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
     };
 
     const handleDesignationSelect = (option) => {
@@ -243,6 +264,8 @@ const EditEmployeeForm = () => {
             label: item,
             value: item,
         })) || [];
+
+
 
     // ✅ This is always called
 
@@ -676,42 +699,62 @@ const EditEmployeeForm = () => {
                                     </Form.Text>
                                 </Form.Group>
 
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Password *</Form.Label>
-                                    <InputGroup>
-                                        <Form.Control
-                                            type={showPassword ? "text" : "password"}
-                                            name="password"
-                                            value={formData.password}
-                                            onChange={handleChange}
-                                            required
-                                        />
-                                        <InputGroup.Text onClick={() => setShowPassword(!showPassword)} style={{ cursor: 'pointer' }}>
-                                            {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
-                                        </InputGroup.Text>
-                                    </InputGroup>
-                                </Form.Group>
+                                {!showPasswordFields && (
+                                    <Button variant="secondary" onClick={handleChangePasswordClick}>
+                                        Change Password
+                                    </Button>
+                                )}
 
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Confirm Password *</Form.Label>
-                                    <InputGroup>
-                                        <Form.Control
-                                            type={showConfirmPassword ? "text" : "password"}
-                                            name="confirmPassword"
-                                            value={formData.confirmPassword}
-                                            onChange={handleChange}
-                                            required
-                                            isInvalid={formData.confirmPassword && formData.confirmPassword !== formData.password}
-                                        />
-                                        <InputGroup.Text onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ cursor: 'pointer' }}>
-                                            {showConfirmPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
-                                        </InputGroup.Text>
-                                        <Form.Control.Feedback type="invalid">
-                                            Passwords do not match.
-                                        </Form.Control.Feedback>
-                                    </InputGroup>
-                                </Form.Group>
+                                {showPasswordFields && (
+                                    <>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>New Password *</Form.Label>
+                                            <InputGroup>
+                                                <Form.Control
+                                                    type={showPassword ? "text" : "password"}
+                                                    name="password"
+                                                    value={formData.password}
+                                                    onChange={handleChange}
+                                                    placeholder="Enter new password"
+                                                />
+                                                <InputGroup.Text
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                >
+                                                    <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                                                </InputGroup.Text>
+                                            </InputGroup>
+                                        </Form.Group>
 
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Confirm Password *</Form.Label>
+                                            <InputGroup>
+                                                <Form.Control
+                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    name="confirmPassword"
+                                                    value={formData.confirmPassword}
+                                                    onChange={handleChange}
+                                                    placeholder="Confirm new password"
+                                                    isInvalid={
+                                                        formData.confirmPassword &&
+                                                        formData.confirmPassword !== formData.password
+                                                    }
+                                                />
+                                                <InputGroup.Text
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={showConfirmPassword ? faEyeSlash : faEye}
+                                                    />
+                                                </InputGroup.Text>
+                                                <Form.Control.Feedback type="invalid">
+                                                    Passwords do not match.
+                                                </Form.Control.Feedback>
+                                            </InputGroup>
+                                        </Form.Group>
+                                    </>
+                                )}
                                 <Form.Check
                                     className='mt-4'
                                     type="checkbox"

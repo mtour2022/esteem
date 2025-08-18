@@ -8,7 +8,7 @@ import { useAuth } from '../auth/authentication';
 import Employee from "../classes/employee";
 import Swal from "sweetalert2";
 import TourismCert from "../components/TourismCert";
-import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen, faRegistered, faUserGroup, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faFile, faMagnifyingGlass, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen, faRegistered, faUserGroup, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Select from "react-select";
 import SummaryPieChart from '../components/PieChart';
@@ -97,7 +97,7 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
   const navigate = useNavigate();
   const tableRef = useRef();
   const [employees, setEmployees] = useState([]);
-  
+
   const { currentUser } = useAuth();
   const scrollRef = useRef();
 
@@ -135,18 +135,20 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const summaryRef = useRef(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
 
   // Define all possible columns (match keys with employee object)
   const allColumns = [
     { key: "status", label: "Tourism Status" },
     { key: "companyStatus", label: "Company Status" },
-
     { key: "actions", label: "Actions" },
+    { key: "canGenerate", label: "Can Generate QR" },
+        { key: "employeeId", label: "Employee Id" },
+
     { key: "tourismCertificate", label: "Tourism Certificate" },
     { key: "tourismCertificateLatestSummary", label: "Latest Certificate Summary" },
     { key: "history", label: "History" },
-
     { key: "applicationType", label: "Application Type" },
     { key: "companyName", label: "Company Name" },
     { key: "fullName", label: "Full Name" },
@@ -731,33 +733,35 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
   return (
     <>
       <Container>
-        <Row className="justify-content-center">
-          <Col md={12}>
-            <Card.Body className="mt-3">
-              <p className="barabara-label text-start mt-0">COMPANY EMPLOYEE LIST</p>
+         <p className="barabara-label text-start mt-5">COMPANY EMPLOYEE LIST</p>
               <p className="m-1 mt-3 text-muted small text-start">
                 Full list of current employees and applicants.
               </p>
-              <div className="d-flex justify-content-start align-items-center gap-2 mt-3 mb-5 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline-secondary"
-                  className="me-2"
-                  onClick={() => openInNewTab("/employee-registration/local")}
-                >
-                  <FontAwesomeIcon icon={faUser} className="me-2" />Register Local
-                </Button>
+        <Row className="justify-content-center">
+          <Col md={12}>
+            <Card.Body className="mt-3">
+             
+             <div className="d-flex justify-content-start align-items-center gap-2 mt-3 mb-3 flex-wrap">
+  <Button
+    size="sm"
+    variant="success"  // ✅ changed to green
+    className="me-2"
+    onClick={() => openInNewTab("/employee-registration/local")}
+  >
+    <FontAwesomeIcon icon={faUser} className="me-2" /> Register Local
+  </Button>
 
-                <Button
-                  size="sm"
-                  variant="outline-secondary"
-                  onClick={() => openInNewTab("/employee-registration/foreign")}
-                >
-                  <FontAwesomeIcon icon={faUser} className="me-2" />Register Foreign
-                </Button>
-              </div>
+  <Button
+    size="sm"
+    variant="success"  // ✅ changed to green
+    onClick={() => openInNewTab("/employee-registration/foreign")}
+  >
+    <FontAwesomeIcon icon={faUser} className="me-2" /> Register Foreign
+  </Button>
+</div>
 
-              <div className="d-flex justify-content-end align-items-center gap-2 mt-2 mb-2 flex-wrap" style={{ fontSize: "0.85rem" }}>
+
+              <div className="d-flex justify-content-start align-items-center gap-2 mt-2 mb-4 flex-wrap" style={{ fontSize: "0.85rem" }}>
                 <Button
                   variant="outline-secondary"
                   size="sm"
@@ -765,6 +769,60 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
                 >
                   <FontAwesomeIcon icon={faSyncAlt} />
                 </Button>
+
+                <Dropdown
+                  show={showSearchDropdown}
+                  onToggle={() => setShowSearchDropdown(!showSearchDropdown)}
+                >
+                  <Dropdown.Toggle variant="outline-secondary" as={Button} size="sm">
+                    <FontAwesomeIcon icon={faMagnifyingGlass} />
+                  </Dropdown.Toggle>
+
+                  <Dropdown.Menu align="end" style={{ minWidth: "300px" }}>
+                    <Form className="px-3 py-2">
+                      <Form.Label className="small text-muted mb-1">Search</Form.Label>
+
+                      {/* Search Input */}
+                      <Form.Control
+                        type="text"
+                        placeholder="Search by name..."
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        className="mb-2"
+                        size="sm"
+                      />
+
+                      {/* Buttons */}
+                      <div className="d-flex">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setShowSearchDropdown(false);
+                            setActiveSearchText(searchText);
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <FontAwesomeIcon icon={faSearch} /> Search
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="ms-2"
+                          onClick={() => {
+                            setSearchText("");
+                            setShowSearchDropdown(false);
+                            setActiveSearchText("");
+                            setCurrentPage(1);
+                          }}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                    </Form>
+                  </Dropdown.Menu>
+                </Dropdown>
 
                 <DropdownButton
                   as={ButtonGroup}
@@ -935,36 +993,229 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
                 </Dropdown>
 
                 {/* Filters Dropdown */}
+
                 <Dropdown>
                   <Dropdown.Toggle variant="outline-secondary" size="sm">
-                    <FontAwesomeIcon icon={faFilter} className="me-2" />
-                    Filters
+                    <FontAwesomeIcon icon={faFilter} />
                   </Dropdown.Toggle>
-                  <Dropdown.Menu style={{ padding: "0.8rem", width: 280, fontSize: "0.8rem" }}>
-                    {/* All your filter sections unchanged, just size="sm" and reduced padding */}
-                    {/* ... same filter code as original but with size="sm" in Form.Select / Form.Control */}
+
+                  <Dropdown.Menu style={{ padding: "1rem", width: 300 }}>
+                
+                    {/* Certificate Type Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Certificate Type (Latest Only)</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Types" },
+                          ...Array.from(
+                            new Set(
+                              employees
+                                .map((e) => e.latest_cert_summary?.type || "")
+                                .filter(Boolean)
+                            )
+                          ).map((type) => ({
+                            value: type.toLowerCase(),
+                            label: type,
+                          })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Certificate Type"
+                        value={
+                          certTypeFilter ? { value: certTypeFilter, label: certTypeFilter } : null
+                        }
+                        onChange={(selected) => {
+                          setCertTypeFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+
+                    {/* Designation Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Designation</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Designations" },
+                          ...Array.from(new Set(employees.map((e) => e.designation || "")))
+                            .filter(Boolean)
+                            .map((designation) => ({
+                              value: designation.toLowerCase(),
+                              label: designation,
+                            })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Designation"
+                        value={
+                          designationFilter
+                            ? { value: designationFilter, label: designationFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setDesignationFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+                    {/* Application Type Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Application Type</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Application Types" },
+                          ...Array.from(new Set(employees.map((e) => e.application_type || "")))
+                            .filter(Boolean)
+                            .map((type) => ({ value: type.toLowerCase(), label: type })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Application Type"
+                        value={
+                          applicationTypeFilter
+                            ? { value: applicationTypeFilter, label: applicationTypeFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setApplicationTypeFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Type of Residency</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Nationalities" },
+                          ...Array.from(new Set(employees.map((e) => e.nationality || "")))
+                            .filter(Boolean)
+                            .map((nat) => ({ value: nat.toLowerCase(), label: nat })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Type of Residency"
+                        value={
+                          nationalityFilter
+                            ? { value: nationalityFilter, label: nationalityFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setNationalityFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+
+                    {/* Employee Status Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Employee Status</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Statuses" },
+                          ...Array.from(new Set(employees.map((e) => e.status || "")))
+                            .filter(Boolean)
+                            .map((status) => ({ value: status.toLowerCase(), label: status })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Status"
+                        value={
+                          statusFilter
+                            ? { value: statusFilter, label: statusFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setStatusFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+                    {/* Company Status Filter */}
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Company Status</label>
+                      <Select
+
+                        options={[
+                          { value: "", label: "All Company Statuses" },
+                          ...Array.from(new Set(employees.map((e) => e.company_status || "")))
+                            .filter(Boolean)
+                            .map((status) => ({ value: status.toLowerCase(), label: status })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Company Status"
+                        value={
+                          companyStatusFilter
+                            ? { value: companyStatusFilter, label: companyStatusFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setCompanyStatusFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Sex</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Sex" },
+                          ...Array.from(new Set(employees.map((e) => e.sex || "")))
+                            .filter(Boolean)
+                            .map((sex) => ({ value: sex.toLowerCase(), label: sex })),
+                        ]}
+                        isClearable
+                        placeholder="Filter by Sex"
+                        value={
+                          sexFilter
+                            ? { value: sexFilter, label: sexFilter }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setSexFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold small text-muted">Age Group</label>
+                      <Select
+                        options={[
+                          { value: "", label: "All Age Groups" },
+                          { value: "kid", label: "Kid (0-12)" },
+                          { value: "teen", label: "Teen (13-19)" },
+                          { value: "adult", label: "Adult (20-59)" },
+                          { value: "senior", label: "Senior (60+)" },
+                        ]}
+                        isClearable
+                        placeholder="Filter by Age Group"
+                        value={
+                          ageGroupFilter
+                            ? {
+                              value: ageGroupFilter,
+                              label:
+                                ageGroupFilter === "kid"
+                                  ? "Kid (0-12)"
+                                  : ageGroupFilter === "teen"
+                                    ? "Teen (13-19)"
+                                    : ageGroupFilter === "adult"
+                                      ? "Adult (20-59)"
+                                      : "Senior (60+)",
+                            }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setAgeGroupFilter(selected?.value || "");
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+
+
                   </Dropdown.Menu>
                 </Dropdown>
 
-                {/* Search Input */}
-                <InputGroup style={{ maxWidth: "300px" }}>
-                  <FormControl
-                    size="sm"
-                    placeholder="Search by name or company..."
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                  />
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={() => {
-                      setActiveSearchText(searchText);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faSearch} />
-                  </Button>
-                </InputGroup>
+
+
               </div>
 
 
@@ -1064,6 +1315,37 @@ export default function CompanyEmployeeListPage({ employeeIds = [], companyId = 
                                 </Button>
                               </div>
                             ),
+canGenerate: (
+  <Form.Select
+    size="sm"
+    value={emp.canGenerate ? "true" : "false"}
+    style={{
+      backgroundColor: emp.canGenerate ? "#d4edda" : "#f8d7da", // greenish or reddish
+      color: emp.canGenerate ? "#155724" : "#721c24",           // dark text for contrast
+      borderColor: emp.canGenerate ? "#c3e6cb" : "#f5c6cb"
+    }}
+    onChange={async (e) => {
+      const newValue = e.target.value === "true"; // convert string to boolean
+      try {
+        const empRef = doc(db, "employee", emp.employeeId);
+        await updateDoc(empRef, { canGenerate: newValue });
+
+        emp.canGenerate = newValue;
+        fetchEmployeeDetails(); // refresh table/state
+      } catch (err) {
+        console.error("Failed to update canGenerate:", err);
+        Swal.fire("Error", "Could not update QR permission", "error");
+      }
+    }}
+  >
+    <option value="true">True</option>
+    <option value="false">False</option>
+  </Form.Select>
+),
+
+                            employeeId: emp.employeeId,
+
+
 
 
 

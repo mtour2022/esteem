@@ -283,6 +283,7 @@ export default function VerifierEmployeeListPage() {
 
     if (employees.length) fetchCompanies();
   }, [employees]);
+  
 const handleChangeStatus = async (employee, newStatus) => {
   const { value: formValues, isConfirmed } = await Swal.fire({
     title: `Change status to "${newStatus}"?`,

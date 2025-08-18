@@ -20,6 +20,7 @@ import EditEmployeeForm from './pages/EditEmployee.js';
 import EmployeeQRScannerPage from './pages/ApplicationStatusCheck.js';
 import TourismCertQRScannerPage from './pages/Tourism_Cert_Check.js';
 import TourismCertSearchPage from './pages/Tourism_Cert_Search.js'
+import EmployeeDashboardPage from './pages/Employee_Dashboard.js';
 // Private Route
 function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
@@ -49,6 +50,7 @@ function App() {
 
             {/* /quickstatus/:employee_quickstatus_id */}
             {/* ✅ Protected Routes */}
+            <Route path="/employee-dashboard" element={<PrivateRoute element={<EmployeeDashboardPage />} />} />
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
             <Route path="/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierEmployeeListPage />} />}/>
             <Route path="/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierDashboard />} />}/>

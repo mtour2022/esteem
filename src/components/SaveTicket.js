@@ -183,11 +183,12 @@ ticket.total_markup =
         ticket: arrayUnion(docRef.id),
       });
 
-      if (ticket.employee_id) {
-        await updateDoc(doc(db, "employee", ticket.employee_id), {
-          tickets: arrayUnion(docRef.id),
-        });
-      }
+      // Add the ticket.ticket_id to the employee document
+if (ticket.employee_id) {
+  await updateDoc(doc(db, "employee", ticket.employee_id), {
+    tickets: arrayUnion(ticket.ticket_id),
+  });
+}
 
       setGroupData(new TicketModel({}));
 

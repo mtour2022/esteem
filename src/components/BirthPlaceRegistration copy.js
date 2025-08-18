@@ -10,6 +10,14 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
   const [cityList, setCityList] = useState([]);
   const countries = countryList().getData();
 
+  // Ensure local addresses always have Philippines as country
+  useEffect(() => {
+    if (type === "local" && address.country !== "Philippines") {
+      onChange("country", "Philippines");
+    }
+  }, [type, address.country, onChange]);
+
+  // Load regions
   useEffect(() => {
     if (type === "local") {
       regions().then((data) => {
@@ -22,6 +30,7 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
     }
   }, [type]);
 
+  // Load provinces when region exists or on initial data
   useEffect(() => {
     if (type === "local" && address.region) {
       provinces(address.region).then((data) => {
@@ -30,11 +39,11 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
           label: p.province_name,
         }));
         setProvinceList(options);
-        setCityList([]); // reset city list when province changes
       });
     }
   }, [type, address.region]);
 
+  // Load cities when province exists or on initial data
   useEffect(() => {
     if (type === "local" && address.province) {
       cities(address.province).then((data) => {
@@ -61,6 +70,12 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
         </Form.Group>
       ) : (
         <>
+          {/* Hidden or readonly Country for locals */}
+          <Form.Group className="my-2">
+            <Form.Label>Country</Form.Label>
+            <Form.Control type="text" value="Philippines" readOnly />
+          </Form.Group>
+
           <Form.Group className="my-2">
             <Form.Label>Region</Form.Label>
             <Select
@@ -70,6 +85,8 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
                 onChange("region", selected?.value || "");
                 onChange("province", ""); // reset downstream
                 onChange("town", "");
+                setProvinceList([]); // reset province list
+                setCityList([]); // reset city list
               }}
               placeholder="Select Region"
             />
@@ -83,6 +100,7 @@ const BirthPlaceForm = ({ type = "local", address = {}, onChange }) => {
               onChange={(selected) => {
                 onChange("province", selected?.value || "");
                 onChange("town", ""); // reset downstream
+                setCityList([]); // reset city list
               }}
               placeholder="Select Province"
               isDisabled={!address.region}
