@@ -22,6 +22,7 @@ import TourismCertQRScannerPage from './pages/Tourism_Cert_Check.js';
 import TourismCertSearchPage from './pages/Tourism_Cert_Search.js'
 import EmployeeDashboardPage from './pages/Employee_Dashboard.js';
 import GeneralTFSummaryPage from './pages/GeneralTFSummary.js';
+import RequirementsPage from './pages/RequirementsPage.js';
 // Private Route
 function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
@@ -47,6 +48,7 @@ function App() {
             <Route path="/tourism-cert-check" element={<TourismCertQRScannerPage />} />
             <Route path="/find-my-cert" element={<TourismCertSearchPage />} />
             <Route path="/general-tourism-frontliners-summary" element={<GeneralTFSummaryPage />} />
+            <Route path="/requirements" element={<RequirementsPage />} />
 
 
 

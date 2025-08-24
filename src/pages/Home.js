@@ -325,6 +325,8 @@ export default function Home() {
     //     :
     <>
       <Container fluid>
+                        {isDesktop ? <AppNavBar bg="dark" variant="dark" title="Right Appbar" /> : null}
+
         <Row>
           {/* Left Side (65%) */}
           <Col md={7} className="p-0">
@@ -344,7 +346,7 @@ export default function Home() {
                 <Container className="empty-container"></Container>
                 <Form onSubmit={(e) => onSubmit(e)} className="custom-form body-container">
                   <Container className="empty-container"></Container>
-                  <h1 className="barabara-label2">TOUR TICKET GENERATION</h1>
+                  <h1 className="barabara-label2">TOURIST ACTIVITY TICKET GENERATION</h1>
                   <p className="sub-title">Login to generate QR codes before proceeding to activity areas. QR codes generated are proactively checked during scanning. Track your guests and ensure seamless entry and safety throughout their tour experience.</p>
                   <Form.Group className="d-flex justify-content-end align-items-end w-100">
                     <Dropdown onSelect={handleSelect} className="me-2">
@@ -444,14 +446,13 @@ export default function Home() {
           {/* Right Side (35%) */}
           <Col md={5} className="p-0">
             <Container className="container custom-container">
-              <Row className="m-0">
-                {isDesktop ? <AppNavBar bg="dark" variant="dark" title="Right Appbar" /> : null}
-              </Row>
+              {/* <Row className="m-0">
+              </Row> */}
 
-              <Container className="body-container mt-5">
+              <Container className="body-container">
                 <h1 className="barabara-subtitle">MALAY-BORACAY<br></br>TOURISM FRONLINERS</h1>
                 <h1 className="barabara-label">PROFILE REGISTRATION</h1>
-                <p className="sub-title-blue">Register and Acquire your Tourism Endorsement and Recommendation <br></br>
+                <p className="sub-title-blue">Apply and Acquire your Digital Tourism Endorsement and Recommendation <br></br>
                   certifications by simply registering and complying to requirements online!</p>
                 <div className="image-container mt-5">
                   <Link to="/employee-registration/local" className="image-link">
@@ -474,11 +475,17 @@ export default function Home() {
                 <Container className="button-container">
                   <Link to="/company-registration" className="btn white-button">
                     <FontAwesomeIcon className="button-icon" icon={faUserGroup} size="xs" fixedWidth />
-                    Company Registration
+                    Register Company/PO
                   </Link>
-                  <Button className="white-button">
-                    <FontAwesomeIcon className="button-icon" icon={faListCheck} size="xs" fixedWidth />See Requirements
-                  </Button>
+                  <Link to="/application-status-check" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faDatabase} size="xs" fixedWidth />
+                    Registration Status
+                  </Link>
+                   <Link to="/requirements" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faListCheck} size="xs" fixedWidth />
+                    Registration Requirements
+                  </Link>
+                
                   <Link to="/find-my-cert" className="btn white-button">
                     <FontAwesomeIcon className="button-icon" icon={faSearch} size="xs" fixedWidth />
                     Find My Tourism Cert
@@ -489,10 +496,7 @@ export default function Home() {
                     Tourism Cert Verifier
                   </Link>
 
-                  <Link to="/application-status-check" className="btn white-button">
-                    <FontAwesomeIcon className="button-icon" icon={faDatabase} size="xs" fixedWidth />
-                    Registration Status
-                  </Link>
+                  
 
                   
                    <Link to="/general-tourism-frontliners-summary" className="btn white-button">

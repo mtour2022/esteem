@@ -21,47 +21,43 @@ export default function AppNavBar() {
                         <FontAwesomeIcon className="button-icon" icon={faBell} size="md" fixedWidth />
             </NavLink>
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Home</Nav.Link>
-            <NavDropdown className='ms-lg-3 navlink' title="Quick Check" id="basic-nav-dropdown">
-              <NavDropdown.Item as={NavLink} >
-                Tour Ticket
+            <NavDropdown className='ms-lg-3 navlink' title="Register" id="basic-nav-dropdown">
+             
+              <NavDropdown.Item as={NavLink} to="/application-status-check">
+                REGISTRATION STATUS CHECKER
               </NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} >
-                QR Verifier
+              <hr></hr>
+                <NavDropdown.Item as={NavLink} to="/company-registration">
+                REGISTER COMPANY/PO
               </NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} >
-               Registration
+              <hr></hr>
+                <NavDropdown.Item as={NavLink} to="/employee-registration/local">
+                REGISTER LOCAL
               </NavDropdown.Item>
-              <NavDropdown className='ms-lg-2 navlink' title="Requirements" id="basic-nav-dropdown">
-                    <NavDropdown.Item as={NavLink} >
-                      Local
-                    </NavDropdown.Item>
-                    <NavDropdown.Item as={NavLink} >
-                      Foreign
-                    </NavDropdown.Item>
-              </NavDropdown>
-              <NavDropdown className='ms-lg-2 navlink' title="Companies" id="basic-nav-dropdown">
-                    <NavDropdown.Item as={NavLink} >
-                      Associations
-                    </NavDropdown.Item>
-                    <NavDropdown.Item as={NavLink} >
-                      Cooperatives
-                    </NavDropdown.Item>
-                    <NavDropdown.Item as={NavLink} >
-                      TTAs
-                    </NavDropdown.Item>
-              </NavDropdown>
-              
-              <NavDropdown.Item as={NavLink} >
-                About Us
-              </NavDropdown.Item> 
-              <NavDropdown.Item as={NavLink} >
-                Data Privacy
-              </NavDropdown.Item> 
-              <NavDropdown.Item as={NavLink} >
-                Terms & Conditions
-              </NavDropdown.Item> 
+              <hr></hr>
+                <NavDropdown.Item as={NavLink} to="/employee-registration/foreign">
+                REGISTER FOREIGN
+              </NavDropdown.Item>
+                            <hr></hr>
+                 <NavDropdown.Item as={NavLink} to="/requirements">
+                REGISTRATION REQUIREMENTS
+              </NavDropdown.Item>
             </NavDropdown>
+            <NavDropdown className='ms-lg-3 navlink' title="Certification" id="basic-nav-dropdown">
+             
+               <NavDropdown.Item as={NavLink} to="/find-my-cert">
+                FIND MY TOURISM CERT
+              </NavDropdown.Item>
+              <hr></hr>
+              <NavDropdown.Item as={NavLink} to="/tourism-cert-check">
+                TOURISM CERT VERIFIER
+              </NavDropdown.Item>
+
+            </NavDropdown>
+            <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Analyze</Nav.Link>
+            <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">About Us</Nav.Link>
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Eng</Nav.Link>
+
           </Nav>
         </Navbar.Collapse>
       </Container>
