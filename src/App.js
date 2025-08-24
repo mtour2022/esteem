@@ -21,6 +21,7 @@ import EmployeeQRScannerPage from './pages/ApplicationStatusCheck.js';
 import TourismCertQRScannerPage from './pages/Tourism_Cert_Check.js';
 import TourismCertSearchPage from './pages/Tourism_Cert_Search.js'
 import EmployeeDashboardPage from './pages/Employee_Dashboard.js';
+import GeneralTFSummaryPage from './pages/GeneralTFSummary.js';
 // Private Route
 function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
@@ -45,6 +46,7 @@ function App() {
             <Route path="/application-status-check/:registration_id" element={<EmployeeQRScannerPage />} />
             <Route path="/tourism-cert-check" element={<TourismCertQRScannerPage />} />
             <Route path="/find-my-cert" element={<TourismCertSearchPage />} />
+            <Route path="/general-tourism-frontliners-summary" element={<GeneralTFSummaryPage />} />
 
 
 

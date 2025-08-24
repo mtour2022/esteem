@@ -199,7 +199,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
         ]
     };
 
-
+const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide", "Local Tour Guide", "Local Tour Coordinator", "Travel Agency Owner", "Tourist Port Assistance", "Hotel Coordinator", "Foreign Staff", "Field Staff", "Office Staff", "Others (Specify)" ], "peoples organization": [ "Local Tour Guide", "Island Hopping Boat Owner", "Island Hopping Boat Captian", "Island Hopping Boatman", "Party Boat Owner", "Party Boat Captain", "Party Boatman", "Yacht Owner", "Yacht Boat Captain", "Yacht Boatman", "Yacht Steward", "Paraw Owner", "Paraw Boatman", "Picnican Staff", "Travel Agency Owner", "Field Staff", "Office Staff", ], "watersports provider": [ "Watersports Provider Owner (Service Provider)", "Field Staff", "Office Staff", ] };
     const [selectedDesignationOption, setSelectedDesignationOption] = useState(null);
 
     const handleDesignationSelect = (option) => {
@@ -793,41 +793,70 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                             />
 
                                         </Form.Group>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Password *</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control
-                                                    type={showPassword ? "text" : "password"}
-                                                    name="password"
-                                                    value={formData.password}
-                                                    onChange={handleChange}
-                                                    required
-                                                />
-                                                <InputGroup.Text onClick={() => setShowPassword(!showPassword)} style={{ cursor: 'pointer' }}>
-                                                    {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
-                                                </InputGroup.Text>
-                                            </InputGroup>
-                                        </Form.Group>
+                                     {/* Notification + Password Fields */}
+{Object.values(designationOptionsForPassword)
+  .flat()
+  .includes(formData.designation) && (
+    <div className="mt-4">
+      {/* Notification */}
+      <div className="alert alert-info small">
+        ⚠️ Submitting a password will enable tourist activity online access for this employee.
+      </div>
 
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Confirm Password *</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control
-                                                    type={showConfirmPassword ? "text" : "password"}
-                                                    name="confirmPassword"
-                                                    value={formData.confirmPassword}
-                                                    onChange={handleChange}
-                                                    required
-                                                    isInvalid={formData.confirmPassword && formData.confirmPassword !== formData.password}
-                                                />
-                                                <InputGroup.Text onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ cursor: 'pointer' }}>
-                                                    {showConfirmPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
-                                                </InputGroup.Text>
-                                                <Form.Control.Feedback type="invalid">
-                                                    Passwords do not match.
-                                                </Form.Control.Feedback>
-                                            </InputGroup>
-                                        </Form.Group>
+      {/* Password */}
+      <Form.Group className="mb-3">
+        <Form.Label>Password *</Form.Label>
+        <InputGroup>
+          <Form.Control
+            type={showPassword ? "text" : "password"}
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+          />
+          <InputGroup.Text
+            onClick={() => setShowPassword(!showPassword)}
+            style={{ cursor: "pointer" }}
+          >
+            {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
+          </InputGroup.Text>
+        </InputGroup>
+      </Form.Group>
+
+      {/* Confirm Password */}
+      <Form.Group className="mb-3">
+        <Form.Label>Confirm Password *</Form.Label>
+        <InputGroup>
+          <Form.Control
+            type={showConfirmPassword ? "text" : "password"}
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required
+            isInvalid={
+              formData.confirmPassword &&
+              formData.confirmPassword !== formData.password
+            }
+          />
+          <InputGroup.Text
+            onClick={() =>
+              setShowConfirmPassword(!showConfirmPassword)
+            }
+            style={{ cursor: "pointer" }}
+          >
+            {showConfirmPassword ? (
+              <AiFillEyeInvisible />
+            ) : (
+              <AiFillEye />
+            )}
+          </InputGroup.Text>
+          <Form.Control.Feedback type="invalid">
+            Passwords do not match.
+          </Form.Control.Feedback>
+        </InputGroup>
+      </Form.Group>
+    </div>
+  )}
 
                                         <Form.Check
                                             className='mt-4'
@@ -900,7 +929,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                                             !formData.profilePhoto ||
                                                             !formData.additionalRequirement ||
                                                             !formData.email ||
-                                                            !formData.password ||
+                                                            // !formData.password ||
                                                             !formData.agreed
                                                         );
                                                     }
@@ -912,7 +941,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                                             !formData.workingPermit ||
                                                             !formData.passportNumber ||
                                                             !formData.email ||
-                                                            !formData.password ||
+                                                            // !formData.password ||
                                                             !formData.agreed
                                                         );
                                                     }
@@ -923,7 +952,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                                         (formData.isTrained && !formData.trainingCert) || // ✅ Only require if isTrained is true
                                                         !formData.additionalRequirement ||
                                                         !formData.email ||
-                                                        !formData.password ||
+                                                        // !formData.password ||
                                                         !formData.agreed
                                                     );
                                                 })()

@@ -101,24 +101,28 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
             providerChunks.push(providerIds.slice(i, i + 10));
         }
 
-        const fetchedProviders = [];
+const fetchedProviders = [];
 
-        for (const chunk of providerChunks) {
-            const q = query(collection(db, "providers"), where("__name__", "in", chunk));
-            const snapshot = await getDocs(q);
-            snapshot.forEach((doc) => {
-                const providerData = doc.data();
-                fetchedProviders.push({
-                    label: providerData.provider_name || "Unnamed",
-                    value: doc.id,
-                });
-            });
-        }
+for (const chunk of providerChunks) {
+  const q = query(collection(db, "providers"), where("__name__", "in", chunk));
+  const snapshot = await getDocs(q);
+  snapshot.forEach((doc) => {
+    const providerData = doc.data();
+    fetchedProviders.push({
+      label: providerData.provider_name || "Unnamed",
+      value: doc.id,
+    });
+  });
+}
 
-        setProviderOptions(fetchedProviders); // ✅ Now providerOptions will populate the Select
+        // ✅ Store per-activity provider options in groupData
+newActivity.providerOptions = fetchedProviders;
+
+const updated = [...groupData.activities];
+updated[index].activities_availed = [newActivity];
+updated[index].activity_selected_providers = []; // reset selection
 
         // Update groupData with new selected activity
-        const updated = [...groupData.activities];
         updated[index].activities_availed = [newActivity];
         updated[index].activity_num_pax = "";
         updated[index].activity_num_unit = "";
@@ -127,11 +131,10 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
         updated[index].activity_date_time_start = "";
         updated[index].activity_date_time_end = "";
         updated[index].activity_area = "";
-        updated[index].activity_selected_providers = []; // ✅ <-- reset here!
 
 
 
-        setGroupData({ ...groupData, activities: updated });
+setGroupData({ ...groupData, activities: updated });
     };
 
 
@@ -216,28 +219,27 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 <option value="Nearby Malay">Nearby Malay</option>
                             </Form.Select>
                             {/* ✅ Provider Select */}
-                            {selected?.activity_providers?.length > 0 && (
-                                <>
-                                    <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
-                                        Select Provider
-                                    </Form.Label>
-                                    <Select
-                                        options={providerOptions}
-                                        isMulti
-                                        value={providerOptions.filter(opt =>
-                                            actGroup.activity_selected_providers?.includes(opt.value)
-                                        )}
-                                        onChange={(selectedOptions) => {
-                                            const selectedIds = selectedOptions.map((opt) => opt.value);
-                                            handleActivityGroupChange(index, {
-                                                activity_selected_providers: selectedIds,
-                                            });
-                                        }}
-                                    />
+                          {selected?.providerOptions?.length > 0 && (
+  <>
+    <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+      Select Provider
+    </Form.Label>
+    <Select
+      options={selected.providerOptions} // ✅ per-activity options
+      isMulti
+      value={selected.providerOptions.filter(opt =>
+        actGroup.activity_selected_providers?.includes(opt.value)
+      )}
+      onChange={(selectedOptions) => {
+        const selectedIds = selectedOptions.map((opt) => opt.value);
+        handleActivityGroupChange(index, {
+          activity_selected_providers: selectedIds,
+        });
+      }}
+    />
+  </>
+)}
 
-
-                                </>
-                            )}
 
 
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
@@ -425,42 +427,42 @@ const TicketActivitiesForm = ({ groupData, setGroupData }) => {
                             </Form.Label>
 
 
-{(() => {
-  const pax = parseInt(actGroup.activity_num_pax || "1");
-  const agreedPrice = parseFloat(actGroup.activity_agreed_price || "0");
-  let baseTotal = 0;
+                            {(() => {
+                                const pax = parseInt(actGroup.activity_num_pax || "1");
+                                const agreedPrice = parseFloat(actGroup.activity_agreed_price || "0");
+                                let baseTotal = 0;
 
-  actGroup.activities_availed?.forEach(activity => {
-    const activityId = typeof activity === "string" ? activity : activity.activity_id;
-    const resolved = resolvedActivities.find(act => act.id === activityId);
-    if (!resolved) return;
+                                actGroup.activities_availed?.forEach(activity => {
+                                    const activityId = typeof activity === "string" ? activity : activity.activity_id;
+                                    const resolved = resolvedActivities.find(act => act.id === activityId);
+                                    if (!resolved) return;
 
-    const basePrice = parseFloat(resolved.activity_base_price || "0");
-    if (!isNaN(basePrice)) {
-      baseTotal += basePrice * pax;
-    }
-  });
+                                    const basePrice = parseFloat(resolved.activity_base_price || "0");
+                                    if (!isNaN(basePrice)) {
+                                        baseTotal += basePrice * pax;
+                                    }
+                                });
 
-  const expectedSale = Math.max(agreedPrice - baseTotal, 0);
-  const markup = baseTotal > 0 ? (expectedSale / baseTotal) * 100 : 0;
-  const formattedMarkup = markup.toFixed(1);
+                                const expectedSale = Math.max(agreedPrice - baseTotal, 0);
+                                const markup = baseTotal > 0 ? (expectedSale / baseTotal) * 100 : 0;
+                                const formattedMarkup = markup.toFixed(1);
 
-  if (markup >= 30 && markup <= 50) {
-    return (
-      <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
-        ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
-      </Form.Label>
-    );
-  } else if (markup > 50) {
-    return (
-      <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
-        ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
-      </Form.Label>
-    );
-  }
+                                if (markup >= 30 && markup <= 50) {
+                                    return (
+                                        <Form.Label className="text-warning mb-0" style={{ fontSize: "0.7rem" }}>
+                                            ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup between 30–50% is high for tourism services. Ensure value is justified to avoid guest dissatisfaction or refund disputes.
+                                        </Form.Label>
+                                    );
+                                } else if (markup > 50) {
+                                    return (
+                                        <Form.Label className="text-danger mb-0" style={{ fontSize: "0.7rem" }}>
+                                            ⚠️ Additional Markup is {formattedMarkup}%. Additional Markup above 50% in tourism services may be considered excessive pricing. Ensure transparency to avoid complaints under fair trade and tourism regulations.
+                                        </Form.Label>
+                                    );
+                                }
 
-  return null;
-})()}
+                                return null;
+                            })()}
 
 
 

@@ -88,7 +88,7 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
             eventKey="employees"
             title={
               <>
-                <FontAwesomeIcon icon={faUserGroup} size="sm" className="me-2" /> Employees
+                <FontAwesomeIcon icon={faUserGroup} size="sm" className="me-2" /> Employees/Members
               </>
             }
           />
@@ -150,12 +150,22 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
                     <td>{index + 1}</td>
                     <td>{certId}</td>
                     <td>
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => setSelectedCert(certId)}
-                      >
-                        View Certificate
-                      </button>
+                              <button
+  className="btn btn-sm btn-primary"
+  onClick={() => {
+    setSelectedCert(certId);
+
+    // Wait a tick for React to render <CompanyTourismCert />
+    setTimeout(() => {
+      const element = document.getElementById("summary-cert");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 200);
+  }}
+>
+  View Certificate
+</button>
                     </td>
                   </tr>
                 ))}
@@ -167,7 +177,7 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
 
           {/* Display the selected certificate below */}
           {selectedCert && (
-            <div className="mt-4">
+            <div className="mt-4" id="summary-cert">
               <CompanyTourismCert
                 company={company}
                 certificateId={selectedCert} // pass the selected cert if needed

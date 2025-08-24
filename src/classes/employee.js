@@ -54,7 +54,6 @@ class Employee {
     work_history = [],
     company_status = "under review",
     company_status_history = [],
-    
     tourism_certificate_ids = [],
     latest_cert_id = "",
     latest_cert_summary = {

@@ -186,7 +186,7 @@ ticket.total_markup =
       // Add the ticket.ticket_id to the employee document
 if (ticket.employee_id) {
   await updateDoc(doc(db, "employee", ticket.employee_id), {
-    tickets: arrayUnion(ticket.ticket_id),
+    tickets: arrayUnion(docRef.id),
   });
 }
 

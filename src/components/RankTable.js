@@ -50,10 +50,14 @@ export default function TopRankingChart({ title = '', data = [], loading = false
       </div>
 
       {loading ? (
-        <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 200 }}>
-          <Spinner animation="border" variant="primary" />
-          <small className="mt-2 text-muted">Loading ranking...</small>
-        </div>
+        sortedData.length === 0 ? (
+          <p className="text-center text-muted my-5">No data available</p>
+        ) : (
+          <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 200 }}>
+            <Spinner animation="border" variant="primary" />
+            <small className="mt-2 text-muted">Loading ranking...</small>
+          </div>
+        )
       ) : validData.length === 0 ? (
         <p className="text-center text-muted my-5">No data available</p>
       ) : (
@@ -78,6 +82,7 @@ export default function TopRankingChart({ title = '', data = [], loading = false
           </Table>
         </div>
       )}
+
       {/* Dropdown for Top N selection */}
 
       <div className="d-flex justify-content-end mt-2">

@@ -88,6 +88,8 @@ export default function Home() {
   //       setNameList([]); // Reset list when no option is selected
   //     }
   //   }, [selectedOption, db]); // Run when selectedOption changes
+
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -360,7 +362,7 @@ export default function Home() {
                           eventKey="Employee"
                           disabled={selectedOption === "Employee"}
                         >
-                          Employee
+                          Employee/Member
                         </Dropdown.Item>
                       </Dropdown.Menu>
                     </Dropdown>
@@ -491,9 +493,13 @@ export default function Home() {
                     <FontAwesomeIcon className="button-icon" icon={faDatabase} size="xs" fixedWidth />
                     Registration Status
                   </Link>
-                  <Button className="white-button">
-                    <FontAwesomeIcon className="button-icon" icon={faBarChart} size="xs" fixedWidth />General TF Stats
-                  </Button>
+
+                  
+                   <Link to="/general-tourism-frontliners-summary" className="btn white-button">
+                    <FontAwesomeIcon className="button-icon" icon={faBarChart} size="xs" fixedWidth />
+                    General Tourism Frontliners Stats
+                  </Link>
+                
                   <Button className="white-button">
                     <FontAwesomeIcon className="button-icon" icon={faChartGantt} size="xs" fixedWidth />General TA Stats
                   </Button>

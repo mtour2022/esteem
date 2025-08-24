@@ -9,6 +9,7 @@ import useResolvedActivities from "../services/GetActivitiesDetails";
 import useResolvedProviders from "../services/GetProvidersDetails"
 import useCompanyInfo from "../services/GetCompanyDetails";
 import Select from "react-select";
+import TicketSummary from "../components/TicketSummary.js"; // adjust the path if needed
 
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
@@ -26,7 +27,8 @@ import {
   faCopy,
   faRefresh,
   faUserGroup,
-  faBarChart,
+  faBarChart,  faEyeSlash,
+faQrcode,
   faBarsProgress,
   faBarsStaggered,
   faLineChart
@@ -180,6 +182,8 @@ const getStatusBadgeVariant = (status) => {
 const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
   const [showFullSummary, setShowFullSummary] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+  
   useEffect(() => {
     const handleResize = () => {
       setIsSmallScreen(window.innerWidth < 768);
@@ -1249,9 +1253,9 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       <Card.Body className="mt-5">
         <Row className="align-items-end mb-3">
           {/* LEFT SIDE: Search Field */}
-          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
+          {/* <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
 
-          </Col>
+          </Col> */}
 
 
           {/* RIGHT SIDE: Icon Buttons */}
@@ -1260,7 +1264,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
             md={12}
             sm={12}
             xs={12}
-            className="d-flex justify-content-lg-end justify-content-start gap-2 mb-2 me-0 pe-0"
+            className="d-flex justify-content-lg-start justify-content-start gap-2 mb-2 me-0 pe-0"
           >
             <Button
               variant="outline-secondary"
@@ -1751,32 +1755,81 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
 
                       const rowData = {
                         status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
-                        actions: (
-                          <div className="d-flex gap-2">
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleDeleteTicket(t.id)}
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </Button>
+                         actions: (
+                                                  <div className="d-flex flex-column gap-2">
+                                                    {/* Top: View QR */}
+                                                    <Button
+                                                      variant="outline-primary"
+                                                      size="sm"
+                                                      onClick={() => {
+                                                        setSelectedTicket(t);
+                                                        setTimeout(() => {
+                                                          const element = document.getElementById("ticket-summary");
+                                                          if (element) {
+                                                            element.scrollIntoView({ behavior: "smooth", block: "start" });
+                                                          }
+                                                        }, 200); // delay to ensure content renders
+                                                      }}
+                                                    >
+                                                      <FontAwesomeIcon icon={faQrcode} /> View QR
+                                                    </Button>
+                        
+                        
+                                                    {/* Bottom row: Delete + Copy */}
+                                                    <div className="d-flex gap-2">
+                                                      <Button
+                                                        variant="outline-danger"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteTicket(t.id)}
+                                                      >
+                                                        <FontAwesomeIcon icon={faTrash} />
+                                                      </Button>
+                        
+                                                      <Button
+                                                        variant="outline-secondary"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                          const text = getRowText(t);
+                                                          navigator.clipboard.writeText(text)
+                                                            .then(() => {
+                                                              Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                                                            })
+                                                            .catch(() => {
+                                                              Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                                                            });
+                                                        }}
+                                                      >
+                                                        <FontAwesomeIcon icon={faCopy} />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                ),
+                        // actions: (
+                        //   <div className="d-flex gap-2">
+                        //     <Button
+                        //       variant="outline-danger"
+                        //       size="sm"
+                        //       onClick={() => handleDeleteTicket(t.id)}
+                        //     >
+                        //       <FontAwesomeIcon icon={faTrash} />
+                        //     </Button>
 
-                            <Button
-                              variant="outline-secondary"
-                              size="sm"
-                              onClick={() => {
-                                const text = getRowText(t);
-                                navigator.clipboard.writeText(text).then(() => {
-                                  Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
-                                }).catch(() => {
-                                  Swal.fire("Failed", "Unable to copy to clipboard.", "error");
-                                });
-                              }}
-                            >
-                              <FontAwesomeIcon icon={faCopy} />
-                            </Button>
-                          </div>
-                        ),
+                        //     <Button
+                        //       variant="outline-secondary"
+                        //       size="sm"
+                        //       onClick={() => {
+                        //         const text = getRowText(t);
+                        //         navigator.clipboard.writeText(text).then(() => {
+                        //           Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                        //         }).catch(() => {
+                        //           Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                        //         });
+                        //       }}
+                        //     >
+                        //       <FontAwesomeIcon icon={faCopy} />
+                        //     </Button>
+                        //   </div>
+                        // ),
                         ticketId: t.id,
                         company: getCompanyName(t),
                         name: t.name,
@@ -1825,6 +1878,9 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
           </div>
         )}
       </Card.Body>
+
+
+
       <div className="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-3">
         <div className="d-flex align-items-center gap-3">
           {/* ⬇️ Rows per Page Selector */}
@@ -1878,6 +1934,26 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
               : "Show Summary"}
         </Button>
       </div> */}
+        {/* qr screen here  */}
+            {selectedTicket && (
+              <div className="mt-4 mb-4" id="ticket-summary">
+                <Row className="justify-content-center">
+                  <Col lg={6} md={8} sm={12} xs={12}>
+                    <TicketSummary ticket={selectedTicket} />
+                    <div className="text-center mt-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setSelectedTicket(null)}
+                      >
+                        <FontAwesomeIcon icon={faEyeSlash} /> Close
+                      </Button>
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            )}
+      
 
       <>
         <div className="d-flex justify-content-between align-items-center mb-3 mt-5">

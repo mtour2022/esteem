@@ -141,7 +141,7 @@ export default function TourismCertSummaryTable({ employees = [], loading = fals
 
             <Card className="summary-card border rounded p-3 text-muted mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-2">
-                    <h6 className="mb-0 text-center w-100">Monthly Certificate Totals (Bar Chart)</h6>
+                    <h6 className="mb-0 text-center w-100">Monthly Approved Tourism Fronliners (with issued certificate)</h6>
                     <Button
                         variant="light"
                         size="sm"
@@ -176,7 +176,7 @@ export default function TourismCertSummaryTable({ employees = [], loading = fals
             <Card className="summary-card border rounded p-3 text-muted mb-4">
                 <div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                        <h6 className="mb-0">Tourism Certificates Summary by Month</h6>
+                        <h6 className="mb-0">Tourism Approved Fronliners Summary (with issued certificate)</h6>
                         {months.length > 0 && (
                             <Dropdown>
                                 <Dropdown.Toggle variant="light" size="sm">

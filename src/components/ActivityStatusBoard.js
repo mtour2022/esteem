@@ -281,7 +281,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterTown, setFilterTown] = useState("");
   const [employeeMap, setEmployeeMap] = useState({});
-const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     const today = new Date();
@@ -2051,37 +2051,52 @@ const [selectedTicket, setSelectedTicket] = useState(null);
 
                       const rowData = {
                         actions: (
-                          <div className="d-flex gap-2">
+                          <div className="d-flex flex-column gap-2">
+                            {/* Top: View QR */}
                             <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleDeleteTicket(t.id)}
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </Button>
-
-                            <Button
-                              variant="outline-secondary"
+                              variant="outline-primary"
                               size="sm"
                               onClick={() => {
-                                const text = getRowText(t);
-                                navigator.clipboard.writeText(text).then(() => {
-                                  Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
-                                }).catch(() => {
-                                  Swal.fire("Failed", "Unable to copy to clipboard.", "error");
-                                });
+                                setSelectedTicket(t);
+                                setTimeout(() => {
+                                  const element = document.getElementById("ticket-summary");
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  }
+                                }, 200); // delay to ensure content renders
                               }}
                             >
-                              <FontAwesomeIcon icon={faCopy} />
+                              <FontAwesomeIcon icon={faQrcode} /> View QR
                             </Button>
-                              <Button
-      variant="outline-primary"
-      size="sm"
-      onClick={() => setSelectedTicket(t)}
-    >
-                                    <FontAwesomeIcon icon={faQrcode} />
 
-    </Button>
+
+                            {/* Bottom row: Delete + Copy */}
+                            <div className="d-flex gap-2">
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => handleDeleteTicket(t.id)}
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </Button>
+
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => {
+                                  const text = getRowText(t);
+                                  navigator.clipboard.writeText(text)
+                                    .then(() => {
+                                      Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                                    })
+                                    .catch(() => {
+                                      Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                                    });
+                                }}
+                              >
+                                <FontAwesomeIcon icon={faCopy} />
+                              </Button>
+                            </div>
                           </div>
                         ),
 
@@ -2145,30 +2160,30 @@ const [selectedTicket, setSelectedTicket] = useState(null);
           </div>
         )}
 
-        
+
 
 
       </Card.Body>
 
       {/* qr screen here  */}
-       {selectedTicket && (
-  <div className="mt-4 mb-4">
-    <Row className="justify-content-center">
-      <Col lg={6} md={8} sm={12} xs={12}>
-        <TicketSummary ticket={selectedTicket} />
-        <div className="text-center mt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setSelectedTicket(null)}
-          >
-            <FontAwesomeIcon icon={faEyeSlash} /> Close
-          </Button>
+      {selectedTicket && (
+        <div className="mt-4 mb-4" id="ticket-summary">
+          <Row className="justify-content-center">
+            <Col lg={6} md={8} sm={12} xs={12}>
+              <TicketSummary ticket={selectedTicket} />
+              <div className="text-center mt-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedTicket(null)}
+                >
+                  <FontAwesomeIcon icon={faEyeSlash} /> Close
+                </Button>
+              </div>
+            </Col>
+          </Row>
         </div>
-      </Col>
-    </Row>
-  </div>
-)}
+      )}
 
       <div className="d-flex justify-content-between align-items-center mt-5 px-2 flex-wrap gap-3">
         <div className="d-flex align-items-center gap-3">
@@ -2336,32 +2351,32 @@ const [selectedTicket, setSelectedTicket] = useState(null);
                     <Col md={12}>
                       <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={tableRefSummaryImage}>
 
-                       <div className="d-flex justify-content-between align-items-center mb-2 flex-nowrap">
-  <div className="text-muted small fw-semibold">
-    <h6 className="text-muted mt-2">
-      Pax Summary from{" "}
-      {new Date(startDateInput).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      })}{" "}
-      to{" "}
-      {new Date(endDateInput).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      })}
-    </h6>
-  </div>
-  <div className="d-flex gap-2 flex-nowrap">
-    <Button variant="light" size="sm" onClick={handleDownloadImageSummary}>
-      <FontAwesomeIcon icon={faDownload} />
-    </Button>
-    <Button variant="light" size="sm" onClick={handleDownloadExcel}>
-      <FontAwesomeIcon icon={faTable} />
-    </Button>
-  </div>
-</div>
+                        <div className="d-flex justify-content-between align-items-center mb-2 flex-nowrap">
+                          <div className="text-muted small fw-semibold">
+                            <h6 className="text-muted mt-2">
+                              Pax Summary from{" "}
+                              {new Date(startDateInput).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric"
+                              })}{" "}
+                              to{" "}
+                              {new Date(endDateInput).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric"
+                              })}
+                            </h6>
+                          </div>
+                          <div className="d-flex gap-2 flex-nowrap">
+                            <Button variant="light" size="sm" onClick={handleDownloadImageSummary}>
+                              <FontAwesomeIcon icon={faDownload} />
+                            </Button>
+                            <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+                              <FontAwesomeIcon icon={faTable} />
+                            </Button>
+                          </div>
+                        </div>
 
 
                         <Table striped bordered hover responsive ref={tableRefSummary}>

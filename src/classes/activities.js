@@ -10,6 +10,9 @@ export class ActivityModel {
         this.activity_sold_by = "";
         this.activity_duration = "";
         this.activity_base_price = "";
-        this.activity_providers = [];
+this.activity_providers = [];   // provider IDs
+this.activity_selected_providers = [];   // provider IDs
+this.providerOptions = [];      // ✅ per-activity provider options
+
     }
 }
