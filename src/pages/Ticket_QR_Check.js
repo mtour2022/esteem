@@ -87,8 +87,12 @@ export default function TicketQRScanner() {
 
         fetchticketData();
     }, [currentUser]);
+
+   // ✅ QR scanner effect with back camera preference
 useEffect(() => {
   if (scannerRequested && webcamRef.current?.video) {
+    let scanner;
+
     const initScanner = async () => {
       try {
         // 🔹 Try to get the list of cameras
@@ -97,66 +101,46 @@ useEffect(() => {
         // Default to "environment" if found, else fallback to first available
         let preferredCamera = "environment";
         if (cameras.length > 0) {
-          const backCam = cameras.find(c => 
-            c.label.toLowerCase().includes("back") || 
+          const backCam = cameras.find(c =>
+            c.label.toLowerCase().includes("back") ||
             c.label.toLowerCase().includes("environment")
           );
           preferredCamera = backCam ? backCam.id : cameras[0].id;
         }
 
-        const scanner = new QrScanner(
+        // 🔹 Initialize scanner
+        scanner = new QrScanner(
           webcamRef.current.video,
           async (result) => {
             if (handledRef.current) return;
+
             if (result?.data) {
-              handledRef.current = true;
-              try {
-                const parts = result.data.trim().split("/").filter(Boolean);
-                const scannedTicketId = parts[parts.length - 1];
+              const parts = result.data.trim().split("/").filter(Boolean);
+              const scannedId = parts[parts.length - 1];
 
-                if (!scannedTicketId) {
-                  Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
-                  return;
-                }
-
-                const q = query(collection(db, "tickets"), where("ticket_id", "==", scannedTicketId));
-                const snap = await getDocs(q);
-
-                if (!snap.empty) {
-                  const ticketDoc = snap.docs[0].data();
-                  setTicketData(new TicketModel(ticketDoc));
-
-                  if (ticketDoc.employee_id) {
-                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
-                    if (empData) {
-                      setSelectedEmployee(empData);
-                      setEmployees(prev => {
-                        const exists = prev.some(e => e.employeeId === empData.employeeId);
-                        return exists ? prev : [...prev, empData];
-                      });
-                    }
-                  }
-
-                  Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
-                  setCurrentStep(1);
-                } else {
-                  Swal.fire("Not Found", "No ticket found with that ID.", "warning");
-                }
-
-                scanner.stop();
-                qrScannerRef.current = null;
-                setScannerRequested(false);
-              } catch (err) {
-                console.error("Error fetching ticket:", err);
-                Swal.fire("Error", "Failed to fetch ticket data.", "error");
-                setScannerRequested(false);
+              if (!scannedId) {
+                Swal.fire("Invalid QR", "No valid tourism certificate ID found in QR code.", "error");
+                return;
               }
+
+              handledRef.current = true;
+              setTourismCertId(scannedId);
+
+              try {
+                const stopResult = scanner.stop?.();
+                if (stopResult instanceof Promise) await stopResult;
+              } catch (err) {
+                console.warn("Error stopping scanner after scan:", err);
+              }
+
+              qrScannerRef.current = null;
+              setScannerRequested(false);
+
+              // ✅ Open the Tourism Certificate in a new tab
+              window.open(`/tourism-certificate/${scannedId}`, "_blank");
             }
           },
-          {
-            highlightScanRegion: true,
-            preferredCamera, // 👈 will be actual camera id
-          }
+          { highlightScanRegion: true, preferredCamera }
         );
 
         qrScannerRef.current = scanner;
@@ -176,8 +160,8 @@ useEffect(() => {
 
     return () => {
       try {
-        if (qrScannerRef.current && typeof qrScannerRef.current.stop === "function") {
-          const stopResult = qrScannerRef.current.stop();
+        if (scanner && typeof scanner.stop === "function") {
+          const stopResult = scanner.stop();
           if (stopResult instanceof Promise) stopResult.catch(() => {});
         }
       } catch (err) {
