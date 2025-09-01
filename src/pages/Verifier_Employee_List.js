@@ -24,6 +24,8 @@ import download from "downloadjs";
 import { useNavigate } from "react-router-dom";
 import { runTransaction } from "firebase/firestore";
 import CertificateIssuanceForecastChart from "../components/TourismCertForecast"
+import { sendApprovalEmail } from "../components/ApprovalEmail"; // helper file
+import {sendResubmitEmail} from "../components/ResubmitEmail"
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
 const useMouseDragScroll = (ref) => {
@@ -283,8 +285,9 @@ export default function VerifierEmployeeListPage() {
 
     if (employees.length) fetchCompanies();
   }, [employees]);
-  
-const handleChangeStatus = async (employee, newStatus) => {
+
+
+  const handleChangeStatus = async (employee, newStatus) => {
   const { value: formValues, isConfirmed } = await Swal.fire({
     title: `Change status to "${newStatus}"?`,
     html: `
@@ -376,6 +379,14 @@ const handleChangeStatus = async (employee, newStatus) => {
       };
 
       setShowCertificateFor(employee.employeeId);
+
+      // ✅ Send approval email
+      await sendApprovalEmail(employee, updates.latest_cert_summary);
+    }
+
+    // ✅ Handle resubmit email
+    if (newStatus.toLowerCase() === "incomplete") {
+      await sendResubmitEmail(employee);
     }
 
     await updateDoc(employeeRef, updates);
@@ -392,7 +403,6 @@ const handleChangeStatus = async (employee, newStatus) => {
     Swal.fire("Error", "Failed to update status.", "error");
   }
 };
-
 
   const getStatusBadgeVariant = (status) => {
     if (!status) return "secondary";

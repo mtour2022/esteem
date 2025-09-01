@@ -12,6 +12,7 @@
     "cra-template": "1.2.0",
     "dayjs": "^1.11.13",
     "downloadjs": "^1.4.7",
+    "emailjs-com": "^3.2.0",
     "firebase": "^11.2.0",
     "google-maps": "^4.3.3",
     "html-to-image": "^1.11.13",

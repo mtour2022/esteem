@@ -1113,39 +1113,135 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   }, {});
 
 
+  // const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
+
+  // const activityPaxCounts = {};
+
+  // filteredSummaryTickets.forEach(ticket => {
+  //   if (!Array.isArray(ticket.activities)) return;
+
+  //   ticket.activities.forEach(act => {
+  //     const availedIds = act.activities_availed || [];
+  //     const pax = Number(act.activity_num_pax || 0);
+
+  //     availedIds.forEach(id => {
+  //       if (!id) return;
+  //       if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
+  //       activityPaxCounts[id] += pax;
+  //     });
+  //   });
+  // });
+
+
+  // const activityNameMap = allResolvedActivities.reduce((acc, a) => {
+  //   acc[a.id] = a.activity_name || "Unknown Activity";
+  //   return acc;
+  // }, {});
+
+  // const topActivities = Object.entries(activityPaxCounts)
+  //   .sort((a, b) => b[1] - a[1])
+  //   .slice(0, 10)
+  //   .map(([activityId, value]) => ({
+  //     name: activityNameMap[activityId] || activityId,
+  //     value,
+  //   }));
+
   const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
 
-  const activityPaxCounts = {};
+const activityPaxCounts = {};
 
-  filteredSummaryTickets.forEach(ticket => {
-    if (!Array.isArray(ticket.activities)) return;
+// Define normalization rules
+const normalizeActivityName = (name) => {
+  if (!name) return "Unknown Activity";
+  const lower = name.toLowerCase();
 
-    ticket.activities.forEach(act => {
-      const availedIds = act.activities_availed || [];
-      const pax = Number(act.activity_num_pax || 0);
+  if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
+  if (lower.includes("island hopping")) return "Island Hopping";
 
-      availedIds.forEach(id => {
-        if (!id) return;
-        if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
-        activityPaxCounts[id] += pax;
-      });
+  if (lower.includes("private yacht")) return "Private Yacht";
+  if (lower.includes("yacht")) return "Yacht";
+
+  if (lower.includes("private party boat")) return "Private Party Boat";
+  if (lower.includes("party boat")) return "Party Boat";
+
+  if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
+  if (lower.includes("atv and zipline")) return "ATV and Zipline";
+
+  return name; // keep original if no match
+};
+
+filteredSummaryTickets.forEach(ticket => {
+  if (!Array.isArray(ticket.activities)) return;
+
+  ticket.activities.forEach(act => {
+    const availedIds = act.activities_availed || [];
+    const pax = Number(act.activity_num_pax || 0);
+
+    availedIds.forEach(id => {
+      if (!id) return;
+      if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
+      activityPaxCounts[id] += pax;
     });
   });
+});
 
+const activityNameMap = allResolvedActivities.reduce((acc, a) => {
+  acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
+  return acc;
+}, {});
 
-  const activityNameMap = allResolvedActivities.reduce((acc, a) => {
-    acc[a.id] = a.activity_name || "Unknown Activity";
-    return acc;
-  }, {});
+// Merge pax counts by normalized name
+const mergedPaxCounts = {};
+Object.entries(activityPaxCounts).forEach(([id, value]) => {
+  const normalizedName = activityNameMap[id] || id;
+  if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
+  mergedPaxCounts[normalizedName] += value;
+});
 
-  const topActivities = Object.entries(activityPaxCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([activityId, value]) => ({
-      name: activityNameMap[activityId] || activityId,
-      value,
-    }));
+const topActivities = Object.entries(mergedPaxCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([name, value]) => ({ name, value }));
 
+// --- Base price map ---
+const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+  acc[a.id] = Number(a.activity_base_price) || 0;
+  return acc;
+}, {});
+
+const activitySaleTotals = {};
+
+filteredSummaryTickets.forEach(ticket => {
+  if (!Array.isArray(ticket.activities)) return;
+
+  ticket.activities.forEach(act => {
+    const availedIds = act.activities_availed || [];
+    const pax = Number(act.activity_num_pax || 0);
+
+    availedIds.forEach(id => {
+      if (!id) return;
+
+      const expectedPrice = Number(activityBasePriceMap[id] || 0);
+      const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
+
+      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+      activitySaleTotals[id] += activitySale;
+    });
+  });
+});
+
+// Merge sales by normalized name
+const mergedSaleTotals = {};
+Object.entries(activitySaleTotals).forEach(([id, value]) => {
+  const normalizedName = activityNameMap[id] || id;
+  if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
+  mergedSaleTotals[normalizedName] += value;
+});
+
+const topActivitiesBySale = Object.entries(mergedSaleTotals)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([name, value]) => ({ name, value }));
 
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};

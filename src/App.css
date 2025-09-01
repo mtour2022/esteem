@@ -62,6 +62,19 @@ body {
 }
 }
 
+/* Hide arrows in number input for Chrome, Edge, Safari */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide arrows in Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
 /* Page Elements */
 .barabara-label {
   color: #1F89B2;

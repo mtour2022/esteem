@@ -9,6 +9,9 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, } from "firebase/storag
 import CompanyTourismCert from "../components/CompanyTourismCert";
 import { faEye, faEyeSlash, faFile, faSearch, faSyncAlt, faFilter, faTrash, faCalendar, faFileCircleCheck, faDownload, faPrint, faColumns, faPen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { sendApprovalEmailCompany } from "../components/ApprovalEmailCompany";
+import { sendResubmitEmailCompany } from "../components/ResubmitEmailCompany";
+
 const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
 
 const useMouseDragScroll = (ref) => {
@@ -223,7 +226,15 @@ export default function CompanyPage() {
                 };
 
                 setShowCertificateFor(company.company_id);
+                
+    // ✅ Send email programmatically
+    await sendApprovalEmailCompany(company, updates.latest_cert_summary);
             }
+
+                // ✅ Handle resubmit email
+                if (newStatus.toLowerCase() === "incomplete") {
+                  await sendResubmitEmailCompany(company);
+                }
 
             await updateDoc(companyRef, updates);
             await fetchCompanyDetails();

@@ -22,7 +22,6 @@ export default function AppNavBar() {
             </NavLink>
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Home</Nav.Link>
             <NavDropdown className='ms-lg-3 navlink' title="Register" id="basic-nav-dropdown">
-             
               <NavDropdown.Item as={NavLink} to="/application-status-check">
                 REGISTRATION STATUS CHECKER
               </NavDropdown.Item>
@@ -44,7 +43,6 @@ export default function AppNavBar() {
               </NavDropdown.Item>
             </NavDropdown>
             <NavDropdown className='ms-lg-3 navlink' title="Certification" id="basic-nav-dropdown">
-             
                <NavDropdown.Item as={NavLink} to="/find-my-cert">
                 FIND MY TOURISM CERT
               </NavDropdown.Item>
@@ -52,9 +50,17 @@ export default function AppNavBar() {
               <NavDropdown.Item as={NavLink} to="/tourism-cert-check">
                 TOURISM CERT VERIFIER
               </NavDropdown.Item>
-
             </NavDropdown>
-            <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Analyze</Nav.Link>
+             <NavDropdown className='ms-lg-3 navlink' title="Analyze" id="basic-nav-dropdown">
+               <NavDropdown.Item as={NavLink} to="/general-tourism-frontliners-summary">
+                GENERAL TF SUMMARY
+              </NavDropdown.Item>
+              <hr></hr>
+              <NavDropdown.Item as={NavLink} to="/">
+                GENERAL TA SUMMARY
+              </NavDropdown.Item>
+            </NavDropdown>
+            {/* <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Analyze</Nav.Link> */}
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">About Us</Nav.Link>
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Eng</Nav.Link>
 

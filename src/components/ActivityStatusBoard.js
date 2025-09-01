@@ -1192,71 +1192,101 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
   const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
 
-  const activityPaxCounts = {};
+const activityPaxCounts = {};
 
-  filteredSummaryTickets.forEach(ticket => {
-    if (!Array.isArray(ticket.activities)) return;
+// Define normalization rules
+const normalizeActivityName = (name) => {
+  if (!name) return "Unknown Activity";
+  const lower = name.toLowerCase();
 
-    ticket.activities.forEach(act => {
-      const availedIds = act.activities_availed || [];
-      const pax = Number(act.activity_num_pax || 0);
+  if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
+  if (lower.includes("island hopping")) return "Island Hopping";
 
-      availedIds.forEach(id => {
-        if (!id) return;
-        if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
-        activityPaxCounts[id] += pax;
-      });
+  if (lower.includes("private yacht")) return "Private Yacht";
+  if (lower.includes("yacht")) return "Yacht";
+
+  if (lower.includes("private party boat")) return "Private Party Boat";
+  if (lower.includes("party boat")) return "Party Boat";
+
+  if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
+  if (lower.includes("atv and zipline")) return "ATV and Zipline";
+
+  return name; // keep original if no match
+};
+
+filteredSummaryTickets.forEach(ticket => {
+  if (!Array.isArray(ticket.activities)) return;
+
+  ticket.activities.forEach(act => {
+    const availedIds = act.activities_availed || [];
+    const pax = Number(act.activity_num_pax || 0);
+
+    availedIds.forEach(id => {
+      if (!id) return;
+      if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
+      activityPaxCounts[id] += pax;
     });
   });
+});
 
+const activityNameMap = allResolvedActivities.reduce((acc, a) => {
+  acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
+  return acc;
+}, {});
 
-  const activityNameMap = allResolvedActivities.reduce((acc, a) => {
-    acc[a.id] = a.activity_name || "Unknown Activity";
-    return acc;
-  }, {});
+// Merge pax counts by normalized name
+const mergedPaxCounts = {};
+Object.entries(activityPaxCounts).forEach(([id, value]) => {
+  const normalizedName = activityNameMap[id] || id;
+  if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
+  mergedPaxCounts[normalizedName] += value;
+});
 
-  const topActivities = Object.entries(activityPaxCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([activityId, value]) => ({
-      name: activityNameMap[activityId] || activityId,
-      value,
-    }));
+const topActivities = Object.entries(mergedPaxCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([name, value]) => ({ name, value }));
 
-  // NEW: Base price map
-  const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
-    acc[a.id] = Number(a.activity_base_price) || 0;
-    return acc;
-  }, {});
+// --- Base price map ---
+const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+  acc[a.id] = Number(a.activity_base_price) || 0;
+  return acc;
+}, {});
 
-  const activitySaleTotals = {};
+const activitySaleTotals = {};
 
-  filteredSummaryTickets.forEach(ticket => {
-    if (!Array.isArray(ticket.activities)) return;
+filteredSummaryTickets.forEach(ticket => {
+  if (!Array.isArray(ticket.activities)) return;
 
-    ticket.activities.forEach(act => {
-      const availedIds = act.activities_availed || [];
-      const pax = Number(act.activity_num_pax || 0);
+  ticket.activities.forEach(act => {
+    const availedIds = act.activities_availed || [];
+    const pax = Number(act.activity_num_pax || 0);
 
-      availedIds.forEach(id => {
-        if (!id) return;
+    availedIds.forEach(id => {
+      if (!id) return;
 
-        const expectedPrice = Number(activityBasePriceMap[id] || 0);
-        const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
+      const expectedPrice = Number(activityBasePriceMap[id] || 0);
+      const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
 
-        if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
-        activitySaleTotals[id] += activitySale;
-      });
+      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+      activitySaleTotals[id] += activitySale;
     });
   });
+});
 
-  const topActivitiesBySale = Object.entries(activitySaleTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([activityId, value]) => ({
-      name: activityNameMap[activityId] || activityId,
-      value,
-    }));
+// Merge sales by normalized name
+const mergedSaleTotals = {};
+Object.entries(activitySaleTotals).forEach(([id, value]) => {
+  const normalizedName = activityNameMap[id] || id;
+  if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
+  mergedSaleTotals[normalizedName] += value;
+});
+
+const topActivitiesBySale = Object.entries(mergedSaleTotals)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([name, value]) => ({ name, value }));
+
 
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};
@@ -2230,19 +2260,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
           </button>
         </div>
       </div>
-      {/* <div className="d-flex justify-content-center mt-4 mb-5">
-        <Button
-          variant={showSummary ? "outline-danger" : "outline-secondary"}
-          onClick={toggleSummary}
-          disabled={loadingSummary}
-        >
-          {loadingSummary
-            ? "Loading..."
-            : showSummary
-              ? "Hide Summary"
-              : "Show Summary"}
-        </Button>
-      </div> */}
+     
       <>
 
         <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
@@ -2473,20 +2491,21 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Top Activities Availed (by Pax)"
-                        data={topActivities}
-                        loading={allResolvedActivities.length === 0}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Top Generating Activities (by Expected Sale)"
-                        data={topActivitiesBySale}
-                        loading={allResolvedActivities.length === 0}
-                      />
-                    </Col>
+                      <Col md={4}>
+    <TopRankingChart
+      title="Top Activities Availed (by Pax)"
+      data={topActivities}   // 👈 uses merged Pax counts
+      loading={allResolvedActivities.length === 0}
+    />
+  </Col>
+
+  <Col md={4}>
+    <TopRankingChart
+      title="Top Generating Activities (by Expected Sale)"
+      data={topActivitiesBySale}   // 👈 uses merged Sale totals
+      loading={allResolvedActivities.length === 0}
+    />
+  </Col>
                   </Row>
 
                   <Row className="g-3 mt-2">

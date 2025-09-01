@@ -216,7 +216,7 @@ setGroupData({ ...groupData, activities: updated });
                                 <option value="">Select Activity Area</option>
                                 <option value="Mainland Malay">Mainland Malay</option>
                                 <option value="Boracay Island">Boracay Island</option>
-                                <option value="Nearby Malay">Nearby Malay</option>
+                                {/* <option value="Nearby Malay">Nearby Malay</option> */}
                             </Form.Select>
                             {/* ✅ Provider Select */}
                           {selected?.providerOptions?.length > 0 && (

@@ -277,7 +277,7 @@ const CompanyTourismCert = ({ company, hideNavAndFooter = false }) => {
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        Verify: projectesteem.com/tourism_certificate/{cert.tourism_cert_id}
+                                        Verify: projectesteem.com/tourism-certificate/{cert.tourism_cert_id}
                                     </a>
                                 </div>
                             </div>

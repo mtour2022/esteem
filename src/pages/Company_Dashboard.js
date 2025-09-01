@@ -27,7 +27,7 @@ export default function CompanyDashboardPage() {
     const [loading, setLoading] = useState(true);
     const { currentUser } = useAuth();
     const [refreshKey, setRefreshKey] = useState(0);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
 
     // Initial state (when setting up groupData for the first time)
@@ -78,27 +78,27 @@ export default function CompanyDashboardPage() {
         setRefreshKey(prev => prev + 1); // 🔄 Trigger data refresh
     };
 
-const handleLogout = async () => {
-  try {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You will be logged out of your session.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, log out',
-      cancelButtonText: 'Cancel',
-    });
+    const handleLogout = async () => {
+        try {
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: 'You will be logged out of your session.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, log out',
+                cancelButtonText: 'Cancel',
+            });
 
-    if (result.isConfirmed) {
-      await doSignOut(); // ✅ Firebase sign out
-      Swal.fire('Logged out!', 'You have been successfully signed out.', 'success');
-      navigate("/home"); // ✅ Redirect to /home
-    }
-  } catch (err) {
-    console.error("Logout failed:", err);
-    Swal.fire('Error', 'Something went wrong while logging out.', 'error');
-  }
-};
+            if (result.isConfirmed) {
+                await doSignOut(); // ✅ Firebase sign out
+                Swal.fire('Logged out!', 'You have been successfully signed out.', 'success');
+                navigate("/home"); // ✅ Redirect to /home
+            }
+        } catch (err) {
+            console.error("Logout failed:", err);
+            Swal.fire('Error', 'Something went wrong while logging out.', 'error');
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -368,14 +368,18 @@ const handleLogout = async () => {
                                     </Container>
                                     {currentStep === 4 ? (
                                         <Container className="d-flex justify-content-between mt-3">
-                                            
+
                                             <Button
                                                 className="color-blue-button"
                                                 variant="primary"
-                                                onClick={resetTicketForm} // ✅ NEW
+                                                onClick={() => {
+                                                    resetTicketForm();        // 📝 reset first
+                                                    window.location.reload(); // 🔄 then refresh whole page
+                                                }}
                                             >
                                                 Generate More
                                             </Button>
+
 
                                         </Container>
 
@@ -453,25 +457,25 @@ const handleLogout = async () => {
                             <FontAwesomeIcon icon={isFullScreen ? faCompress : faExpand} />
                         </Button>
 
-                       <Dropdown align="end">
-        <Dropdown.Toggle
-          as={Button}
-          size="sm"
-          variant="outline-secondary"
-          id="dropdown-custom-button"
-        >
-          <FontAwesomeIcon icon={faBars} />
-        </Dropdown.Toggle>
+                        <Dropdown align="end">
+                            <Dropdown.Toggle
+                                as={Button}
+                                size="sm"
+                                variant="outline-secondary"
+                                id="dropdown-custom-button"
+                            >
+                                <FontAwesomeIcon icon={faBars} />
+                            </Dropdown.Toggle>
 
-        <Dropdown.Menu>
-          <Dropdown.Item>Advisories</Dropdown.Item>
-          <Dropdown.Item>Profile</Dropdown.Item>
-          <Dropdown.Item>Saved Reports</Dropdown.Item>
+                            <Dropdown.Menu>
+                                <Dropdown.Item>Advisories</Dropdown.Item>
+                                <Dropdown.Item>Profile</Dropdown.Item>
+                                <Dropdown.Item>Saved Reports</Dropdown.Item>
 
-          {/* 🔹 Log Out with redirect */}
-          <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown>
+                                {/* 🔹 Log Out with redirect */}
+                                <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
 
                     </div>
 

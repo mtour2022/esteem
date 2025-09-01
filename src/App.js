@@ -49,6 +49,7 @@ function App() {
             <Route path="/find-my-cert" element={<TourismCertSearchPage />} />
             <Route path="/general-tourism-frontliners-summary" element={<GeneralTFSummaryPage />} />
             <Route path="/requirements" element={<RequirementsPage />} />
+            <Route path="/edit-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<VerifierEmployeeListPage />}/>
 
 
 
