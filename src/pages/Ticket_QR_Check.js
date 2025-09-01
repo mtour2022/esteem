@@ -20,8 +20,6 @@ export default function TicketQRScanner() {
     const { currentUser } = useAuth();
     const [verifier, setVerifier] = useState(null);
 
-const [availableCameras, setAvailableCameras] = useState([]);
-const [selectedCameraId, setSelectedCameraId] = useState(null);
 
     // QR scanning
     const [scannerRequested, setScannerRequested] = useState(false);
@@ -90,134 +88,73 @@ const [selectedCameraId, setSelectedCameraId] = useState(null);
         fetchticketData();
     }, [currentUser]);
 
-    
+// ✅ QR scanner effect
 useEffect(() => {
   if (scannerRequested && webcamRef.current?.video) {
     const initScanner = async () => {
-  try {
-    const cameras = await QrScanner.listCameras(true);
-    setAvailableCameras(cameras);
+      try {
+        // 🔹 List all cameras
+        const cameras = await QrScanner.listCameras(true);
 
-    // pick preferred back camera if available
-    let preferredCamera = "environment";
-    if (cameras.length > 0) {
-      const backCam = cameras.find(c =>
-        c.label.toLowerCase().includes("back") ||
-        c.label.toLowerCase().includes("environment") ||
-        c.label.toLowerCase().includes("rear")
-      );
-      preferredCamera = backCam ? backCam.id : cameras[0].id;
-    }
+        // Try to pick back/environment camera
+        let preferredCameraId = cameras[0]?.id || undefined;
+        const backCam = cameras.find(
+          (cam) =>
+            cam.label.toLowerCase().includes("back") ||
+            cam.label.toLowerCase().includes("rear") ||
+            cam.label.toLowerCase().includes("environment")
+        );
+        if (backCam) preferredCameraId = backCam.id;
 
-    // if user manually picked a camera, override
-    const cameraToUse = selectedCameraId || preferredCamera;
+        const scanner = new QrScanner(
+          webcamRef.current.video,
+          async (result) => {
+            if (handledRef.current) return;
 
-    const scanner = new QrScanner(
-      webcamRef.current.video,
-      async (result) => {
-        // ... (your existing scan handler here, unchanged)
-      },
-      {
-        highlightScanRegion: true,
-        preferredCamera: cameraToUse,
+            if (result?.data) {
+              const parts = result.data.trim().split("/").filter(Boolean);
+              const scannedId = parts[parts.length - 1];
+
+              if (!scannedId) {
+                Swal.fire("Invalid QR", "No valid tourism certificate ID found in QR code.", "error");
+                return;
+              }
+
+              handledRef.current = true;
+              setTourismCertId(scannedId);
+
+              try {
+                const stopResult = scanner.stop?.();
+                if (stopResult instanceof Promise) await stopResult;
+              } catch (err) {
+                console.warn("Error stopping scanner after scan:", err);
+              }
+
+              qrScannerRef.current = null;
+              setScannerRequested(false);
+
+              // ✅ Open in new tab
+              window.open(`/tourism-certificate/${scannedId}`, "_blank");
+            }
+          },
+          {
+            highlightScanRegion: true,
+            preferredCamera: preferredCameraId, // 👈 Explicit camera deviceId
+          }
+        );
+
+        qrScannerRef.current = scanner;
+        scanner.start().catch((err) => {
+          console.error("Camera start error:", err);
+          Swal.fire("Camera error", "Unable to access the camera.", "error");
+          setScannerRequested(false);
+        });
+      } catch (err) {
+        console.error("Error initializing scanner:", err);
+        Swal.fire("Camera error", "Unable to initialize camera list.", "error");
+        setScannerRequested(false);
       }
-    );
-
-    qrScannerRef.current = scanner;
-    scanner.start().catch((err) => {
-      console.error("Camera start error:", err);
-      Swal.fire("Camera error", "Unable to access the camera.", "error");
-      setScannerRequested(false);
-    });
-  } catch (err) {
-    console.error("Error initializing scanner:", err);
-    Swal.fire("Error", "Failed to initialize scanner.", "error");
-    setScannerRequested(false);
-  }
-};
-
-    // const initScanner = async () => {
-    //   try {
-    //     // 🔹 Try to get the list of cameras
-    //     const cameras = await QrScanner.listCameras(true);
-
-    //     // Default to "environment" if found, else fallback to first available
-    //     let preferredCamera = "environment";
-    //     if (cameras.length > 0) {
-    //       const backCam = cameras.find(c => 
-    //         c.label.toLowerCase().includes("back") || 
-    //         c.label.toLowerCase().includes("environment")
-    //       );
-    //       preferredCamera = backCam ? backCam.id : cameras[0].id;
-    //     }
-
-    //     const scanner = new QrScanner(
-    //       webcamRef.current.video,
-    //       async (result) => {
-    //         if (handledRef.current) return;
-    //         if (result?.data) {
-    //           handledRef.current = true;
-    //           try {
-    //             const parts = result.data.trim().split("/").filter(Boolean);
-    //             const scannedTicketId = parts[parts.length - 1];
-
-    //             if (!scannedTicketId) {
-    //               Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
-    //               return;
-    //             }
-
-    //             const q = query(collection(db, "tickets"), where("ticket_id", "==", scannedTicketId));
-    //             const snap = await getDocs(q);
-
-    //             if (!snap.empty) {
-    //               const ticketDoc = snap.docs[0].data();
-    //               setTicketData(new TicketModel(ticketDoc));
-
-    //               if (ticketDoc.employee_id) {
-    //                 const empData = await fetchEmployeeById(ticketDoc.employee_id);
-    //                 if (empData) {
-    //                   setSelectedEmployee(empData);
-    //                   setEmployees(prev => {
-    //                     const exists = prev.some(e => e.employeeId === empData.employeeId);
-    //                     return exists ? prev : [...prev, empData];
-    //                   });
-    //                 }
-    //               }
-
-    //               Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
-    //               setCurrentStep(1);
-    //             } else {
-    //               Swal.fire("Not Found", "No ticket found with that ID.", "warning");
-    //             }
-
-    //             scanner.stop();
-    //             qrScannerRef.current = null;
-    //             setScannerRequested(false);
-    //           } catch (err) {
-    //             console.error("Error fetching ticket:", err);
-    //             Swal.fire("Error", "Failed to fetch ticket data.", "error");
-    //             setScannerRequested(false);
-    //           }
-    //         }
-    //       },
-    //       {
-    //         highlightScanRegion: true,
-    //         preferredCamera, // 👈 will be actual camera id
-    //       }
-    //     );
-
-    //     qrScannerRef.current = scanner;
-    //     scanner.start().catch((err) => {
-    //       console.error("Camera start error:", err);
-    //       Swal.fire("Camera error", "Unable to access the camera.", "error");
-    //       setScannerRequested(false);
-    //     });
-    //   } catch (err) {
-    //     console.error("Error initializing scanner:", err);
-    //     Swal.fire("Error", "Failed to initialize scanner.", "error");
-    //     setScannerRequested(false);
-    //   }
-    // };
+    };
 
     initScanner();
 
@@ -234,7 +171,7 @@ useEffect(() => {
       setScannerRequested(false);
     };
   }
-}, [scannerRequested, selectedCameraId]);
+}, [scannerRequested]);
 
 
     useEffect(() => {
@@ -403,7 +340,7 @@ useEffect(() => {
             </Row>
 
             {/* QR Scanner */}
-            {/* {searchType === "scan" && (
+            {searchType === "scan" && (
                 <div>
                     {!scannerRequested ? (
                         <Button
@@ -421,50 +358,29 @@ useEffect(() => {
                         </div>
                     )}
                 </div>
-            )} */}
+            )}
 
-            {searchType === "scan" && (
-  <div>
-    {!scannerRequested ? (
-      <Button
-        onClick={() => {
-          setScannerRequested(true);
-          setSearchType("scan");
-        }}
-      >
-        Start QR Scanner
-      </Button>
-    ) : (
-      <div>
-        <Webcam ref={webcamRef} style={{ width: "100%" }} />
-
-        {/* Camera selection dropdown */}
-        {availableCameras.length > 1 && (
-          <Form.Group className="my-2">
-            <Form.Label className="fw-bold">Select Camera</Form.Label>
-            <Form.Select
-              value={selectedCameraId || ""}
-              onChange={(e) => {
-                setSelectedCameraId(e.target.value || null);
-                handleResetScanner();   // stop current scanner
-                setScannerRequested(true); // restart with new camera
-              }}
-            >
-              {availableCameras.map((cam) => (
-                <option key={cam.id} value={cam.id}>
-                  {cam.label || `Camera ${cam.id}`}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        )}
-
-        <Button className="mt-2" onClick={handleResetScanner}>Stop Scanner</Button>
-      </div>
-    )}
-  </div>
-)}
-
+            {searchType === "id" && (
+                <InputGroup
+                    className="mb-3 justify-content-center"
+                    style={{ maxWidth: "550px", margin: "0 auto" }}
+                >
+                    <Form.Control
+                        type="text"
+                        placeholder="Enter Tourism Certificate ID"
+                        value={ticketData.ticket_id || ""}
+                        onChange={(e) =>
+                            setTicketData((prev) => new TicketModel({
+                                ...prev,
+                                ticket_id: e.target.value
+                            }))
+                        }
+                    />
+                    <Button variant="secondary" onClick={handleManualSubmit}>
+                        Check
+                    </Button>
+                </InputGroup>
+            )}
 
             {/* Scan Logs Table */}
             {Array.isArray(ticketData.scan_logs) && ticketData.scan_logs.length > 0 && (
