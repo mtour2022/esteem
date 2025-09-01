@@ -87,85 +87,107 @@ export default function TicketQRScanner() {
 
         fetchticketData();
     }, [currentUser]);
+useEffect(() => {
+  if (scannerRequested && webcamRef.current?.video) {
+    const initScanner = async () => {
+      try {
+        // 🔹 Try to get the list of cameras
+        const cameras = await QrScanner.listCameras(true);
 
-    // QR Scanner
-    useEffect(() => {
-        if (scannerRequested && webcamRef.current?.video) {
-            const scanner = new QrScanner(
-                webcamRef.current.video,
-                async (result) => {
-                    if (handledRef.current) return;
-                    if (result?.data) {
-                        handledRef.current = true;
-                        try {
-                            const parts = result.data.trim().split("/").filter(Boolean);
-                            const scannedTicketId = parts[parts.length - 1];
+        // Default to "environment" if found, else fallback to first available
+        let preferredCamera = "environment";
+        if (cameras.length > 0) {
+          const backCam = cameras.find(c => 
+            c.label.toLowerCase().includes("back") || 
+            c.label.toLowerCase().includes("environment")
+          );
+          preferredCamera = backCam ? backCam.id : cameras[0].id;
+        }
 
-                            if (!scannedTicketId) {
-                                Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
-                                return;
-                            }
+        const scanner = new QrScanner(
+          webcamRef.current.video,
+          async (result) => {
+            if (handledRef.current) return;
+            if (result?.data) {
+              handledRef.current = true;
+              try {
+                const parts = result.data.trim().split("/").filter(Boolean);
+                const scannedTicketId = parts[parts.length - 1];
 
-                            const q = query(collection(db, "tickets"), where("ticket_id", "==", scannedTicketId));
-                            const snap = await getDocs(q);
-
-                            if (!snap.empty) {
-                                const ticketDoc = snap.docs[0].data();
-                                setTicketData(new TicketModel(ticketDoc));
-
-                                if (ticketDoc.employee_id) {
-                                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
-                                    if (empData) {
-                                        setSelectedEmployee(empData);
-                                        // Optionally ensure they're also in employees list
-                                        setEmployees(prev => {
-                                            const exists = prev.some(e => e.employeeId === empData.employeeId);
-                                            return exists ? prev : [...prev, empData];
-                                        });
-                                    }
-                                }
-
-                                Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
-                                setCurrentStep(1);
-                            } else {
-                                Swal.fire("Not Found", "No ticket found with that ID.", "warning");
-                            }
-
-
-                            scanner.stop();
-                            qrScannerRef.current = null;
-                            setScannerRequested(false);
-                        } catch (err) {
-                            console.error("Error fetching ticket:", err);
-                            Swal.fire("Error", "Failed to fetch ticket data.", "error");
-                            setScannerRequested(false);
-                        }
-                    }
-                },
-                { highlightScanRegion: true, preferredCamera: "environment" }
-            );
-
-            qrScannerRef.current = scanner;
-            scanner.start().catch((err) => {
-                console.error("Camera start error:", err);
-                Swal.fire("Camera error", "Unable to access the camera.", "error");
-                setScannerRequested(false);
-            });
-
-            return () => {
-                try {
-                    if (scanner && typeof scanner.stop === "function") {
-                        const stopResult = scanner.stop();
-                        if (stopResult instanceof Promise) stopResult.catch(() => { });
-                    }
-                } catch (err) {
-                    console.warn("Error stopping scanner in cleanup:", err);
+                if (!scannedTicketId) {
+                  Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
+                  return;
                 }
+
+                const q = query(collection(db, "tickets"), where("ticket_id", "==", scannedTicketId));
+                const snap = await getDocs(q);
+
+                if (!snap.empty) {
+                  const ticketDoc = snap.docs[0].data();
+                  setTicketData(new TicketModel(ticketDoc));
+
+                  if (ticketDoc.employee_id) {
+                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
+                    if (empData) {
+                      setSelectedEmployee(empData);
+                      setEmployees(prev => {
+                        const exists = prev.some(e => e.employeeId === empData.employeeId);
+                        return exists ? prev : [...prev, empData];
+                      });
+                    }
+                  }
+
+                  Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
+                  setCurrentStep(1);
+                } else {
+                  Swal.fire("Not Found", "No ticket found with that ID.", "warning");
+                }
+
+                scanner.stop();
                 qrScannerRef.current = null;
                 setScannerRequested(false);
-            };
+              } catch (err) {
+                console.error("Error fetching ticket:", err);
+                Swal.fire("Error", "Failed to fetch ticket data.", "error");
+                setScannerRequested(false);
+              }
+            }
+          },
+          {
+            highlightScanRegion: true,
+            preferredCamera, // 👈 will be actual camera id
+          }
+        );
+
+        qrScannerRef.current = scanner;
+        scanner.start().catch((err) => {
+          console.error("Camera start error:", err);
+          Swal.fire("Camera error", "Unable to access the camera.", "error");
+          setScannerRequested(false);
+        });
+      } catch (err) {
+        console.error("Error initializing scanner:", err);
+        Swal.fire("Error", "Failed to initialize scanner.", "error");
+        setScannerRequested(false);
+      }
+    };
+
+    initScanner();
+
+    return () => {
+      try {
+        if (qrScannerRef.current && typeof qrScannerRef.current.stop === "function") {
+          const stopResult = qrScannerRef.current.stop();
+          if (stopResult instanceof Promise) stopResult.catch(() => {});
         }
-    }, [scannerRequested]);
+      } catch (err) {
+        console.warn("Error stopping scanner in cleanup:", err);
+      }
+      qrScannerRef.current = null;
+      setScannerRequested(false);
+    };
+  }
+}, [scannerRequested]);
 
 
     useEffect(() => {
