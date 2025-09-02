@@ -392,7 +392,13 @@ useEffect(() => {
                         </Button>
                     ) : (
                         <div>
-                            <Webcam ref={webcamRef} style={{ width: "100%" }} />
+                             <Webcam
+                                            audio={false}
+                                            ref={webcamRef}
+                                            screenshotFormat="image/jpeg"
+                                            className="w-100 h-100 mb-2"
+                                            videoConstraints={{ facingMode: "environment" }}
+                                          />
                             <Button onClick={handleResetScanner}>Stop Scanner</Button>
                         </div>
                     )}
