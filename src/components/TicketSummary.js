@@ -1,22 +1,22 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Container, Row, Col } from "react-bootstrap";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import download from "downloadjs";
 import Swal from "sweetalert2";
 import useResolvedActivities from "../services/GetActivitiesDetails";
-import useResolvedProviders from "../services/GetProvidersDetails"
+import useResolvedProviders from "../services/GetProvidersDetails";
 import useCompanyInfo from "../services/GetCompanyDetails";
 import useEmployeeInfo from "../services/GetEmployeesDetails";
-
 
 const sumField = (array, field) =>
   array.reduce((total, item) => total + parseInt(item[field] || "0"), 0);
 
 const TicketSummary = ({ ticket }) => {
   const exportRef = useRef();
+  const [isExporting, setIsExporting] = useState(false); // ✅ new state
 
-  // Move all hooks to the top before any return
+  // Hooks at the top
   const companyInfo = useCompanyInfo(ticket?.company_id);
   const resolvedActivities = useResolvedActivities(ticket);
   const employeeInfo = useEmployeeInfo(ticket?.employee_id);
@@ -24,13 +24,11 @@ const TicketSummary = ({ ticket }) => {
   const createdByEmployee = useEmployeeInfo(ticket?.employee_id);
   const resolvedProviders = useResolvedProviders(ticket?.activities || []);
 
-  if (!ticket) return null; // Now safe ✅
+  if (!ticket) return null;
 
   const {
     ticket_id,
     name,
-    contact,
-    company_id,
     accommodation,
     total_pax,
     start_date_time,
@@ -44,10 +42,7 @@ const TicketSummary = ({ ticket }) => {
     total_expected_payment,
     activities = [],
     address = [],
-    userUID,
   } = ticket;
-
-
 
   const totalLocals = sumField(address, "locals");
   const totalForeigns = sumField(address, "foreigns");
@@ -59,38 +54,39 @@ const TicketSummary = ({ ticket }) => {
   const totalSeniors = sumField(address, "seniors");
 
   const localCountries = address
-    .filter(addr => !addr.isForeign && addr.town)
-    .map(addr => addr.town.trim())
+    .filter((addr) => !addr.isForeign && addr.town)
+    .map((addr) => addr.town.trim())
     .filter((v, i, arr) => arr.indexOf(v) === i && v !== "")
     .join(", ");
 
-
   const foreignCountries = address
-    .filter(addr => addr.isForeign && addr.country)
-    .map(addr => addr.country)
-    .filter((v, i, arr) => arr.indexOf(v) === i) // remove duplicates
+    .filter((addr) => addr.isForeign && addr.country)
+    .map((addr) => addr.country)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
     .join(", ");
-
 
   const handleDownloadImage = async () => {
     if (!exportRef.current) return;
 
+    setIsExporting(true); // ✅ expand container for export
+    await new Promise((resolve) => setTimeout(resolve, 50)); // allow styles to apply
+
     const now = new Date();
-    const options = {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    };
     const formatted = now
-      .toLocaleString("en-US", options)
+      .toLocaleString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
       .replace(",", "")
       .replace(/ /g, "")
       .replace(":", "");
 
-    const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"}.png`;
+    const filename = `${ticket.name?.replace(/\s+/g, "_") || "Guest"}-${formatted}-${companyInfo?.name?.replace(/\s+/g, "_") || "NoCompany"
+      }.png`;
 
     Swal.fire({
       title: "Generating image...",
@@ -98,25 +94,7 @@ const TicketSummary = ({ ticket }) => {
       didOpen: () => Swal.showLoading(),
     });
 
-    // Save original styles
-    const originalPadding = exportRef.current.style.padding;
-    const originalBackground = exportRef.current.style.backgroundColor;
-    const originalMaxWidth = exportRef.current.style.maxWidth;
-
-    // Apply export-friendly styles
-    exportRef.current.style.padding = "10px";
-    exportRef.current.style.backgroundColor = "#ffffff";
-    exportRef.current.style.maxWidth = "none";
-
-    // Wait a tick so browser applies style
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    // Export using html-to-image (fit to content size)
-    toPng(exportRef.current, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: "#ffffff" // Ensure white background in output
-    })
+    toPng(exportRef.current, { cacheBust: true, pixelRatio: 2, backgroundColor: "#ffffff" })
       .then((dataUrl) => {
         download(dataUrl, filename);
         Swal.close();
@@ -137,156 +115,192 @@ const TicketSummary = ({ ticket }) => {
           text: "Something went wrong while generating the image.",
         });
       })
-      .finally(() => {
-        // Restore original styles
-        exportRef.current.style.padding = originalPadding;
-        exportRef.current.style.backgroundColor = originalBackground;
-        exportRef.current.style.maxWidth = originalMaxWidth;
-      });
+      .finally(() => setIsExporting(false)); // ✅ restore container size
   };
 
-
-
-  const getActivityDetails = (id) => {
-    return resolvedActivities.find(a => a.id === id);
-  };
-
-  const getProviderName = id => {
-    return resolvedProviders.find(p => p.id === id)?.name;
-  };
-
+  const getActivityDetails = (id) => resolvedActivities.find((a) => a.id === id);
+  const getProviderName = (id) => resolvedProviders.find((p) => p.id === id)?.name;
 
   return (
     <>
-      <Container ref={exportRef} className="p-3 border bg-white">
-        <div className="text-center mb-2 mt-2">
-          <h4><strong>TOURIST ACTIVITY TICKET</strong></h4>
-        </div>
-        {/* QR Code */}
-        {ticket_id && (
-          <div className="mb-4 text-center">
-            <div style={{ width: "90%", margin: "0 auto" }}>
-              <QRCodeCanvas
-                value={ticket_id}
-                style={{ width: "100%", height: "auto" }} // 👈 responsive scaling
-                bgColor="#ffffff"
-                fgColor="#000000"
-                level="H"
-              />
+      <Container
+        ref={exportRef}
+        className="p-3 border bg-white"
+        style={{
+          width: isExporting ? "1200px" : "100%", // expand for image export
+          maxWidth: isExporting ? "none" : "100%",
+        }}
+      >
+        <div className="text-small"> {/* Wrap all text in a small font */}
+          <div className="text-center mb-2 mt-0 pt-0">
+            <h4>
+              <strong>TOURIST ACTIVITY TICKET</strong>
+            </h4>
+          </div>
+
+          {/* QR Code (kept normal size) */}
+          {ticket_id && (
+            <div className="mb-4 text-center">
+              <div style={{ width: "90%", margin: "0 auto" }}>
+                <QRCodeCanvas
+                  value={ticket_id}
+                  style={{ width: "100%", height: "auto" }}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="H"
+                />
+              </div>
+              <p className="mt-1">{ticket_id}</p>
             </div>
+          )}
 
-            <p className="mt-1">{ticket_id}</p>
-          </div>
-        )}
-        {/* Basic Details */}
-        <Row className="row justify-content-center align-items-center">
-          <Col md={6} sm={12} className="col">
-            <p className="m-1">
-              <strong>Created By:</strong>{" "}
-              {createdByCompany?.name ||
-                (createdByEmployee?.firstname && createdByEmployee?.surname
-                  ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
-                  : "Unknown")}
-              <br />
-              <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
-            </p>
+          {/* Basic Details */}
+          <Row className="row justify-content-center align-items-center">
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small">
+                <strong>Created By:</strong>{" "}
+                {createdByCompany?.name ||
+                  (createdByEmployee?.firstname && createdByEmployee?.surname
+                    ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
+                    : "Unknown")}
+                <br />
+                <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
+              </p>
+              <p className="m-1 small">
+                <strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}
+              </p>
+            </Col>
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small">
+                <strong>Valid Until:</strong> {new Date(valid_until).toLocaleString()}
+              </p>
+              <p className="m-1 small">
+                <strong>Activity End:</strong> {new Date(end_date_time).toLocaleString()}
+              </p>
+            </Col>
+          </Row>
 
-            <p className="m-1"><strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}</p>
-          </Col>
-          <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Valid Until:</strong> {new Date(valid_until).toLocaleString()}</p>
-            <p className="m-1"><strong>Activity End:</strong> {new Date(end_date_time).toLocaleString()}</p>
-          </Col>
-        </Row>
-        <h5 className="mt-2 ms-1"><strong>BASIC INFORMATION</strong></h5>
-        <Row className="row justify-content-center align-items-center">
-          <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Representative:</strong> {name}</p>
-            <p className="m-1"><strong>Local Address:</strong> {localCountries}</p>
-          </Col>
-          <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Accommodation:</strong> {accommodation}</p>
-            <p className="m-1"><strong>Foreign Address:</strong> {foreignCountries}</p>
-          </Col>
-        </Row>
-        {/* Demographic Summary */}
-        <h5 className="mt-2 ms-1"><strong>DEMOGRAPHIC SUMMARY</strong></h5>
-        <Row className="row">
-          <Col md={6} className="col">
-            <p className="m-1"><strong>Locals:</strong> {totalLocals}</p>
-            <p className="m-1"><strong>Males:</strong> {totalMales}</p>
-            {prefer_not_to_say ? (
-              <p className="m-1"><strong>Prefer not to say:</strong> {prefer_not_to_say}</p>
-            ) : null}
-            <p className="m-1"><strong>Kids (0-12 y.o.):</strong> {totalKids}</p>
-            <p className="m-1"><strong>Adults (20-59 y.o.):</strong> {totalAdults}</p>
-          </Col>
-          <Col md={6} className="col">
-            <p className="m-1"><strong>Foreigns:</strong> {totalForeigns}</p>
-            <p className="m-1"><strong>Females:</strong> {totalFemales}</p>
-            <p className="m-1"><strong>Teens (13-19 y.o.):</strong> {totalTeens}</p>
-            <p className="m-1"><strong>Seniors (60 y.o. above):</strong> {totalSeniors}</p>
-          </Col>
-        </Row>
-        {/* Activities */}
-        <h5 className="mt-2 ms-1"><strong>ACTIVITIES AVAILED</strong></h5>
-        {activities.map((a, i) => (
-          <div key={i} className="mb-3">
-            <Row className="row">
-              <Col md={6} className="col">
-                {a.activities_availed?.map((id, idx) => {
-                  const activity = getActivityDetails(id);
-                  return (
-                    <div key={idx}>
-                      <p className="m-1"><strong>Activity:</strong> {activity?.activity_name || "Loading..."}</p>
-                      <p className="m-1"><strong>Duration:</strong> {activity?.activity_duration || "-"} mins</p>
-                    </div>
-                  );
-                })}
-                <p className="m-1"><strong>For:</strong> {a.activity_num_pax} pax</p>
-                <p className="m-1"><strong>Area:</strong> {a.activity_area}</p>
-              </Col>
-              <Col md={6} className="col">
-                <p className="m-1"><strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}</p>
-                <p className="m-1"><strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}</p>
-                {/* ✅ Render selected providers */}
-                {a.activity_selected_providers?.length > 0 && (
-                  <p className="m-1">
-                    <strong>Providers:</strong>{' '}
-                    {a.activity_selected_providers
-                      .map(id => getProviderName(id) || 'Loading...')
-                      .join(', ')}
+          {/* Basic Info */}
+          <p className="mt-2 ms-1 small">
+            <strong>BASIC INFORMATION</strong>
+          </p>
+          <Row className="row justify-content-center align-items-center">
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small">
+                <strong>Representative:</strong> {name}
+              </p>
+              <p className="m-1 small">
+                <strong>Local Address:</strong> {localCountries}
+              </p>
+            </Col>
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small">
+                <strong>Accommodation:</strong> {accommodation}
+              </p>
+              <p className="m-1 small">
+                <strong>Foreign Address:</strong> {foreignCountries}
+              </p>
+            </Col>
+          </Row>
+
+          {/* Demographics */}
+          <p className="mt-2 ms-1 small">
+            <strong>DEMOGRAPHIC SUMMARY</strong>
+          </p>
+          <Row className="row">
+            <Col md={6} className="col">
+              <p className="m-1 small"><strong>Locals:</strong> {totalLocals}</p>
+              <p className="m-1 small"><strong>Males:</strong> {totalMales}</p>
+              {prefer_not_to_say && (
+                <p className="m-1 small"><strong>Prefer not to say:</strong> {prefer_not_to_say}</p>
+              )}
+              <p className="m-1 small"><strong>Kids (0-12 y.o.):</strong> {totalKids}</p>
+              <p className="m-1 small"><strong>Adults (20-59 y.o.):</strong> {totalAdults}</p>
+            </Col>
+            <Col md={6} className="col">
+              <p className="m-1 small"><strong>Foreigns:</strong> {totalForeigns}</p>
+              <p className="m-1 small"><strong>Females:</strong> {totalFemales}</p>
+              <p className="m-1 small"><strong>Teens (13-19 y.o.):</strong> {totalTeens}</p>
+              <p className="m-1 small"><strong>Seniors (60 y.o. above):</strong> {totalSeniors}</p>
+            </Col>
+          </Row>
+
+          {/* Activities */}
+          <p className="mt-2 ms-1 small"><strong>ACTIVITIES AVAILED</strong></p>
+          {activities.map((a, i) => (
+            <div key={i} className="mb-3">
+              <Row className="row">
+                <Col md={6} className="col">
+                  {a.activities_availed?.map((id, idx) => {
+                    const activity = getActivityDetails(id);
+                    return (
+                      <div key={idx}>
+                        <p className="m-1 small">
+                          <strong>Activity:</strong> {activity?.activity_name || "Loading..."}
+                        </p>
+                        <p className="m-1 small">
+                          <strong>Duration:</strong> {activity?.activity_duration || "-"} mins
+                        </p>
+                      </div>
+                    );
+                  })}
+                  <p className="m-1 small"><strong>For:</strong> {a.activity_num_pax} pax</p>
+                  <p className="m-1 small"><strong>Area:</strong> {a.activity_area}</p>
+                </Col>
+                <Col md={6} className="col">
+                  <p className="m-1 small">
+                    <strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}
                   </p>
-                )}
+                  <p className="m-1 small">
+                    <strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}
+                  </p>
+                  {a.activity_selected_providers?.length > 0 && (
+                    <p className="m-1 small">
+                      <strong>Providers:</strong>{" "}
+                      {a.activity_selected_providers.map((id) => getProviderName(id) || "Loading...").join(", ")}
+                    </p>
+                  )}
+                </Col>
+              </Row>
+            </div>
+          ))}
 
-              </Col>
-            </Row>
+          {/* Totals */}
+          <Row className="row justify-content-center align-items-center">
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small"><strong>Total Pax:</strong> {total_pax}</p>
+              <p className="m-1 small"><strong>Expected Pricing:</strong> {total_expected_payment}</p>
+            </Col>
+            <Col md={6} sm={12} className="col">
+              <p className="m-1 small"><strong>Total Duration:</strong> {total_duration}</p>
+              <p className="m-1 small"><strong>Agreed Pricing:</strong> {total_payment}</p>
+            </Col>
+          </Row>
+
+          {/* Company Info */}
+          <div className="text-center mt-2 small">
+            <p className="m-1"><strong>Company:</strong> {companyInfo?.name || "Loading..."}</p>
+            <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.firstname} ${employeeInfo.surname}` : "Loading..."}</p>
+            <p className="m-1"><strong>Contact:</strong> {employeeInfo ? `${employeeInfo.contact}` : "Loading..."}</p>
           </div>
-        ))}
-        <Row className="row justify-content-center align-items-center">
-          <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Total Pax:</strong> {total_pax}</p>
-            <p className="m-1"><strong>Expected Pricing:</strong> {total_expected_payment}</p>
-          </Col>
-          <Col md={6} sm={12} className="col">
-            <p className="m-1"><strong>Total Duration:</strong> {total_duration}</p>
-            <p className="m-1"><strong>Agreed Pricing:</strong> {total_payment}</p>
-          </Col>
-        </Row>
-        <div className="text-center mt-2">
-          <p className="m-1"><strong>Company:</strong> {companyInfo?.name || "Loading..."}</p>
-          <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.firstname} ${employeeInfo.surname}` : "Loading..."}</p>
-          <p className="m-1"><strong>Contact:</strong> {employeeInfo ? `${employeeInfo.contact}` : "Loading..."}</p>
+
+          <p
+            className="m-1 mt-3 text-muted text-center"
+            style={{ fontSize: "0.6rem", lineHeight: "1rem" }}
+          >
+            Note: Generated electronic QR codes must be deleted properly once used or expired. Unethical or unpermitted use of this electronic copy or any of the data it contains is strictly prohibited and punishable by law.
+          </p>
+
         </div>
-        <p className="m-1 mt-3 text-muted small text-center">
-          Note: Generated electronic QR codes must be deleted properly once used or expired. Unethical or unpermitted use of this electronic copy or any of the data it contains is strictly prohibited and punishable by law.
-        </p>
+
+        <div className="d-flex justify-content-center mt-3">
+          <button type="button" className="btn btn-primary" onClick={handleDownloadImage}>
+            Download Image
+          </button>
+        </div>
       </Container>
-      <div className="d-flex justify-content-center mt-3">
-        <button type="button" className="btn btn-primary" onClick={handleDownloadImage}>
-          Download as Image
-        </button>
-      </div>
+
+
     </>
   );
 };

@@ -33,105 +33,50 @@ export default function Home() {
   const [isSigningIn, setIsSigningIn] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [nameList, setNameList] = useState([]); // Stores names from Firebase
+const [loadingNames, setLoadingNames] = useState(false);
 
   const capitalizeFirstLetter = (str) => {
     return str.replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
-  //   useEffect(() => {
-  //     const fetchData = async () => {
-  //       try {
-  //         let fetchedData = [];
-
-  //         if (selectedOption === "Travel Agency" || selectedOption === "Watersports Provider" || selectedOption === "People's Organization") {
-  //           // Fetch from "company" collection
-  //           const querySnapshot = await getDocs(collection(db, "company"));
-  //           fetchedData = querySnapshot.docs
-  //             .map(doc => ({ id: doc.id, ...doc.data() }))
-  //             .filter(doc =>
-  //               (selectedOption === "Travel Agency" && doc.classification === "travel agency" && doc.status === "approved") ||
-  //               (selectedOption === "Watersports Provider" && doc.classification === "watersports Provider" && doc.status === "approved") ||
-  //               (selectedOption === "People's Organization" && doc.classification === "peoples organization" && doc.status === "approved")
-  //             )
-  //             .map(doc => ({
-  //               name: capitalizeFirstLetter(doc.name),
-  //               email: doc.email
-  //             }));
-  //         } else if (selectedOption === "Employee") {
-  //   // Fetch from "employee" collection
-  //   const querySnapshot = await getDocs(collection(db, "employee"));
-
-  //   fetchedData = querySnapshot.docs.map(doc => {
-  //     const empData = new Employee({ employeeId: doc.id, ...doc.data() });
-  //     const fullName = empData.getFullName(); // Use method from Employee class
-  //     return {
-  //       name: capitalizeFirstLetter(fullName),
-  //       email: empData.email
-  //     };
-  //   });
-  // }
-
-
-
-
-  //         console.log("Fetched Names:", fetchedData); // PRINT FETCHED NAMES TO CONSOLE
-  //         setNameList(fetchedData); // Set only names in state
-
-  //       } catch (error) {
-  //         console.error("Error fetching data:", error);
-  //       }
-  //     };
-
-  //     if (selectedOption) {
-  //       fetchData();
-  //     } else {
-  //       setNameList([]); // Reset list when no option is selected
-  //     }
-  //   }, [selectedOption, db]); // Run when selectedOption changes
-
-  
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let fetchedData = [];
+  const fetchData = async () => {
+    if (!selectedOption) return;
 
-        if (selectedOption === "Company") {
-          // Fetch from "company" collection
-          const querySnapshot = await getDocs(collection(db, "company"));
-          fetchedData = querySnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(doc => doc.status === "approved") // Only approved companies
-            .map(doc => ({
-              name: capitalizeFirstLetter(doc.name),
-              email: doc.email
-            }));
-        } else if (selectedOption === "Employee") {
-          // Fetch from "employee" collection
-          const querySnapshot = await getDocs(collection(db, "employee"));
-          fetchedData = querySnapshot.docs.map(doc => {
-            const empData = new Employee({ employeeId: doc.id, ...doc.data() });
-            const fullName = empData.getFullName(); // Use method from Employee class
-            return {
-              name: capitalizeFirstLetter(fullName),
-              email: empData.email
-            };
-          });
-        }
+    setLoadingNames(true); // start loading
+    try {
+      let fetchedData = [];
 
-        console.log("Fetched Names:", fetchedData); // PRINT FETCHED NAMES TO CONSOLE
-        setNameList(fetchedData); // Set only names in state
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      if (selectedOption === "Company") {
+        const querySnapshot = await getDocs(collection(db, "company"));
+        fetchedData = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(doc => doc.status === "approved")
+          .map(doc => ({
+            name: capitalizeFirstLetter(doc.name),
+            email: doc.email
+          }));
+      } else if (selectedOption === "Employee") {
+        const querySnapshot = await getDocs(collection(db, "employee"));
+        fetchedData = querySnapshot.docs.map(doc => {
+          const empData = new Employee({ employeeId: doc.id, ...doc.data() });
+          return {
+            name: capitalizeFirstLetter(empData.getFullName()),
+            email: empData.email
+          };
+        });
       }
-    };
 
-    if (selectedOption) {
-      fetchData();
-    } else {
-      setNameList([]); // Reset list when no option is selected
+      setNameList(fetchedData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoadingNames(false); // stop loading
     }
-  }, [selectedOption, db]);
+  };
 
+  fetchData();
+}, [selectedOption]);
 
   const handleSelect = (eventKey) => {
     setSelectedOption(eventKey);
@@ -178,75 +123,6 @@ export default function Home() {
     setRememberMe(!rememberMe);
   };
 
-  // const onSubmit = async (e) => {
-  //   e.preventDefault();
-
-  //   if (!isSigningIn) {
-  //     setIsSigningIn(true);
-
-  //     // ✅ Show loading modal
-  //     Swal.fire({
-  //       title: "Signing in...",
-  //       text: "Please wait while we verify your account.",
-  //       allowOutsideClick: false,
-  //       didOpen: () => {
-  //         Swal.showLoading();
-  //       }
-  //     });
-
-  //     try {
-  //       // Try login normally (company)
-  //       const userCredential = await doSignInWithEmailAndPassword(email, password);
-  //       const user = userCredential.user;
-  //       console.log("Logged in user ID:", user.uid);
-  //       setErrorMessage("");
-
-  //       Swal.close();
-  //       navigate("/company-dashboard");
-
-  //     } catch (companyError) {
-  //       console.warn("Company login failed, trying employee login...", companyError);
-
-  //       try {
-  //         // Employee login using same Firebase Auth
-  //         const q = query(
-  //           collection(db, "employee"),
-  //           where("email", "==", email)
-  //         );
-  //         const querySnapshot = await getDocs(q);
-
-  //         if (!querySnapshot.empty) {
-  //           const empDoc = querySnapshot.docs[0];
-  //           const empData = empDoc.data();
-
-  //           // Attempt Firebase Auth login for employee
-  //           const userCredential = await doSignInWithEmailAndPassword(empData.email, password);
-  //           console.log("Employee login successful:", empDoc.id);
-
-  //           Swal.close();
-  //           setErrorMessage("");
-  //           navigate("/employee-dashboard");
-  //           return;
-  //         }
-
-  //         throw new Error("No employee account found with this email");
-
-  //       } catch (empError) {
-  //         console.error("Employee login failed:", empError);
-  //         setErrorMessage(empError.message);
-
-  //         Swal.fire({
-  //           title: "Login Failed",
-  //           text: "Your password is incorrect, you may reach the tourism office for password recovery or visit the activity area verification table.",
-  //           icon: "error"
-  //         });
-  //       }
-
-  //     } finally {
-  //       setIsSigningIn(false);
-  //     }
-  //   }
-  // };
   const onSubmit = async (e) => {
     e.preventDefault();
 
@@ -371,31 +247,43 @@ export default function Home() {
                   </Form.Group>
 
                   <Form.Group className="my-2 position-relative">
-                    <Form.Label>Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder={selectedOption ? "Start typing..." : "Select sign in option first"}
-                      value={inputValue}
-                      onChange={handleInputChange}
-                      onFocus={() => selectedOption && setShowDropdown(filteredOptions.length > 0)}
-                      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                      disabled={!selectedOption || nameList.length === 0}
-                      autoComplete="on"
-                      required
-                    />
+  <Form.Label>Name</Form.Label>
+  <Form.Control
+    type="text"
+    placeholder={
+      !selectedOption
+        ? "Select sign in option first"
+        : loadingNames
+          ? "Loading names..."
+          : "Start typing..."
+    }
+    value={inputValue}
+    onChange={handleInputChange}
+    onFocus={() => selectedOption && !loadingNames && setShowDropdown(filteredOptions.length > 0)}
+    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+    disabled={!selectedOption || loadingNames || nameList.length === 0}
+    required
+  />
 
-                    {showDropdown && (
-                      <Dropdown.Menu show className="w-100 position-absolute">
-                        {filteredOptions.map((option, index) => (
-                          <Dropdown.Item key={index} onMouseDown={() => handleNameSelect(option)}>
-                            {option.name}
-                          </Dropdown.Item>
-                        ))}
+  {/* show spinner or dropdown */}
+  {loadingNames && (
+    <div className="position-absolute w-100 text-center py-2 bg-white border rounded">
+      <span className="small text-muted">Loading...</span>
+    </div>
+  )}
+
+  {!loadingNames && showDropdown && (
+    <Dropdown.Menu show className="w-100 position-absolute">
+      {filteredOptions.map((option, index) => (
+        <Dropdown.Item key={index} onMouseDown={() => handleNameSelect(option)}>
+          {option.name}
+        </Dropdown.Item>
+      ))}
+    </Dropdown.Menu>
+  )}
+</Form.Group>
 
 
-                      </Dropdown.Menu>
-                    )}
-                  </Form.Group>
                   <Form.Label>Password</Form.Label>
                   <InputGroup className="mb-3">
                     <Form.Control
@@ -454,6 +342,8 @@ export default function Home() {
                 <h1 className="barabara-label">PROFILE REGISTRATION</h1>
                 <p className="sub-title-blue">Apply and Acquire your Digital Tourism Endorsement and Recommendation <br></br>
                   certifications by simply registering and complying to requirements online!</p>
+                
+                
                 <div className="image-container mt-5">
                   <Link to="/employee-registration/local" className="image-link">
                     <div className="image-box local">
@@ -527,3 +417,129 @@ export default function Home() {
     </>
   );
 }
+
+
+
+
+
+  // const onSubmit = async (e) => {
+  //   e.preventDefault();
+
+  //   if (!isSigningIn) {
+  //     setIsSigningIn(true);
+
+  //     // ✅ Show loading modal
+  //     Swal.fire({
+  //       title: "Signing in...",
+  //       text: "Please wait while we verify your account.",
+  //       allowOutsideClick: false,
+  //       didOpen: () => {
+  //         Swal.showLoading();
+  //       }
+  //     });
+
+  //     try {
+  //       // Try login normally (company)
+  //       const userCredential = await doSignInWithEmailAndPassword(email, password);
+  //       const user = userCredential.user;
+  //       console.log("Logged in user ID:", user.uid);
+  //       setErrorMessage("");
+
+  //       Swal.close();
+  //       navigate("/company-dashboard");
+
+  //     } catch (companyError) {
+  //       console.warn("Company login failed, trying employee login...", companyError);
+
+  //       try {
+  //         // Employee login using same Firebase Auth
+  //         const q = query(
+  //           collection(db, "employee"),
+  //           where("email", "==", email)
+  //         );
+  //         const querySnapshot = await getDocs(q);
+
+  //         if (!querySnapshot.empty) {
+  //           const empDoc = querySnapshot.docs[0];
+  //           const empData = empDoc.data();
+
+  //           // Attempt Firebase Auth login for employee
+  //           const userCredential = await doSignInWithEmailAndPassword(empData.email, password);
+  //           console.log("Employee login successful:", empDoc.id);
+
+  //           Swal.close();
+  //           setErrorMessage("");
+  //           navigate("/employee-dashboard");
+  //           return;
+  //         }
+
+  //         throw new Error("No employee account found with this email");
+
+  //       } catch (empError) {
+  //         console.error("Employee login failed:", empError);
+  //         setErrorMessage(empError.message);
+
+  //         Swal.fire({
+  //           title: "Login Failed",
+  //           text: "Your password is incorrect, you may reach the tourism office for password recovery or visit the activity area verification table.",
+  //           icon: "error"
+  //         });
+  //       }
+
+  //     } finally {
+  //       setIsSigningIn(false);
+  //     }
+  //   }
+  // };
+
+  
+  //   useEffect(() => {
+  //     const fetchData = async () => {
+  //       try {
+  //         let fetchedData = [];
+
+  //         if (selectedOption === "Travel Agency" || selectedOption === "Watersports Provider" || selectedOption === "People's Organization") {
+  //           // Fetch from "company" collection
+  //           const querySnapshot = await getDocs(collection(db, "company"));
+  //           fetchedData = querySnapshot.docs
+  //             .map(doc => ({ id: doc.id, ...doc.data() }))
+  //             .filter(doc =>
+  //               (selectedOption === "Travel Agency" && doc.classification === "travel agency" && doc.status === "approved") ||
+  //               (selectedOption === "Watersports Provider" && doc.classification === "watersports Provider" && doc.status === "approved") ||
+  //               (selectedOption === "People's Organization" && doc.classification === "peoples organization" && doc.status === "approved")
+  //             )
+  //             .map(doc => ({
+  //               name: capitalizeFirstLetter(doc.name),
+  //               email: doc.email
+  //             }));
+  //         } else if (selectedOption === "Employee") {
+  //   // Fetch from "employee" collection
+  //   const querySnapshot = await getDocs(collection(db, "employee"));
+
+  //   fetchedData = querySnapshot.docs.map(doc => {
+  //     const empData = new Employee({ employeeId: doc.id, ...doc.data() });
+  //     const fullName = empData.getFullName(); // Use method from Employee class
+  //     return {
+  //       name: capitalizeFirstLetter(fullName),
+  //       email: empData.email
+  //     };
+  //   });
+  // }
+
+
+
+
+  //         console.log("Fetched Names:", fetchedData); // PRINT FETCHED NAMES TO CONSOLE
+  //         setNameList(fetchedData); // Set only names in state
+
+  //       } catch (error) {
+  //         console.error("Error fetching data:", error);
+  //       }
+  //     };
+
+  //     if (selectedOption) {
+  //       fetchData();
+  //     } else {
+  //       setNameList([]); // Reset list when no option is selected
+  //     }
+  //   }, [selectedOption, db]); // Run when selectedOption changes

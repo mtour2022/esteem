@@ -612,10 +612,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
   return (
     <div className="bg-white" ref={tableRef}>
-
-
-
-      <Card className="border rounded p-3 text-muted bg-white mb-4">
+      <Card className="border rounded p-0 text-muted bg-white mb-4">
 
         <div className="d-flex justify-content-between align-items-center mb-3 mx-2">
           <div className="text-muted small fw-semibold">
@@ -636,7 +633,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           className="mx-2"
           value={dateRangeOption}
           onChange={e => setDateRangeOption(e.target.value)}
-          style={{ maxWidth: "300px" }}
+          style={{ maxWidth: "200px" }}
         >
           <option>This Month (the default)</option>
           <option>This Week</option>
@@ -1063,55 +1060,58 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
           {/* First Tab - Chart */}
 
           <Tab eventKey="chart" title="Chart" className="bg-white" ref={chartRef}>
-            <div className="mt-4 bg-white mx-2">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <div className="text-muted small fw-semibold">
+  <div className="mt-4 bg-white mx-2">
+    <div className="d-flex justify-content-between align-items-center mb-2">
+      <div className="text-muted small fw-semibold">
+        {mode === "pax"
+          ? "Pax Summary "
+          : mode === "payment"
+          ? "Total Payment "
+          : mode === "expected_sale"
+          ? "Expected Sale "
+          : "Ticket Frequency "}
+          <br></br>
+        ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+      </div>
 
-                  {mode === "pax"
-                    ? "Pax Summary "
-                    : mode === "payment"
-                      ? "Total Payment "
-                      : mode === "expected_sale"
-                        ? "Expected Sale "
-                        : "Ticket Frequency "}
-                  ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+      <Button variant="light" size="sm" onClick={handleDownloadChart}>
+        <FontAwesomeIcon icon={faDownload} />
+      </Button>
+    </div>
+  </div>
 
-                </div>
-
-                <Button variant="light" size="sm" onClick={handleDownloadChart}>
-                  <FontAwesomeIcon icon={faDownload} />
-                </Button>
-              </div>
-            </div>
-            <div className="bg-white p-3 rounded">
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" interval={0} />          <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    name={
-                      mode === "pax"
-                        ? "Pax"
-                        : mode === "payment"
-                          ? "Total Payment"
-                          : mode === "expected_sale"
-                            ? "Expected Sale"
-                            : "Frequency"
-                    }
-
-                    stroke="#007bff"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Tab>
+  {/* Scrollable chart container */}
+  <div className="bg-white p-3 rounded" style={{ overflowX: "auto" }}>
+    <div style={{ minWidth: "800px" /* adjust as needed */ }}>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="label" interval={0} />
+          <YAxis allowDecimals={false} />
+          <Tooltip />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="value"
+            name={
+              mode === "pax"
+                ? "Pax"
+                : mode === "payment"
+                ? "Total Payment"
+                : mode === "expected_sale"
+                ? "Expected Sale"
+                : "Frequency"
+            }
+            stroke="#007bff"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+</Tab>
 
           {/* Second Tab - Table */}
           <Tab eventKey="table" title="Table" className="bg-white">
@@ -1125,6 +1125,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
                       : mode === "expected_sale"
                         ? "Expected Sale "
                         : "Ticket Frequency "}
+                        <br></br>
                   ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
                 </div>
                 <div className="d-flex gap-2 flex-nowrap">

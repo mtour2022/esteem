@@ -41,6 +41,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import SummaryPieChart from './PieChart';
 import useResolvedAllActivitiesFromTickets from "../services/GetAllActivitiesDetails";
+import TicketRankingList from "./TicketCardsView.js";
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -1192,100 +1193,100 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
   const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
 
-const activityPaxCounts = {};
+  const activityPaxCounts = {};
 
-// Define normalization rules
-const normalizeActivityName = (name) => {
-  if (!name) return "Unknown Activity";
-  const lower = name.toLowerCase();
+  // Define normalization rules
+  const normalizeActivityName = (name) => {
+    if (!name) return "Unknown Activity";
+    const lower = name.toLowerCase();
 
-  if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
-  if (lower.includes("island hopping")) return "Island Hopping";
+    if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
+    if (lower.includes("island hopping")) return "Island Hopping";
 
-  if (lower.includes("private yacht")) return "Private Yacht";
-  if (lower.includes("yacht")) return "Yacht";
+    if (lower.includes("private yacht")) return "Private Yacht";
+    if (lower.includes("yacht")) return "Yacht";
 
-  if (lower.includes("private party boat")) return "Private Party Boat";
-  if (lower.includes("party boat")) return "Party Boat";
+    if (lower.includes("private party boat")) return "Private Party Boat";
+    if (lower.includes("party boat")) return "Party Boat";
 
-  if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
-  if (lower.includes("atv and zipline")) return "ATV and Zipline";
+    if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
+    if (lower.includes("atv and zipline")) return "ATV and Zipline";
 
-  return name; // keep original if no match
-};
+    return name; // keep original if no match
+  };
 
-filteredSummaryTickets.forEach(ticket => {
-  if (!Array.isArray(ticket.activities)) return;
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.activities)) return;
 
-  ticket.activities.forEach(act => {
-    const availedIds = act.activities_availed || [];
-    const pax = Number(act.activity_num_pax || 0);
+    ticket.activities.forEach(act => {
+      const availedIds = act.activities_availed || [];
+      const pax = Number(act.activity_num_pax || 0);
 
-    availedIds.forEach(id => {
-      if (!id) return;
-      if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
-      activityPaxCounts[id] += pax;
+      availedIds.forEach(id => {
+        if (!id) return;
+        if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
+        activityPaxCounts[id] += pax;
+      });
     });
   });
-});
 
-const activityNameMap = allResolvedActivities.reduce((acc, a) => {
-  acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
-  return acc;
-}, {});
+  const activityNameMap = allResolvedActivities.reduce((acc, a) => {
+    acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
+    return acc;
+  }, {});
 
-// Merge pax counts by normalized name
-const mergedPaxCounts = {};
-Object.entries(activityPaxCounts).forEach(([id, value]) => {
-  const normalizedName = activityNameMap[id] || id;
-  if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
-  mergedPaxCounts[normalizedName] += value;
-});
+  // Merge pax counts by normalized name
+  const mergedPaxCounts = {};
+  Object.entries(activityPaxCounts).forEach(([id, value]) => {
+    const normalizedName = activityNameMap[id] || id;
+    if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
+    mergedPaxCounts[normalizedName] += value;
+  });
 
-const topActivities = Object.entries(mergedPaxCounts)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([name, value]) => ({ name, value }));
+  const topActivities = Object.entries(mergedPaxCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
 
-// --- Base price map ---
-const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
-  acc[a.id] = Number(a.activity_base_price) || 0;
-  return acc;
-}, {});
+  // --- Base price map ---
+  const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+    acc[a.id] = Number(a.activity_base_price) || 0;
+    return acc;
+  }, {});
 
-const activitySaleTotals = {};
+  const activitySaleTotals = {};
 
-filteredSummaryTickets.forEach(ticket => {
-  if (!Array.isArray(ticket.activities)) return;
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.activities)) return;
 
-  ticket.activities.forEach(act => {
-    const availedIds = act.activities_availed || [];
-    const pax = Number(act.activity_num_pax || 0);
+    ticket.activities.forEach(act => {
+      const availedIds = act.activities_availed || [];
+      const pax = Number(act.activity_num_pax || 0);
 
-    availedIds.forEach(id => {
-      if (!id) return;
+      availedIds.forEach(id => {
+        if (!id) return;
 
-      const expectedPrice = Number(activityBasePriceMap[id] || 0);
-      const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
+        const expectedPrice = Number(activityBasePriceMap[id] || 0);
+        const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
 
-      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
-      activitySaleTotals[id] += activitySale;
+        if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+        activitySaleTotals[id] += activitySale;
+      });
     });
   });
-});
 
-// Merge sales by normalized name
-const mergedSaleTotals = {};
-Object.entries(activitySaleTotals).forEach(([id, value]) => {
-  const normalizedName = activityNameMap[id] || id;
-  if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
-  mergedSaleTotals[normalizedName] += value;
-});
+  // Merge sales by normalized name
+  const mergedSaleTotals = {};
+  Object.entries(activitySaleTotals).forEach(([id, value]) => {
+    const normalizedName = activityNameMap[id] || id;
+    if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
+    mergedSaleTotals[normalizedName] += value;
+  });
 
-const topActivitiesBySale = Object.entries(mergedSaleTotals)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([name, value]) => ({ name, value }));
+  const topActivitiesBySale = Object.entries(mergedSaleTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
 
 
   // Count country appearances across all addresses in all tickets
@@ -1526,13 +1527,6 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
 
       <Card.Body className="mt-5">
         <Row className="align-items-end mb-3">
-          {/* LEFT SIDE: Search Field */}
-          {/* <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-start gap-2 mb-2">
-
-          </Col> */}
-
-
-          {/* RIGHT SIDE: Icon Buttons */}
           <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-lg-start justify-content-start gap-2 mb-2 me-0 pe-0 ps-0 ms-0">
             <Button
               variant="outline-secondary"
@@ -1540,7 +1534,7 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
               size="sm"
               onClick={handleRefresh}
             >
-              <FontAwesomeIcon icon={faRefresh} /> Refresh
+              <FontAwesomeIcon icon={faRefresh} />
             </Button>
 
             <Dropdown
@@ -1874,29 +1868,9 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
                 </Button>
               </Dropdown.Menu>
             </Dropdown>
-
-            <Button
-              variant="outline-secondary"
-              title="Download"
-              onClick={handleDownloadTable}
-              size="sm"
-            >
-              <FontAwesomeIcon icon={faDownload} />
-            </Button>
-
-            <Dropdown>
-              <Dropdown.Toggle
-                variant="outline-secondary"
-                title="Export"
-                size="sm"
-              >
-                <FontAwesomeIcon icon={faPrint} />
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item onClick={exportToPDF}>Export as PDF</Dropdown.Item>
-                <Dropdown.Item onClick={exportToExcel}>Export as Excel</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+          </Col>
+          <Col lg={6} md={12} sm={12} xs={12} className="d-flex justify-content-sm-start justify-content-md-end gap-2 mb-2 me-0 pe-0 ps-0 ms-0"
+          >
 
             <Dropdown
               show={showColumnDropdown}
@@ -1951,6 +1925,30 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
                     />
                   ))}
                 </Form>
+              </Dropdown.Menu>
+            </Dropdown>
+
+
+            <Button
+              variant="outline-secondary"
+              title="Download"
+              onClick={handleDownloadTable}
+              size="sm"
+            >
+              <FontAwesomeIcon icon={faDownload} />
+            </Button>
+
+            <Dropdown>
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                title="Export"
+                size="sm"
+              >
+                <FontAwesomeIcon icon={faPrint} />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={exportToPDF}>Export as PDF</Dropdown.Item>
+                <Dropdown.Item onClick={exportToExcel}>Export as Excel</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
 
@@ -2010,257 +2008,297 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
           </div>
 
         ) : (
-          <div ref={scrollRef} className="custom-scroll-wrapper table-border">
-            <div ref={tableRef} className="mt-2">
-              {startDateInput && endDateInput && (
-                <div className="mb-3 text-muted">
-                  Showing data from{" "}
-                  <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}</strong>{" "}
-                  to{" "}
-                  <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}</strong>
-                </div>
-              )}
-
-              <Table bordered hover style={{ minWidth: "1400px" }}>
-                <thead>
-                  <tr>
-                    {allColumns.map(col =>
-                      visibleColumns.includes(col.key) && (
-                        <th key={col.key}>{col.label}</th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ticketsToRender.length === 0 ? (
-                    <tr>
-                      <td colSpan={visibleColumns.length} className="text-center text-muted">
-                        No results found for today.
-                      </td>
-                    </tr>
-                  ) : (
-                    ticketsToRender.map(t => {
-
-                      const getRowText = (t) => {
-                        return [
-                          `ticketId: ${t.id}`,
-                          `name: ${t.name}`,
-                          `contact: ${t.contact}`,
-                          `address: ${renderAddressText(t)}`,
-                          `startTime: ${new Date(t.start_date_time).toLocaleString()}`,
-                          `endTime: ${new Date(t.end_date_time).toLocaleString()}`,
-                          `totalPax: ${t.total_pax}`,
-                          `locals: ${total(t.address, 'locals')}`,
-                          `foreigns: ${total(t.address, 'foreigns')}`,
-                          `males: ${total(t.address, 'males')}`,
-                          `females: ${total(t.address, 'females')}`,
-                          `preferNotToSay: ${total(t.address, 'prefer_not_to_say')}`,
-                          `kids: ${total(t.address, 'kids')}`,
-                          `teens: ${total(t.address, 'teens')}`,
-                          `adults: ${total(t.address, 'adults')}`,
-                          `seniors: ${total(t.address, 'seniors')}`,
-                          `assignedTo: ${getEmployeeName(t)}`,
-                          `assigneeContact: ${getEmployeeContact(t)}`,
-                          `activityAvailed: ${getActivitiesText(t)}`,
-                          `totalDuration: ${t.total_duration || 0}`,
-                          `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
-                          `totalPayment: ₱${t.total_payment?.toLocaleString() || "0.00"}`,
-                          `markup: ${t.total_markup.toFixed(2)}%`,
-                          `expectedSale: ₱${t.total_expected_sale?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                          `scannedBy: ${t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-'}`,
-                        ].join("\n");
-                      };
-
-                      const rowData = {
-                        actions: (
-                          <div className="d-flex flex-column gap-2">
-                            {/* Top: View QR */}
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTicket(t);
-                                setTimeout(() => {
-                                  const element = document.getElementById("ticket-summary");
-                                  if (element) {
-                                    element.scrollIntoView({ behavior: "smooth", block: "start" });
-                                  }
-                                }, 200); // delay to ensure content renders
-                              }}
-                            >
-                              <FontAwesomeIcon icon={faQrcode} /> View QR
-                            </Button>
+          <>
 
 
-                            {/* Bottom row: Delete + Copy */}
-                            <div className="d-flex gap-2">
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => handleDeleteTicket(t.id)}
-                              >
-                                <FontAwesomeIcon icon={faTrash} />
-                              </Button>
+            <div ref={scrollRef} className="custom-scroll-wrapper table-border">
+              <div ref={tableRef} className="mt-2">
+                {startDateInput && endDateInput && (
+                  <div className="mb-3 text-muted">
+                    Showing data from{" "}
+                    <strong>{new Date(startDateInput).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}</strong>{" "}
+                    to{" "}
+                    <strong>{new Date(endDateInput).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}</strong>
+                  </div>
+                )}
+                <TicketRankingList
+                  tickets={ticketsToRender}
+                  onViewQR={(ticket) => {
+                    setSelectedTicket(ticket);
+                    setTimeout(() => {
+                      const element = document.getElementById("ticket-summary");
+                      if (element) {
+                        element.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }, 200);
+                  }}
+                />
 
-                              <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                onClick={() => {
-                                  const text = getRowText(t);
-                                  navigator.clipboard.writeText(text)
-                                    .then(() => {
-                                      Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
-                                    })
-                                    .catch(() => {
-                                      Swal.fire("Failed", "Unable to copy to clipboard.", "error");
-                                    });
-                                }}
-                              >
-                                <FontAwesomeIcon icon={faCopy} />
-                              </Button>
-                            </div>
-                          </div>
-                        ),
+                {selectedTicket && (
+                 <Card
+  className="border rounded p-2 mt-4 position-relative"
+  style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
+>
+  {/* Close button positioned at top-right */}
+  <Button
+    variant="outline-danger"
+    size="sm"
+    onClick={() => setSelectedTicket(null)}
+    style={{
+      position: "absolute",
+      top: "15px",
+      right: "15px",
+      zIndex: 10
+    }}
+  >
+    <FontAwesomeIcon icon={faClose} />
+  </Button>
+
+  {/* Scrollable container for TicketSummary */}
+  <div style={{ maxHeight: "800px", overflowY: "auto", paddingTop: "40px" }}>
+    <div className="mt-4 mb-4" id="ticket-summary">
+      <TicketSummary ticket={selectedTicket} />
+    </div>
+  </div>
+</Card>
+
+                )}
 
 
 
-                        status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
-
-                        ticketId: t.id,
-                        name: t.name,
-                        contact: t.contact,
-                        accommodation: t.accommodation,
-
-                        address: renderAddress(t),
-
-                        startTime: new Date(t.start_date_time).toLocaleString(),
-                        endTime: new Date(t.end_date_time).toLocaleString(),
-                        totalPax: t.total_pax,
-                        locals: total(t.address, 'locals'),
-                        foreigns: total(t.address, 'foreigns'),
-                        males: total(t.address, 'males'),
-                        females: total(t.address, 'females'),
-                        preferNotToSay: total(t.address, 'prefer_not_to_say'),
-                        kids: total(t.address, 'kids'),
-                        teens: total(t.address, 'teens'),
-                        adults: total(t.address, 'adults'),
-                        seniors: total(t.address, 'seniors'),
-                        assignedTo: getEmployeeName(t),
-                        assigneeContact: getEmployeeContact(t),
-                        activityNames: renderActivities(t),
-                        totalDuration: `${t.total_duration || 0} min`,
-                        expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
-                        totalPayment: `₱${t.total_payment?.toLocaleString() || "0.00"}`,
-                        markup: `${t.total_markup.toFixed(2)}%`,
-                        expectedSale: `₱${t.total_expected_sale?.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`,
-                        scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
-                      };
-
-
-
-                      return (
-                        <tr key={t.id}>
+                <Card
+                  className="border rounded p-2 mt-4"
+                  style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
+                >
+                  {/* Scrollable table container */}
+                  <div style={{ maxHeight: "auto", overflowY: "auto" }}>
+                    <Table bordered hover style={{ minWidth: "1400px" }} className="mt-4">
+                      <thead>
+                        <tr>
                           {allColumns.map(col =>
                             visibleColumns.includes(col.key) && (
-                              <td key={col.key}>{rowData[col.key]}</td>
+                              <th key={col.key}>{col.label}</th>
                             )
                           )}
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </Table>
+                      </thead>
+                      <tbody>
+                        {ticketsToRender.length === 0 ? (
+                          <tr>
+                            <td colSpan={visibleColumns.length} className="text-center text-muted">
+                              No results found for today.
+                            </td>
+                          </tr>
+                        ) : (
+                          ticketsToRender.map(t => {
+
+                            const getRowText = (t) => {
+                              return [
+                                `ticketId: ${t.id}`,
+                                `name: ${t.name}`,
+                                `contact: ${t.contact}`,
+                                `address: ${renderAddressText(t)}`,
+                                `startTime: ${new Date(t.start_date_time).toLocaleString()}`,
+                                `endTime: ${new Date(t.end_date_time).toLocaleString()}`,
+                                `totalPax: ${t.total_pax}`,
+                                `locals: ${total(t.address, 'locals')}`,
+                                `foreigns: ${total(t.address, 'foreigns')}`,
+                                `males: ${total(t.address, 'males')}`,
+                                `females: ${total(t.address, 'females')}`,
+                                `preferNotToSay: ${total(t.address, 'prefer_not_to_say')}`,
+                                `kids: ${total(t.address, 'kids')}`,
+                                `teens: ${total(t.address, 'teens')}`,
+                                `adults: ${total(t.address, 'adults')}`,
+                                `seniors: ${total(t.address, 'seniors')}`,
+                                `assignedTo: ${getEmployeeName(t)}`,
+                                `assigneeContact: ${getEmployeeContact(t)}`,
+                                `activityAvailed: ${getActivitiesText(t)}`,
+                                `totalDuration: ${t.total_duration || 0}`,
+                                `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                                `totalPayment: ₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                                `markup: ${t.total_markup.toFixed(2)}%`,
+                                `expectedSale: ₱${t.total_expected_sale?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                                `scannedBy: ${t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-'}`,
+                              ].join("\n");
+                            };
+
+                            const rowData = {
+                              actions: (
+                                <div className="d-flex flex-column gap-2">
+                                  {/* Top: View QR */}
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedTicket(t);
+                                      setTimeout(() => {
+                                        const element = document.getElementById("ticket-summary");
+                                        if (element) {
+                                          element.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }
+                                      }, 200); // delay to ensure content renders
+                                    }}
+                                  >
+                                    <FontAwesomeIcon icon={faQrcode} /> View QR
+                                  </Button>
+
+
+                                  {/* Bottom row: Delete + Copy */}
+                                  <div className="d-flex gap-2">
+                                    <Button
+                                      variant="outline-danger"
+                                      size="sm"
+                                      onClick={() => handleDeleteTicket(t.id)}
+                                    >
+                                      <FontAwesomeIcon icon={faTrash} />
+                                    </Button>
+
+                                    <Button
+                                      variant="outline-secondary"
+                                      size="sm"
+                                      onClick={() => {
+                                        const text = getRowText(t);
+                                        navigator.clipboard.writeText(text)
+                                          .then(() => {
+                                            Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                                          })
+                                          .catch(() => {
+                                            Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                                          });
+                                      }}
+                                    >
+                                      <FontAwesomeIcon icon={faCopy} />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ),
+
+
+
+                              status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
+
+                              ticketId: t.id,
+                              name: t.name,
+                              contact: t.contact,
+                              accommodation: t.accommodation,
+
+                              address: renderAddress(t),
+
+                              startTime: new Date(t.start_date_time).toLocaleString(),
+                              endTime: new Date(t.end_date_time).toLocaleString(),
+                              totalPax: t.total_pax,
+                              locals: total(t.address, 'locals'),
+                              foreigns: total(t.address, 'foreigns'),
+                              males: total(t.address, 'males'),
+                              females: total(t.address, 'females'),
+                              preferNotToSay: total(t.address, 'prefer_not_to_say'),
+                              kids: total(t.address, 'kids'),
+                              teens: total(t.address, 'teens'),
+                              adults: total(t.address, 'adults'),
+                              seniors: total(t.address, 'seniors'),
+                              assignedTo: getEmployeeName(t),
+                              assigneeContact: getEmployeeContact(t),
+                              activityNames: renderActivities(t),
+                              totalDuration: `${t.total_duration || 0} min`,
+                              expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                              totalPayment: `₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                              markup: `${t.total_markup.toFixed(2)}%`,
+                              expectedSale: `₱${t.total_expected_sale?.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}`,
+                              scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
+                            };
+
+
+
+                            return (
+                              <tr key={t.id}>
+                                {allColumns.map(col =>
+                                  visibleColumns.includes(col.key) && (
+                                    <td key={col.key}>{rowData[col.key]}</td>
+                                  )
+                                )}
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </Table>
+                    
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mt-2 px-2 flex-wrap gap-3">
+                      <div className="d-flex align-items-center gap-3">
+
+
+                        {/* ⬇️ Rows per Page Selector */}
+                        <Form.Group className="d-flex align-items-center gap-2 mb-0">
+                          <Form.Label className="mb-0 small">Rows per page</Form.Label>
+                          <Form.Select
+                            style={{ width: "auto" }}
+                            value={rowsPerPage}
+                            onChange={(e) => {
+                              setRowsPerPage(Number(e.target.value));
+                              setCurrentPage(1); // Reset to first page on change
+                            }}
+                          >
+                            {[5, 10, 20, 50, 100].map(num => (
+                              <option key={num} value={num}>{num}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </div>
 
 
 
 
+                      <div>
+                        <span className="me-3">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Prev
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+
+                </Card>
+
+
+
+              </div>
             </div>
-          </div>
-        )}
+          </>
 
+        )}
 
 
 
       </Card.Body>
 
       {/* qr screen here  */}
-      {selectedTicket && (
-        <div className="mt-4 mb-4" id="ticket-summary">
-          <Row className="justify-content-center">
-            <Col lg={6} md={8} sm={12} xs={12}>
-              <TicketSummary ticket={selectedTicket} />
-              <div className="text-center mt-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedTicket(null)}
-                >
-                  <FontAwesomeIcon icon={faEyeSlash} /> Close
-                </Button>
-              </div>
-            </Col>
-          </Row>
-        </div>
-      )}
-
-      <div className="d-flex justify-content-between align-items-center mt-5 px-2 flex-wrap gap-3">
-        <div className="d-flex align-items-center gap-3">
-
-
-          {/* ⬇️ Rows per Page Selector */}
-          <Form.Group className="d-flex align-items-center gap-2 mb-0">
-            <Form.Label className="mb-0 small">Rows per page</Form.Label>
-            <Form.Select
-              style={{ width: "auto" }}
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1); // Reset to first page on change
-              }}
-            >
-              {[5, 10, 20, 50, 100].map(num => (
-                <option key={num} value={num}>{num}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </div>
 
 
 
-
-        <div>
-          <span className="me-3">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            className="btn btn-sm btn-outline-primary me-2"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
-          <button
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-     
       <>
 
         <div className="d-flex justify-content-between align-items-center mb-3 mt-5">
@@ -2286,47 +2324,50 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
         </div>
 
 
-        <div className="mt-2 bg-white p-2" ref={reportRef}>
+        <div className="mt-2 bg-white" ref={reportRef}>
           <Tabs defaultActiveKey="summary" className="mb-4">
 
             {/* Summary Tab */}
             <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
-              <div className="d-flex align-items-center justify-content-between mt-4 mx-2">
-                <h6 className="mb-0">Summary</h6>
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={handleDownloadImage}
-                >
-                  <FontAwesomeIcon icon={faDownload} />
-                </Button>
-              </div>
+           <div className="mt-4 mx-2 p-0">
+  {/* <div className="d-flex align-items-center mb-2"></div> */}
+    <h6 className="mb-0 me-2">Summary</h6>
+    {/* <Button
+      variant="outline-secondary"
+      size="sm"
+      onClick={handleDownloadImage}
+    >
+      <FontAwesomeIcon icon={faDownload} />
+    </Button> */}
+  
 
-              <small className="text-muted mx-2">
-                Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
-              </small>
-              <br></br>
-              <small className="text-muted mb-5 mx-2">
-                <Badge bg="secondary" className="me-1 mt-2">
-                  {summary.totalTickets}
-                </Badge>{" "}
-                ticket(s) from{" "}
-                <strong>
-                  {new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>{" "}
-                to{" "}
-                <strong>
-                  {new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>
-              </small>
+  <small className="text-muted d-block mb-2">
+    Overview of key metrics with charts, tables, and rankings, including data
+    segmentation and bracket breakdowns.
+  </small>
+
+  <small className="text-muted d-block mb-5">
+    <Badge bg="secondary" className="me-1 mt-2">
+      {summary.totalTickets}
+    </Badge>{" "}
+    ticket(s) from{" "}
+    <strong>
+      {new Date(startDateInput).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })}
+    </strong>{" "}
+    to{" "}
+    <strong>
+      {new Date(endDateInput).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })}
+    </strong>
+  </small>
+</div>
 
               {(!isSmallScreen || showFullSummary) && (
                 <>
@@ -2491,21 +2532,21 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
                         loading={filteredSummaryTickets.length === 0}
                       />
                     </Col>
-                      <Col md={4}>
-    <TopRankingChart
-      title="Top Activities Availed (by Pax)"
-      data={topActivities}   // 👈 uses merged Pax counts
-      loading={allResolvedActivities.length === 0}
-    />
-  </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Activities Availed (by Pax)"
+                        data={topActivities}   // 👈 uses merged Pax counts
+                        loading={allResolvedActivities.length === 0}
+                      />
+                    </Col>
 
-  <Col md={4}>
-    <TopRankingChart
-      title="Top Generating Activities (by Expected Sale)"
-      data={topActivitiesBySale}   // 👈 uses merged Sale totals
-      loading={allResolvedActivities.length === 0}
-    />
-  </Col>
+                    <Col md={4}>
+                      <TopRankingChart
+                        title="Top Generating Activities (by Expected Sale)"
+                        data={topActivitiesBySale}   // 👈 uses merged Sale totals
+                        loading={allResolvedActivities.length === 0}
+                      />
+                    </Col>
                   </Row>
 
                   <Row className="g-3 mt-2">
@@ -2543,10 +2584,13 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
 
             {/* Performance Tab */}
             <Tab eventKey="performance" title="Performance">
-              <h6 className="mt-4 mx-2">Performance</h6>
-              <small className="text-muted  mx-2">
-                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-              </small>
+              <div className="d-flex flex-column align-items-start mx-2 mt-4">
+  <h6>Performance</h6>
+  <small className="text-muted">
+    This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+  </small>
+</div>
+
 
               <Row className="g-3 mt-2">
                 <Col md={12}>
@@ -2560,34 +2604,34 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
 
             {/* Insights Tab */}
             <Tab eventKey="insights" title="Insights">
-              <h6 className="mt-4  mx-2">Insights</h6>
-              <small className="text-muted  mx-2">
-                Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
-              </small>
-              <br></br>
-              <small className="text-muted mt-2  mx-2">
-                Insights from data dated{" "}
-                <strong>
-                  {new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>{" "}
-                to{" "}
-                <strong>
-                  {new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>
-              </small>
+              <h6 className="mt-4 mx-2 text-start">Insights</h6>
+<small className="text-muted mx-2 d-block text-start">
+  Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
+</small>
+<small className="text-muted mt-2 mx-2 d-block text-start">
+  Insights from data dated{" "}
+  <strong>
+    {new Date(startDateInput).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    })}
+  </strong>{" "}
+  to{" "}
+  <strong>
+    {new Date(endDateInput).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    })}
+  </strong>
+</small>
+
 
 
               <Row className="mb-4 mt-2 g-3">
                 <Col md={12}>
-                  <Tabs defaultActiveKey="ticketVsPax" id="dashboard-tabs" className="mb-3">
+                  <Tabs defaultActiveKey="expectedSales" id="dashboard-tabs" className="mb-3">
 
                     <Tab eventKey="expectedSales" title="Expected Sale Forecast">
                       <ExpectedSaleForecastChart

@@ -128,7 +128,7 @@ const AgeGenderBarChart = ({
   // ✅ Chart Render
   return (
     <Card
-      className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0"
+      className="summary-card rounded p-1 text-muted h-100 bg-white my-2 border-0"
       ref={chartRef}
     >
       <div className="d-flex justify-content-between align-items-center mb-2">

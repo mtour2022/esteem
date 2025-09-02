@@ -87,12 +87,12 @@ const chartData = useMemo(() => {
 
   return (
     <Card
-      className="summary-card rounded p-3 text-muted h-100 bg-white my-2 border-0"
+      className="summary-card rounded p-1 text-muted h-100 bg-white my-2 border-0"
       ref={chartRef}
     >
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div className="text-muted small fw-semibold">
-          {title} ({startDateObj.format("MMM D")} - {endDateObj.format("MMM D, YYYY")}) (
+          {title} <br></br> ({startDateObj.format("MMM D")} - {endDateObj.format("MMM D, YYYY")}) (
           {filterType === "all" ? "All Tickets" : "Scanned Tickets"})
         </div>
 

@@ -88,15 +88,15 @@ export default function TicketQRScanner() {
         fetchticketData();
     }, [currentUser]);
 
-// ✅ QR scanner effect
+// ✅ QR Scanner
 useEffect(() => {
   if (scannerRequested && webcamRef.current?.video) {
     const initScanner = async () => {
       try {
-        // 🔹 List all cameras
+        // 🔹 Get available cameras
         const cameras = await QrScanner.listCameras(true);
 
-        // Try to pick back/environment camera
+        // Try to choose the back/environment cam
         let preferredCameraId = cameras[0]?.id || undefined;
         const backCam = cameras.find(
           (cam) =>
@@ -110,36 +110,70 @@ useEffect(() => {
           webcamRef.current.video,
           async (result) => {
             if (handledRef.current) return;
-
             if (result?.data) {
-              const parts = result.data.trim().split("/").filter(Boolean);
-              const scannedId = parts[parts.length - 1];
-
-              if (!scannedId) {
-                Swal.fire("Invalid QR", "No valid tourism certificate ID found in QR code.", "error");
-                return;
-              }
-
               handledRef.current = true;
-              setTourismCertId(scannedId);
-
               try {
+                const parts = result.data.trim().split("/").filter(Boolean);
+                const scannedTicketId = parts[parts.length - 1];
+
+                if (!scannedTicketId) {
+                  Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
+                  return;
+                }
+
+                // 🔹 Query Firestore
+                const q = query(
+                  collection(db, "tickets"),
+                  where("ticket_id", "==", scannedTicketId)
+                );
+                const snap = await getDocs(q);
+
+                if (!snap.empty) {
+                  const ticketDoc = snap.docs[0].data();
+                  setTicketData(new TicketModel(ticketDoc));
+
+                  if (ticketDoc.employee_id) {
+                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
+                    if (empData) {
+                      setSelectedEmployee(empData);
+                      setEmployees((prev) => {
+                        const exists = prev.some(
+                          (e) => e.employeeId === empData.employeeId
+                        );
+                        return exists ? prev : [...prev, empData];
+                      });
+                    }
+                  }
+
+                  Swal.fire(
+                    "Ticket Loaded",
+                    "Ticket data loaded into form.",
+                    "success"
+                  );
+                  setCurrentStep(1);
+                } else {
+                  Swal.fire(
+                    "Not Found",
+                    "No ticket found with that ID.",
+                    "warning"
+                  );
+                }
+
+                // Stop scanner after handling
                 const stopResult = scanner.stop?.();
                 if (stopResult instanceof Promise) await stopResult;
+                qrScannerRef.current = null;
+                setScannerRequested(false);
               } catch (err) {
-                console.warn("Error stopping scanner after scan:", err);
+                console.error("Error fetching ticket:", err);
+                Swal.fire("Error", "Failed to fetch ticket data.", "error");
+                setScannerRequested(false);
               }
-
-              qrScannerRef.current = null;
-              setScannerRequested(false);
-
-              // ✅ Open in new tab
-              window.open(`/tourism-certificate/${scannedId}`, "_blank");
             }
           },
           {
             highlightScanRegion: true,
-            preferredCamera: preferredCameraId, // 👈 Explicit camera deviceId
+            preferredCamera: preferredCameraId, // 👈 Use actual back camera if available
           }
         );
 

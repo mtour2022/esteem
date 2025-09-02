@@ -1,5 +1,7 @@
 import { Container, Navbar, Nav, Image, NavDropdown } from 'react-bootstrap';
-import logo from'../assets/images/lgu.png';
+import logoSmall from'../assets/images/esteem_logo_small.png';
+import logoBig from'../assets/images/esteem_logo_big.png';
+
 import { Link, NavLink } from 'react-router-dom';
 // import { useAuth } from '../auth/authentication.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,7 +14,7 @@ export default function AppNavBar() {
     <Navbar expand="lg" className='px-4 px-md-10 px-lg-4 navbar'>
       <Container fluid>
         <Navbar.Brand as={Link} to="/">
-          <Image src={logo} alt="Logo" height="30" />
+          <Image src={logoBig} alt="Logo" height="30" />
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">

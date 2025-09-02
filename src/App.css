@@ -54,11 +54,11 @@ body {
 
 @media (max-width: 991.98px) {
   .body-container {
-    padding: 10px 15px !important; /* for md, sm, xs */
+    padding: 10px 7px !important; /* for md, sm, xs */
   }
 
   .white-button {
-  width: 80% !important;
+  width: 93% !important;
 }
 }
 
@@ -363,18 +363,19 @@ th {
   width: 70px !important; /* Adjust size as needed */
   height: 70px !important;
 }
+
 .image-container {
   display: flex;
   justify-content: center; /* Horizontally center */
   align-items: center;     /* Vertically center if there's height */
-  gap: 30px;
-  padding: 0px 10px !important;
+  gap: 10px;
+  margin: 0px !important;
   flex-wrap: wrap; /* Optional: make responsive on small screens */
 }
 
 
 .image-box {
-  width: 200px;
+  width: 220px;
   height: 200px;
   position: relative;
   background-size: cover;
@@ -382,7 +383,21 @@ th {
   border-radius: 10px; /* Optional rounded corners */
   overflow: hidden;
   box-shadow: 0px 5px 10px 0px rgba(0, 0, 0, 0.15);
+}
 
+/* For small screens (max-width: 768px) */
+/* @media (max-width: 768px) {
+  .image-box {
+    width: 160px;
+    height: 150px;
+  }
+}
+ */
+@media (max-width: 576px) {
+  .image-box {
+    width: 150px;
+    height: 130px;
+  }
 }
 
 .image-box::before {

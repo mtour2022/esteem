@@ -32,7 +32,7 @@ const FooterCustomized = ({ scrollToId = "page-top" }) => {
 
       <Container>
         <hr className="border-gray" />
-        <Row className="g-4 justify-content-center">
+        <Row className="g-4 justify-content-center align-items-center">
           {/* Map Column */}
           <Col lg={5} md={12} sm={12}>
             <div className="map-wrapper" style={{ height: "250px", width: "100%" }}>
@@ -55,14 +55,16 @@ const FooterCustomized = ({ scrollToId = "page-top" }) => {
           </Col>
 
           {/* Contact Info */}
-          <Col lg={5} md={12} sm={12}>
-            <h5 className="mb-3">LGU Malay Municipal Tourism Office</h5>
-            <p><strong>Email:</strong> lgumalaytourism@yahoo.com</p>
-            <p><strong>24/7 Tourist Hotline:</strong> (+63) 968 243 1919, (+63) 905 219 1604</p>
-            <p><strong>Telephone:</strong> (036) 288-8827, (036) 288-2493</p>
-            <p><strong>Website:</strong> <a className="text-muted" href="https://boracayinfoguide.com" target="_blank" rel="noreferrer">boracayinfoguide.com</a></p>
-            <p><strong>Facebook:</strong> <a className="text-muted" href="https://facebook.com/malaytourism" target="_blank" rel="noreferrer">/malaytourism</a></p>
-          </Col>
+          {/* Contact Info */}
+<Col lg={5} md={12} sm={12} className="small">
+  <h6 className="mb-2 fw-bold">LGU Malay Municipal Tourism Office</h6>
+  <p><strong>Email:</strong> lgumalaytourism@yahoo.com</p>
+  <p><strong>24/7 Tourist Hotline:</strong> (+63) 968 243 1919, (+63) 905 219 1604</p>
+  <p><strong>Telephone:</strong> (036) 288-8827, (036) 288-2493</p>
+  <p><strong>Website:</strong> <a className="text-muted" href="https://boracayinfoguide.com" target="_blank" rel="noreferrer">boracayinfoguide.com</a></p>
+  <p><strong>Facebook:</strong> <a className="text-muted" href="https://facebook.com/malaytourism" target="_blank" rel="noreferrer">/malaytourism</a></p>
+</Col>
+
         </Row>
         <hr className="border-gray" />
         <div className="text-center">
