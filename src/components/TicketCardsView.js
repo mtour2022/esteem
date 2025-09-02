@@ -55,7 +55,7 @@ const computeStatus = (ticket) => {
       if (diffMinutes >= -30 && diffMinutes < -15) return "Early";
     }
 
-    return "scanned";
+    return "Scanned";
   }
 
   const statusMap = {
@@ -88,31 +88,50 @@ const computeStatus = (ticket) => {
 
 const TicketRankingList = ({ tickets = [], onViewQR }) => {
   const [rowsToShow, setRowsToShow] = useState(5);
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // ✅ Sort by nearest start_date_time
-  const sortedTickets = useMemo(() => {
-    return [...tickets].sort(
+  // ✅ All possible statuses for dropdown
+  const allStatuses = [
+    "All",
+    "Queued",
+    "On Time",
+    "Early",
+    "Ongoing",
+    "Done",
+    "Delayed",
+    "Scanned",
+    "Invalid",
+    "Canceled",
+    "Schedule Change",
+    "Reassigned",
+    "Relocate",
+    "On Emergency",
+  ];
+
+  // ✅ Sort & filter tickets
+  const filteredTickets = useMemo(() => {
+    const sorted = [...tickets].sort(
       (a, b) => new Date(a.start_date_time) - new Date(b.start_date_time)
     );
-  }, [tickets]);
+    if (statusFilter === "All") return sorted;
+    return sorted.filter((t) => computeStatus(t) === statusFilter);
+  }, [tickets, statusFilter]);
 
-  // ✅ Slice to only show limited rows
-  const displayedTickets = sortedTickets.slice(0, rowsToShow);
+  const displayedTickets = filteredTickets.slice(0, rowsToShow);
 
   return (
     <Card
-      className="border rounded p-2"
+      className="border rounded p-0"
       style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
     >
       {/* Header */}
       <Card.Header className="d-flex justify-content-between align-items-center bg-transparent border-0">
         <h5 className="mb-0 fw-bold">Your Most Recent Tickets</h5>
-                              
       </Card.Header>
 
       {/* Body */}
       <Card.Body>
-        <div className="d-flex flex-column gap-3">
+        <div className="d-flex flex-column gap-2">
           {displayedTickets.length === 0 ? (
             <p className="text-muted text-center">No tickets found.</p>
           ) : (
@@ -180,23 +199,43 @@ const TicketRankingList = ({ tickets = [], onViewQR }) => {
           )}
         </div>
       </Card.Body>
-        <Form.Group className="d-flex align-items-center gap-2 mb-0 ms-2">
-        
-                                              <Form.Label className="mb-0 small">Rows per page</Form.Label>
 
-        <Form.Select
-          value={rowsToShow}
-          onChange={(e) => setRowsToShow(Number(e.target.value))}
-          style={{ width: "80px" }}
-         
-        >
-            
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={tickets.length}>All</option>
-        </Form.Select>
+      {/* Footer Controls */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 m-2">
+        {/* Rows per page */}
+        <Form.Group className="d-flex align-items-center gap-2 mb-0">
+          <Form.Label className="small mb-0">Rows</Form.Label>
+          <Form.Select
+            size="sm"
+            value={rowsToShow}
+            onChange={(e) => setRowsToShow(Number(e.target.value))}
+            style={{ width: "90px" }}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={tickets.length}>All</option>
+          </Form.Select>
         </Form.Group>
+
+        {/* Status filter */}
+        <Form.Group className="d-flex align-items-center gap-2 mb-0">
+          <Form.Label className="small mb-0">Status</Form.Label>
+          <Form.Select
+            size="sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: "170px" }}
+          >
+            {allStatuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+      </div>
+
     </Card>
   );
 };

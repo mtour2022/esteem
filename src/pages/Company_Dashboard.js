@@ -120,6 +120,8 @@ export default function CompanyDashboardPage() {
 
         });
     };
+
+
     const [selectedEmployee, setSelectedEmployee] = useState(null);
 
     const [employees, setEmployees] = useState([]);
@@ -336,6 +338,8 @@ export default function CompanyDashboardPage() {
                                             />
                                         </>
                                     )}
+
+                                    
                                     {/* Step 3: Company Details */}
                                     {currentStep === 3 && (
                                         <>

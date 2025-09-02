@@ -140,19 +140,26 @@ const TicketSummary = ({ ticket }) => {
 
           {/* QR Code (kept normal size) */}
           {ticket_id && (
-            <div className="mb-4 text-center">
-              <div style={{ width: "90%", margin: "0 auto" }}>
-                <QRCodeCanvas
-                  value={ticket_id}
-                  style={{ width: "100%", height: "auto" }}
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                  level="H"
-                />
-              </div>
-              <p className="mt-1">{ticket_id}</p>
-            </div>
-          )}
+  <div className="mb-4 text-center">
+    <div
+      style={{
+        width: "90%",
+        margin: "0 auto",
+        maxWidth: "300px", // default max width
+      }}
+      className="qr-wrapper"
+    >
+      <QRCodeCanvas
+        value={ticket_id}
+        style={{ width: "100%", height: "auto" }}
+        bgColor="#ffffff"
+        fgColor="#000000"
+        level="H"
+      />
+    </div>
+    <p className="mt-1">{ticket_id}</p>
+  </div>
+)}
 
           {/* Basic Details */}
           <Row className="row justify-content-center align-items-center">
@@ -293,13 +300,13 @@ const TicketSummary = ({ ticket }) => {
 
         </div>
 
+      </Container>
+
         <div className="d-flex justify-content-center mt-3">
           <button type="button" className="btn btn-primary" onClick={handleDownloadImage}>
             Download Image
           </button>
         </div>
-      </Container>
-
 
     </>
   );

@@ -54,13 +54,24 @@ body {
 
 @media (max-width: 991.98px) {
   .body-container {
-    padding: 10px 7px !important; /* for md, sm, xs */
+    padding: 10px 10px !important; /* for md, sm, xs */
   }
 
   .white-button {
   width: 93% !important;
 }
 }
+
+.qr-wrapper {
+  max-width: 300px; /* normal */
+}
+
+@media (min-width: 992px) {
+  .qr-wrapper {
+    max-width: 180px; /* shrink on large screens */
+  }
+}
+
 
 /* Hide arrows in number input for Chrome, Edge, Safari */
 input::-webkit-outer-spin-button,

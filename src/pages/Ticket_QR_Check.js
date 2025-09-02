@@ -171,9 +171,14 @@ useEffect(() => {
               }
             }
           },
+          
           {
-            highlightScanRegion: true,
-            preferredCamera: preferredCameraId, // 👈 Use actual back camera if available
+             highlightScanRegion: true,
+    // Use back camera on mobile devices
+    video: {
+      facingMode: "environment"
+    }
+            // preferredCamera: preferredCameraId, 
           }
         );
 

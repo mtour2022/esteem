@@ -406,33 +406,30 @@ setGroupData({ ...groupData, activities: updated });
   return (
     <>
       <Form.Control
-        type="number"
-        min="0"
-        className="my-2"
-        required
-        placeholder="Agreed Price"
-        value={agreedRaw}
-        isInvalid={isBelow}               // ✅ just shows an error, doesn't block typing
-        onChange={(e) => {
-          // ✅ Always allow typing (including partial values like "3", "30")
-          handleActivityGroupChange(index, {
-            activity_agreed_price: e.target.value,
-          });
-        }}
-        onBlur={(e) => {
-          // ✅ Enforce rule when the user leaves the field
-          const expected = Number(actGroup.activity_expected_price || 0);
-          const num = Number(e.target.value);
-          if (e.target.value !== "" && expected > 0 && num < expected) {
-            // Option A: clamp to expected
-            handleActivityGroupChange(index, {
-              activity_agreed_price: expected.toString(),
-            });
-            // Option B (alternative): clear the field instead of clamping
-            // handleActivityGroupChange(index, { activity_agreed_price: "" });
-          }
-        }}
-      />
+  type="number"
+  min="0"
+  className="my-2"
+  required
+  placeholder="Agreed Price"
+  value={agreedRaw}
+  isInvalid={isBelow} // ✅ just shows an error, doesn't block typing
+  onChange={(e) => {
+    // ✅ Always allow typing (including partial values like "3", "30")
+    handleActivityGroupChange(index, {
+      activity_agreed_price: e.target.value,
+    });
+  }}
+  onBlur={(e) => {
+    const expected = Number(actGroup.activity_expected_price || 0);
+    const num = Number(e.target.value);
+
+    if (e.target.value !== "" && expected > 0 && num < expected) {
+      // ✅ Option B: clear the field instead of clamping
+      handleActivityGroupChange(index, { activity_agreed_price: "" });
+    }
+  }}
+/>
+
       <Form.Control.Feedback type="invalid">
         Agreed Price cannot be lower than Expected Pricing ({expected}).
       </Form.Control.Feedback>

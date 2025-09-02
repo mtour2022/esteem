@@ -477,7 +477,7 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
 
 
 
-
+{/* 
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Expected Pricing</Form.Label>
                             <Form.Control
                                 type="text"
@@ -488,7 +488,6 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
                             />
 
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Agreed Price</Form.Label>
-                            {/* ✅ Input Field */}
                             <Form.Control
                                 min="0"
                                 type="number"
@@ -503,7 +502,6 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
                                 }
                             />
 
-                            {/* ✅ Markup Percentage */}
                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
                                 {(() => {
                                     const agreed = Number(actGroup.activity_agreed_price || 0);
@@ -514,7 +512,82 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     const markup = ((agreed - expected) / expected) * 100;
                                     return `Additional Markup: ${markup.toFixed(2)}%`;
                                 })()}
-                            </Form.Label>
+                            </Form.Label> */}
+
+
+
+<Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Expected Pricing</Form.Label>
+<Form.Control
+  type="text"
+  className="my-2"
+  placeholder="Expected Pricing"
+  value={actGroup.activity_expected_price || ""}
+  readOnly
+/>
+
+<Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Agreed Price</Form.Label>
+{(() => {
+  const expected = Number(actGroup.activity_expected_price || 0);
+  const agreedRaw = actGroup.activity_agreed_price ?? "";
+  const agreedNum = Number(agreedRaw);
+  const isBelow = agreedRaw !== "" && expected > 0 && agreedNum < expected;
+
+  return (
+    <>
+      <Form.Control
+  type="number"
+  min="0"
+  className="my-2"
+  required
+  placeholder="Agreed Price"
+  value={agreedRaw}
+  isInvalid={isBelow} // ✅ just shows an error, doesn't block typing
+  onChange={(e) => {
+    // ✅ Always allow typing (including partial values like "3", "30")
+    handleActivityGroupChange(index, {
+      activity_agreed_price: e.target.value,
+    });
+  }}
+  onBlur={(e) => {
+    const expected = Number(actGroup.activity_expected_price || 0);
+    const num = Number(e.target.value);
+
+    if (e.target.value !== "" && expected > 0 && num < expected) {
+      // ✅ Option B: clear the field instead of clamping
+      handleActivityGroupChange(index, { activity_agreed_price: "" });
+    }
+  }}
+/>
+
+      <Form.Control.Feedback type="invalid">
+        Agreed Price cannot be lower than Expected Pricing ({expected}).
+      </Form.Control.Feedback>
+
+      <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+        {(() => {
+          if (!expected || expected === 0) return "";
+          if (agreedRaw === "" || Number.isNaN(agreedNum)) return "";
+          const markup = ((agreedNum - expected) / expected) * 100;
+          return `Additional Markup: ${markup.toFixed(2)}%`;
+        })()}
+      </Form.Label>
+    </>
+  );
+})()}
+
+
+<Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
+    {(() => {
+        const agreed = Number(actGroup.activity_agreed_price || 0);
+        const expected = Number(actGroup.activity_expected_price || 0);
+
+        if (!expected || expected === 0) return "";
+
+        const markup = ((agreed - expected) / expected) * 100;
+        return `Additional Markup: ${markup.toFixed(2)}%`;
+    })()}
+</Form.Label>
+
 
 
                             {(() => {

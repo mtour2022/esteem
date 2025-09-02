@@ -169,15 +169,30 @@ const CompanyTourismCert = ({ company, hideNavAndFooter = false }) => {
                     </Button>
                 </div>
 
-                <Card ref={certRef} className="p-5 my-3" style={{
-                    borderColor: "white",
-                    width: "816px",
-                    height: "1056px",
-                    maxWidth: "100%",
-                    overflow: "hidden",
-                    position: "relative",
-                    backgroundColor: "white"
-                }}>
+    <div
+  style={{
+    width: "100%",          // Fill parent
+    height: "80vh",         // Limit vertical space on screen
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    overflowY: "auto",      // ✅ Scroll if card exceeds container
+    padding: "20px",
+    boxSizing: "border-box",
+  }}
+>
+  <Card
+    ref={certRef}
+    className="p-5 my-3"
+    style={{
+      borderColor: "white",
+      width: "816px",         // Letter width (A4 ~ 8.5in x 11in)
+      height: "1056px",       // Letter height
+      position: "relative",
+      backgroundColor: "white",
+      flexShrink: 0           // Prevent shrinking below 816px
+    }}
+  >
                     <div style={{
                         position: "absolute",
                         top: 0,
@@ -309,6 +324,7 @@ const CompanyTourismCert = ({ company, hideNavAndFooter = false }) => {
                         </div>
                     </div>
                 </Card>
+                </div>
             </div>
 
             {!hideNavAndFooter && (

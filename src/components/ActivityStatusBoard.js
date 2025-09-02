@@ -24,7 +24,16 @@ import AgeGenderLineChart from "./TicketAgeSexComparative";
 import ActivitiesHeatmapChart from "./TicketActivitiesHeatMap.js"
 import Select from "react-select";
 import TicketSummary from "../components/TicketSummary.js"; // adjust the path if needed
-
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from "recharts";
 import {
   faMagnifyingGlass,
   faDownload,
@@ -37,11 +46,14 @@ import {
   faQrcode,
   faClose,
   faEyeSlash,
+  faPen,
 
 } from "@fortawesome/free-solid-svg-icons";
 import SummaryPieChart from './PieChart';
 import useResolvedAllActivitiesFromTickets from "../services/GetAllActivitiesDetails";
 import TicketRankingList from "./TicketCardsView.js";
+import TicketEdit from "./TicketEdit.js";
+import TicketModel from "../classes/tickets.js";
 
 const useMouseDragScroll = (ref) => {
   useEffect(() => {
@@ -283,6 +295,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   const [filterTown, setFilterTown] = useState("");
   const [employeeMap, setEmployeeMap] = useState({});
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedTicketEdit, setSelectedTicketEdit] = useState(null);
 
   useEffect(() => {
     const today = new Date();
@@ -2029,6 +2042,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                     })}</strong>
                   </div>
                 )}
+
                 <TicketRankingList
                   tickets={ticketsToRender}
                   onViewQR={(ticket) => {
@@ -2042,35 +2056,42 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                   }}
                 />
 
-                {selectedTicket && (
-                 <Card
-  className="border rounded p-2 mt-4 position-relative"
-  style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
->
-  {/* Close button positioned at top-right */}
-  <Button
-    variant="outline-danger"
-    size="sm"
-    onClick={() => setSelectedTicket(null)}
-    style={{
-      position: "absolute",
-      top: "15px",
-      right: "15px",
-      zIndex: 10
-    }}
+           {selectedTicket && (
+  <Card
+    className="border rounded p-2 mt-4 position-relative"
+    style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
   >
-    <FontAwesomeIcon icon={faClose} />
-  </Button>
+    {/* Close button positioned at top-right */}
+    <Button
+      variant="danger"
+      size="sm"
+      onClick={() => setSelectedTicket(null)}
+      className="d-flex align-items-center justify-content-center"
+      style={{
+        position: "absolute",
+        top: "15px",
+        right: "15px",
+        zIndex: 10,
+        width: "32px",
+        height: "32px",
+        borderRadius: "50%", // make it circular
+        padding: 0,
+      }}
+    >
+      <FontAwesomeIcon icon={faClose} />
+    </Button>
 
-  {/* Scrollable container for TicketSummary */}
-  <div style={{ maxHeight: "800px", overflowY: "auto", paddingTop: "40px" }}>
-    <div className="mt-4 mb-4" id="ticket-summary">
-      <TicketSummary ticket={selectedTicket} />
+    {/* Scrollable container for TicketSummary */}
+    <div style={{ maxHeight: "800px", overflowY: "auto", paddingTop: "40px" }}>
+      <div className="mt-4 mb-4" id="ticket-summary">
+        <TicketSummary ticket={selectedTicket} />
+      </div>
     </div>
-  </div>
-</Card>
+  </Card>
+)}
 
-                )}
+
+
 
 
 
@@ -2078,208 +2099,226 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                   className="border rounded p-2 mt-4"
                   style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
                 >
-                  {/* Scrollable table container */}
-                  <div style={{ maxHeight: "auto", overflowY: "auto" }}>
-                    <Table bordered hover style={{ minWidth: "1400px" }} className="mt-4">
-                      <thead>
-                        <tr>
-                          {allColumns.map(col =>
-                            visibleColumns.includes(col.key) && (
-                              <th key={col.key}>{col.label}</th>
-                            )
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ticketsToRender.length === 0 ? (
+                  <Card.Body>
+                    {/* Scrollable table container */}
+                    <div style={{ maxHeight: "auto", overflowY: "auto" }}>
+                      <Table bordered hover style={{ minWidth: "1400px" }} className="mt-4">
+                        <thead>
                           <tr>
-                            <td colSpan={visibleColumns.length} className="text-center text-muted">
-                              No results found for today.
-                            </td>
+                            {allColumns.map(col =>
+                              visibleColumns.includes(col.key) && (
+                                <th key={col.key}>{col.label}</th>
+                              )
+                            )}
                           </tr>
-                        ) : (
-                          ticketsToRender.map(t => {
+                        </thead>
+                        <tbody>
+                          {ticketsToRender.length === 0 ? (
+                            <tr>
+                              <td colSpan={visibleColumns.length} className="text-center text-muted">
+                                No results found for today.
+                              </td>
+                            </tr>
+                          ) : (
+                            ticketsToRender.map(t => {
 
-                            const getRowText = (t) => {
-                              return [
-                                `ticketId: ${t.id}`,
-                                `name: ${t.name}`,
-                                `contact: ${t.contact}`,
-                                `address: ${renderAddressText(t)}`,
-                                `startTime: ${new Date(t.start_date_time).toLocaleString()}`,
-                                `endTime: ${new Date(t.end_date_time).toLocaleString()}`,
-                                `totalPax: ${t.total_pax}`,
-                                `locals: ${total(t.address, 'locals')}`,
-                                `foreigns: ${total(t.address, 'foreigns')}`,
-                                `males: ${total(t.address, 'males')}`,
-                                `females: ${total(t.address, 'females')}`,
-                                `preferNotToSay: ${total(t.address, 'prefer_not_to_say')}`,
-                                `kids: ${total(t.address, 'kids')}`,
-                                `teens: ${total(t.address, 'teens')}`,
-                                `adults: ${total(t.address, 'adults')}`,
-                                `seniors: ${total(t.address, 'seniors')}`,
-                                `assignedTo: ${getEmployeeName(t)}`,
-                                `assigneeContact: ${getEmployeeContact(t)}`,
-                                `activityAvailed: ${getActivitiesText(t)}`,
-                                `totalDuration: ${t.total_duration || 0}`,
-                                `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
-                                `totalPayment: ₱${t.total_payment?.toLocaleString() || "0.00"}`,
-                                `markup: ${t.total_markup.toFixed(2)}%`,
-                                `expectedSale: ₱${t.total_expected_sale?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                                `scannedBy: ${t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-'}`,
-                              ].join("\n");
-                            };
+                              const getRowText = (t) => {
+                                return [
+                                  `ticketId: ${t.id}`,
+                                  `name: ${t.name}`,
+                                  `contact: ${t.contact}`,
+                                  `address: ${renderAddressText(t)}`,
+                                  `startTime: ${new Date(t.start_date_time).toLocaleString()}`,
+                                  `endTime: ${new Date(t.end_date_time).toLocaleString()}`,
+                                  `totalPax: ${t.total_pax}`,
+                                  `locals: ${total(t.address, 'locals')}`,
+                                  `foreigns: ${total(t.address, 'foreigns')}`,
+                                  `males: ${total(t.address, 'males')}`,
+                                  `females: ${total(t.address, 'females')}`,
+                                  `preferNotToSay: ${total(t.address, 'prefer_not_to_say')}`,
+                                  `kids: ${total(t.address, 'kids')}`,
+                                  `teens: ${total(t.address, 'teens')}`,
+                                  `adults: ${total(t.address, 'adults')}`,
+                                  `seniors: ${total(t.address, 'seniors')}`,
+                                  `assignedTo: ${getEmployeeName(t)}`,
+                                  `assigneeContact: ${getEmployeeContact(t)}`,
+                                  `activityAvailed: ${getActivitiesText(t)}`,
+                                  `totalDuration: ${t.total_duration || 0}`,
+                                  `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                                  `totalPayment: ₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                                  `markup: ${t.total_markup.toFixed(2)}%`,
+                                  `expectedSale: ₱${t.total_expected_sale?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                                  `scannedBy: ${t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-'}`,
+                                ].join("\n");
+                              };
 
-                            const rowData = {
-                              actions: (
-                                <div className="d-flex flex-column gap-2">
-                                  {/* Top: View QR */}
-                                  <Button
-                                    variant="outline-primary"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedTicket(t);
-                                      setTimeout(() => {
-                                        const element = document.getElementById("ticket-summary");
-                                        if (element) {
-                                          element.scrollIntoView({ behavior: "smooth", block: "start" });
-                                        }
-                                      }, 200); // delay to ensure content renders
-                                    }}
-                                  >
-                                    <FontAwesomeIcon icon={faQrcode} /> View QR
-                                  </Button>
-
-
-                                  {/* Bottom row: Delete + Copy */}
-                                  <div className="d-flex gap-2">
-                                    <Button
-                                      variant="outline-danger"
-                                      size="sm"
-                                      onClick={() => handleDeleteTicket(t.id)}
-                                    >
-                                      <FontAwesomeIcon icon={faTrash} />
-                                    </Button>
-
+                              const rowData = {
+                                actions: (
+                                  <div className="d-flex flex-column gap-2">
+                                    {/* Top: View QR */}
                                     <Button
                                       variant="outline-secondary"
                                       size="sm"
                                       onClick={() => {
-                                        const text = getRowText(t);
-                                        navigator.clipboard.writeText(text)
-                                          .then(() => {
-                                            Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
-                                          })
-                                          .catch(() => {
-                                            Swal.fire("Failed", "Unable to copy to clipboard.", "error");
-                                          });
+                                        setSelectedTicket(t);
+                                        setTimeout(() => {
+                                          const element = document.getElementById("ticket-summary");
+                                          if (element) {
+                                            element.scrollIntoView({ behavior: "smooth", block: "start" });
+                                          }
+                                        }, 200); // delay to ensure content renders
                                       }}
                                     >
-                                      <FontAwesomeIcon icon={faCopy} />
+                                      <FontAwesomeIcon icon={faQrcode} /> View QR
                                     </Button>
+
+
+                                    {/* Bottom row: Delete + Copy */}
+                                    <div className="d-flex gap-2">
+                                      <Button
+                                        variant="outline-danger"
+                                        size="sm"
+                                        onClick={() => handleDeleteTicket(t.id)}
+                                      >
+                                        <FontAwesomeIcon icon={faTrash} />
+                                      </Button>
+                            <Button
+  variant="outline-secondary"
+  size="sm"
+ onClick={() => {
+  setSelectedTicketEdit(null);
+  setTimeout(() => {
+    setSelectedTicketEdit(t);
+    const el = document.getElementById("ticket-edit");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, 50);
+}}
+
+>
+  <FontAwesomeIcon icon={faPen} />
+</Button>
+
+
+                                      <Button
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        onClick={() => {
+                                          const text = getRowText(t);
+                                          navigator.clipboard.writeText(text)
+                                            .then(() => {
+                                              Swal.fire("Copied!", "Row data has been copied to clipboard.", "success");
+                                            })
+                                            .catch(() => {
+                                              Swal.fire("Failed", "Unable to copy to clipboard.", "error");
+                                            });
+                                        }}
+                                      >
+                                        <FontAwesomeIcon icon={faCopy} />
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              ),
+                                ),
 
 
 
-                              status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
+                                status: <Badge bg={getStatusBadgeVariant(computeStatus(t))}>{computeStatus(t)}</Badge>,
 
-                              ticketId: t.id,
-                              name: t.name,
-                              contact: t.contact,
-                              accommodation: t.accommodation,
+                                ticketId: t.id,
+                                name: t.name,
+                                contact: t.contact,
+                                accommodation: t.accommodation,
 
-                              address: renderAddress(t),
+                                address: renderAddress(t),
 
-                              startTime: new Date(t.start_date_time).toLocaleString(),
-                              endTime: new Date(t.end_date_time).toLocaleString(),
-                              totalPax: t.total_pax,
-                              locals: total(t.address, 'locals'),
-                              foreigns: total(t.address, 'foreigns'),
-                              males: total(t.address, 'males'),
-                              females: total(t.address, 'females'),
-                              preferNotToSay: total(t.address, 'prefer_not_to_say'),
-                              kids: total(t.address, 'kids'),
-                              teens: total(t.address, 'teens'),
-                              adults: total(t.address, 'adults'),
-                              seniors: total(t.address, 'seniors'),
-                              assignedTo: getEmployeeName(t),
-                              assigneeContact: getEmployeeContact(t),
-                              activityNames: renderActivities(t),
-                              totalDuration: `${t.total_duration || 0} min`,
-                              expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
-                              totalPayment: `₱${t.total_payment?.toLocaleString() || "0.00"}`,
-                              markup: `${t.total_markup.toFixed(2)}%`,
-                              expectedSale: `₱${t.total_expected_sale?.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}`,
-                              scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
-                            };
-
-
-
-                            return (
-                              <tr key={t.id}>
-                                {allColumns.map(col =>
-                                  visibleColumns.includes(col.key) && (
-                                    <td key={col.key}>{rowData[col.key]}</td>
-                                  )
-                                )}
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </Table>
-                    
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center mt-2 px-2 flex-wrap gap-3">
-                      <div className="d-flex align-items-center gap-3">
-
-
-                        {/* ⬇️ Rows per Page Selector */}
-                        <Form.Group className="d-flex align-items-center gap-2 mb-0">
-                          <Form.Label className="mb-0 small">Rows per page</Form.Label>
-                          <Form.Select
-                            style={{ width: "auto" }}
-                            value={rowsPerPage}
-                            onChange={(e) => {
-                              setRowsPerPage(Number(e.target.value));
-                              setCurrentPage(1); // Reset to first page on change
-                            }}
-                          >
-                            {[5, 10, 20, 50, 100].map(num => (
-                              <option key={num} value={num}>{num}</option>
-                            ))}
-                          </Form.Select>
-                        </Form.Group>
-                      </div>
+                                startTime: new Date(t.start_date_time).toLocaleString(),
+                                endTime: new Date(t.end_date_time).toLocaleString(),
+                                totalPax: t.total_pax,
+                                locals: total(t.address, 'locals'),
+                                foreigns: total(t.address, 'foreigns'),
+                                males: total(t.address, 'males'),
+                                females: total(t.address, 'females'),
+                                preferNotToSay: total(t.address, 'prefer_not_to_say'),
+                                kids: total(t.address, 'kids'),
+                                teens: total(t.address, 'teens'),
+                                adults: total(t.address, 'adults'),
+                                seniors: total(t.address, 'seniors'),
+                                assignedTo: getEmployeeName(t),
+                                assigneeContact: getEmployeeContact(t),
+                                activityNames: renderActivities(t),
+                                totalDuration: `${t.total_duration || 0} min`,
+                                expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
+                                totalPayment: `₱${t.total_payment?.toLocaleString() || "0.00"}`,
+                                markup: `${t.total_markup.toFixed(2)}%`,
+                                expectedSale: `₱${t.total_expected_sale?.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}`,
+                                scannedBy: t.scan_logs?.find(l => l.status === 'scanned')?.updated_by || '-',
+                              };
 
 
 
+                              return (
+                                <tr key={t.id}>
+                                  {allColumns.map(col =>
+                                    visibleColumns.includes(col.key) && (
+                                      <td key={col.key}>{rowData[col.key]}</td>
+                                    )
+                                  )}
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </Table>
 
-                      <div>
-                        <span className="me-3">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                          className="btn btn-sm btn-outline-primary me-2"
-                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                        >
-                          Prev
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next
-                        </button>
-                      </div>
                     </div>
+                  </Card.Body>
+                  {/* Footer Controls */}
+                  <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center align-items-start w-100 gap-3">
+
+                    {/* ⬇️ Rows per Page Selector */}
+                    <Form.Group className="d-flex align-items-center gap-2 mb-0">
+                      <Form.Label className="mb-0 small">Rows per page</Form.Label>
+                      <Form.Select
+                        style={{ width: "auto" }}
+                        value={rowsPerPage}
+                        onChange={(e) => {
+                          setRowsPerPage(Number(e.target.value));
+                          setCurrentPage(1); // Reset to first page on change
+                        }}
+                      >
+                        {[5, 10, 20, 50, 100].map(num => (
+                          <option key={num} value={num}>{num}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+
+                    {/* ⬇️ Pagination Controls */}
+                    <div className="d-flex align-items-center flex-wrap gap-2">
+                      <span className="me-2 small">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+
+
 
                 </Card>
 
@@ -2294,6 +2333,36 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
 
       </Card.Body>
+      
+{selectedTicketEdit && (
+  <Card
+    className="border rounded p-2 mt-4 position-relative"
+    id="ticket-edit"
+    style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
+  >
+    {/* Close Button */}
+    <Button
+      variant="danger"
+      size="sm"
+      className="position-absolute d-flex align-items-center justify-content-center"
+      style={{
+        top: "20px",
+        right: "20px",
+        width: "32px",
+        height: "32px",
+        borderRadius: "50%", // makes it circular
+        padding: "0",
+      }}
+      onClick={() => setSelectedTicketEdit(null)}
+    >
+      <FontAwesomeIcon icon={faClose} />
+    </Button>
+
+    {/* Ticket Edit Component */}
+    <TicketEdit ticket={selectedTicketEdit} />
+  </Card>
+)}
+
 
       {/* qr screen here  */}
 
@@ -2329,45 +2398,45 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
             {/* Summary Tab */}
             <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
-           <div className="mt-4 mx-2 p-0">
-  {/* <div className="d-flex align-items-center mb-2"></div> */}
-    <h6 className="mb-0 me-2">Summary</h6>
-    {/* <Button
+              <div className="mt-4 mx-2 p-0">
+                {/* <div className="d-flex align-items-center mb-2"></div> */}
+                <h6 className="mb-0 me-2">Summary</h6>
+                {/* <Button
       variant="outline-secondary"
       size="sm"
       onClick={handleDownloadImage}
     >
       <FontAwesomeIcon icon={faDownload} />
     </Button> */}
-  
 
-  <small className="text-muted d-block mb-2">
-    Overview of key metrics with charts, tables, and rankings, including data
-    segmentation and bracket breakdowns.
-  </small>
 
-  <small className="text-muted d-block mb-5">
-    <Badge bg="secondary" className="me-1 mt-2">
-      {summary.totalTickets}
-    </Badge>{" "}
-    ticket(s) from{" "}
-    <strong>
-      {new Date(startDateInput).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      })}
-    </strong>{" "}
-    to{" "}
-    <strong>
-      {new Date(endDateInput).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      })}
-    </strong>
-  </small>
-</div>
+                <small className="text-muted d-block mb-2">
+                  Overview of key metrics with charts, tables, and rankings, including data
+                  segmentation and bracket breakdowns.
+                </small>
+
+                <small className="text-muted d-block mb-5">
+                  <Badge bg="secondary" className="me-1 mt-2">
+                    {summary.totalTickets}
+                  </Badge>{" "}
+                  ticket(s) from{" "}
+                  <strong>
+                    {new Date(startDateInput).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric"
+                    })}
+                  </strong>{" "}
+                  to{" "}
+                  <strong>
+                    {new Date(endDateInput).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric"
+                    })}
+                  </strong>
+                </small>
+              </div>
 
               {(!isSmallScreen || showFullSummary) && (
                 <>
@@ -2475,7 +2544,9 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
 
                     </Col>
+
                   </Row>
+
                   <Row className="g-3 mt-2">
                     <Col md={4}>
                       <SummaryPieChart
@@ -2585,11 +2656,11 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
             {/* Performance Tab */}
             <Tab eventKey="performance" title="Performance">
               <div className="d-flex flex-column align-items-start mx-2 mt-4">
-  <h6>Performance</h6>
-  <small className="text-muted">
-    This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-  </small>
-</div>
+                <h6>Performance</h6>
+                <small className="text-muted">
+                  This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+                </small>
+              </div>
 
 
               <Row className="g-3 mt-2">
@@ -2605,27 +2676,27 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
             {/* Insights Tab */}
             <Tab eventKey="insights" title="Insights">
               <h6 className="mt-4 mx-2 text-start">Insights</h6>
-<small className="text-muted mx-2 d-block text-start">
-  Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
-</small>
-<small className="text-muted mt-2 mx-2 d-block text-start">
-  Insights from data dated{" "}
-  <strong>
-    {new Date(startDateInput).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    })}
-  </strong>{" "}
-  to{" "}
-  <strong>
-    {new Date(endDateInput).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    })}
-  </strong>
-</small>
+              <small className="text-muted mx-2 d-block text-start">
+                Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
+              </small>
+              <small className="text-muted mt-2 mx-2 d-block text-start">
+                Insights from data dated{" "}
+                <strong>
+                  {new Date(startDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>{" "}
+                to{" "}
+                <strong>
+                  {new Date(endDateInput).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  })}
+                </strong>
+              </small>
 
 
 

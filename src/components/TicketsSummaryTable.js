@@ -45,35 +45,43 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
   const [dateRangeOption, setDateRangeOption] = useState("This Month (the default)");
   // const [dateRange, setDateRange] = useState({ start: dayjs().startOf("month"), end: dayjs() });
   const isDailyView = ["This Month (the default)", "This Week", "1st Half of the Month (1-15)", "2nd Half of the Month"].includes(dateRangeOption);
+const [customStartDate, setCustomStartDate] = useState(dayjs().startOf("month"));
+const [customEndDate, setCustomEndDate] = useState(dayjs());
 
-  const dateRange = useMemo(() => {
-    const now = dayjs();
-    let start, end;
+ const dateRange = useMemo(() => {
+  const now = dayjs();
+  let start, end;
 
-    switch (dateRangeOption) {
-      case "This Week":
-        start = now.startOf("week");
-        end = now.endOf("week");
-        break;
-      case "1st Half of the Month (1-15)":
-        start = now.startOf("month");
-        end = now.startOf("month").add(14, "day");
-        break;
-      case "2nd Half of the Month":
-        start = now.startOf("month").add(15, "day");
-        end = now.endOf("month");
-        break;
-      case "This Year":
-        start = now.startOf("year");
-        end = now;
-        break;
-      default: // "This Month (the default)"
-        start = now.startOf("month");
-        end = now;
-    }
+  switch (dateRangeOption) {
+    case "This Week":
+      start = now.startOf("week");
+      end = now.endOf("week");
+      break;
+    case "1st Half of the Month (1-15)":
+      start = now.startOf("month");
+      end = now.startOf("month").add(14, "day");
+      break;
+    case "2nd Half of the Month":
+      start = now.startOf("month").add(15, "day");
+      end = now.endOf("month");
+      break;
+    case "This Year":
+      start = now.startOf("year");
+      end = now;
+      break;
+    case "Custom Range": // ✅ handle custom
+      start = customStartDate;
+      end = customEndDate;
+      break;
+    default: // "This Month (the default)"
+      start = now.startOf("month");
+      end = now;
+  }
 
-    return { start, end };
-  }, [dateRangeOption]);
+  return { start, end };
+}, [dateRangeOption, customStartDate, customEndDate]);
+
+
   useEffect(() => {
     const fetchTickets = async () => {
       setLoadingTickets(true);
@@ -305,24 +313,33 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
     XLSX.writeFile(workbook, `tickets_summary_${mode}_${paxFilter}.xlsx`);
   };
 
-  const handleDownloadChart = async () => {
-    if (!chartRef.current) return;
+const handleDownloadChart = async () => {
+  if (!chartRef.current) return;
 
-    const externalStyles = [...document.styleSheets].filter(
-      sheet => sheet.href && sheet.href.includes("fonts.googleapis.com")
-    );
-    const backup = externalStyles.map(sheet => sheet.ownerNode);
-    backup.forEach(node => node?.parentNode?.removeChild(node));
+  const externalStyles = [...document.styleSheets].filter(
+    sheet => sheet.href && sheet.href.includes("fonts.googleapis.com")
+  );
+  const backup = externalStyles.map(sheet => sheet.ownerNode);
+  backup.forEach(node => node?.parentNode?.removeChild(node));
 
-    try {
-      const dataUrl = await toPng(chartRef.current);
-      download(dataUrl, "chart.png");
-    } catch (err) {
-      console.error("Image download failed", err);
-    } finally {
-      backup.forEach(node => document.head.appendChild(node));
-    }
-  };
+  // Find button and chart container
+  const button = chartRef.current.querySelector(".download-btn");
+  const chartContainer = chartRef.current.querySelector(".recharts-responsive-container");
+
+  if (button) button.style.display = "none"; // hide button
+  if (chartContainer) chartContainer.style.minWidth = "1200px"; // expand width
+
+  try {
+    const dataUrl = await toPng(chartRef.current, { backgroundColor: "#ffffff" });
+    download(dataUrl, "chart.png");
+  } catch (err) {
+    console.error("Image download failed", err);
+  } finally {
+    if (button) button.style.display = ""; // restore button
+    if (chartContainer) chartContainer.style.minWidth = ""; // reset width
+    backup.forEach(node => document.head.appendChild(node));
+  }
+};
 
   if (loading && !tickets.length) {
     return (
@@ -612,7 +629,7 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
   return (
     <div className="bg-white" ref={tableRef}>
-      <Card className="border rounded p-0 text-muted bg-white mb-4">
+      <Card className="border rounded p-1 text-muted bg-white mb-4">
 
         <div className="d-flex justify-content-between align-items-center mb-3 mx-2">
           <div className="text-muted small fw-semibold">
@@ -628,19 +645,40 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
 
         </div>
 
-        <Form.Select
-          size="sm"
-          className="mx-2"
-          value={dateRangeOption}
-          onChange={e => setDateRangeOption(e.target.value)}
-          style={{ maxWidth: "200px" }}
-        >
-          <option>This Month (the default)</option>
-          <option>This Week</option>
-          <option>1st Half of the Month (1-15)</option>
-          <option>2nd Half of the Month</option>
-          <option>This Year</option>
-        </Form.Select>
+       <div className="d-flex align-items-center gap-2 mx-2 mt-2 flex-wrap">
+  <Form.Select
+    size="sm"
+    className="w-auto"
+    value={dateRangeOption}
+    onChange={e => setDateRangeOption(e.target.value)}
+  >
+    <option>This Month (the default)</option>
+    <option>This Week</option>
+    <option>1st Half of the Month (1-15)</option>
+    <option>2nd Half of the Month</option>
+    <option>This Year</option>
+    <option>Custom Range</option>
+  </Form.Select>
+
+  {dateRangeOption === "Custom Range" && (
+    <div className="d-flex gap-2">
+      <Form.Control
+        type="date"
+        size="sm"
+        value={customStartDate.format("YYYY-MM-DD")}
+        onChange={e => setCustomStartDate(dayjs(e.target.value))}
+      />
+      <Form.Control
+        type="date"
+        size="sm"
+        value={customEndDate.format("YYYY-MM-DD")}
+        onChange={e => setCustomEndDate(dayjs(e.target.value))}
+      />
+    </div>
+  )}
+</div>
+
+
 
 
         <Row className="mb-4 mt-1 g-3">
@@ -1059,59 +1097,70 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
         <Tabs defaultActiveKey="chart" id="summary-tabs" className="bg-white mb-3 mx-2 ">
           {/* First Tab - Chart */}
 
-          <Tab eventKey="chart" title="Chart" className="bg-white" ref={chartRef}>
+         <Tab
+  eventKey="chart"
+  title="Chart"
+  className="bg-white"
+  ref={chartRef}
+>
   <div className="mt-4 bg-white mx-2">
     <div className="d-flex justify-content-between align-items-center mb-2">
       <div className="text-muted small fw-semibold">
         {mode === "pax"
           ? "Pax Summary "
           : mode === "payment"
-          ? "Total Payment "
-          : mode === "expected_sale"
-          ? "Expected Sale "
-          : "Ticket Frequency "}
-          <br></br>
-        ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
+            ? "Total Payment "
+            : mode === "expected_sale"
+              ? "Expected Sale "
+              : "Ticket Frequency "}
+        ( {dateRange.start.format("MMM D")} -{" "}
+        {dateRange.end.format("MMM D, YYYY")} ) (
+        {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
       </div>
 
-      <Button variant="light" size="sm" onClick={handleDownloadChart}>
-        <FontAwesomeIcon icon={faDownload} />
-      </Button>
+      <Button
+  variant="light"
+  size="sm"
+  className="download-btn"
+  onClick={handleDownloadChart}
+>
+  <FontAwesomeIcon icon={faDownload} />
+</Button>
+
     </div>
   </div>
 
-  {/* Scrollable chart container */}
-  <div className="bg-white p-3 rounded" style={{ overflowX: "auto" }}>
-    <div style={{ minWidth: "800px" /* adjust as needed */ }}>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="label" interval={0} />
-          <YAxis allowDecimals={false} />
-          <Tooltip />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="value"
-            name={
-              mode === "pax"
-                ? "Pax"
-                : mode === "payment"
+  {/* Chart container without scroll */}
+  <div className="bg-white p-3 rounded">
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={chartData} style={{ backgroundColor: "#ffffff" }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="label" interval={0} />
+        <YAxis allowDecimals={false} />
+        <Tooltip />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="value"
+          name={
+            mode === "pax"
+              ? "Pax"
+              : mode === "payment"
                 ? "Total Payment"
                 : mode === "expected_sale"
-                ? "Expected Sale"
-                : "Frequency"
-            }
-            stroke="#007bff"
-            strokeWidth={2}
-            dot={{ r: 3 }}
-            activeDot={{ r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+                  ? "Expected Sale"
+                  : "Frequency"
+          }
+          stroke="#007bff"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   </div>
 </Tab>
+
 
           {/* Second Tab - Table */}
           <Tab eventKey="table" title="Table" className="bg-white">
@@ -1125,7 +1174,6 @@ function TicketsSummaryTable({ loading = false, filterType, ticketsList = [] }) 
                       : mode === "expected_sale"
                         ? "Expected Sale "
                         : "Ticket Frequency "}
-                        <br></br>
                   ( {dateRange.start.format("MMM D")} - {dateRange.end.format("MMM D, YYYY")} ) ( {filterType === "all" ? "All Tickets" : "Scanned Tickets"} )
                 </div>
                 <div className="d-flex gap-2 flex-nowrap">

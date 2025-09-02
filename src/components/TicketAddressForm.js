@@ -16,6 +16,37 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
     const [provinceLists, setProvinceLists] = useState([]);
     const [cityLists, setCityLists] = useState([]);
 
+    const [townOptions, setTownOptions] = useState([]);
+
+useEffect(() => {
+  const fetchAll = async () => {
+    const regionList = await regions();
+    let allOptions = [];
+
+    for (const region of regionList) {
+      const provs = await provinces(region.region_code);
+      for (const prov of provs) {
+        const cts = await cities(prov.province_code);
+        allOptions.push(
+          ...cts.map(city => ({
+            value: city.city_name,
+            label: `${city.city_name}, ${prov.province_name}, ${region.region_name}`,
+            region_code: region.region_code,
+            region_name: region.region_name,
+            province_code: prov.province_code,
+            province_name: prov.province_name,
+            city_name: city.city_name
+          }))
+        );
+      }
+    }
+    setTownOptions(allOptions);
+  };
+
+  fetchAll();
+}, []);
+
+
     useEffect(() => {
         if (!groupData.address || groupData.address.length === 0) {
             setGroupData((prev) => ({
@@ -296,6 +327,26 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
 
                                         {/* City/Municipality */}
                                         <Select
+  className="my-2"
+  placeholder="Type town/city name"
+  isSearchable
+  options={townOptions}
+  value={
+    townOptions.find(option => option.city_name === addr.town) || null
+  }
+  onChange={(selectedOption) => {
+    if (selectedOption) {
+      handleAddressChange(index, {
+        town: selectedOption.city_name,
+        province: selectedOption.province_code,
+        region: selectedOption.region_code,
+        country: "Philippines",
+      });
+    }
+  }}
+/>
+
+                                        {/* <Select
                                             className="my-2"
                                             placeholder="Select City/Municipality"
                                             isSearchable
@@ -318,7 +369,7 @@ const TicketAddressForm = ({ groupData, setGroupData }) => {
                                                     town: selectedOption?.value || "",
                                                 })
                                             }
-                                        />
+                                        /> */}
                                     </>
                                 )}
 
