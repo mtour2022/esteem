@@ -87,7 +87,6 @@ export default function TicketQRScanner() {
 
         fetchticketData();
     }, [currentUser]);
-
 // ✅ QR Scanner
 useEffect(() => {
   if (scannerRequested && webcamRef.current?.video) {
@@ -96,15 +95,19 @@ useEffect(() => {
         // 🔹 Get available cameras
         const cameras = await QrScanner.listCameras(true);
 
-        // Try to choose the back/environment cam
-        let preferredCameraId = cameras[0]?.id || undefined;
+        // Try to choose the back/environment camera
+        let preferredCameraId;
         const backCam = cameras.find(
           (cam) =>
             cam.label.toLowerCase().includes("back") ||
             cam.label.toLowerCase().includes("rear") ||
             cam.label.toLowerCase().includes("environment")
         );
-        if (backCam) preferredCameraId = backCam.id;
+        if (backCam) {
+          preferredCameraId = backCam.id;
+        } else if (cameras.length > 0) {
+          preferredCameraId = cameras[0].id; // fallback to first camera
+        }
 
         const scanner = new QrScanner(
           webcamRef.current.video,
@@ -121,7 +124,7 @@ useEffect(() => {
                   return;
                 }
 
-                // 🔹 Query Firestore
+                // 🔹 Query Firestore for ticket
                 const q = query(
                   collection(db, "tickets"),
                   where("ticket_id", "==", scannedTicketId)
@@ -131,32 +134,10 @@ useEffect(() => {
                 if (!snap.empty) {
                   const ticketDoc = snap.docs[0].data();
                   setTicketData(new TicketModel(ticketDoc));
-
-                  if (ticketDoc.employee_id) {
-                    const empData = await fetchEmployeeById(ticketDoc.employee_id);
-                    if (empData) {
-                      setSelectedEmployee(empData);
-                      setEmployees((prev) => {
-                        const exists = prev.some(
-                          (e) => e.employeeId === empData.employeeId
-                        );
-                        return exists ? prev : [...prev, empData];
-                      });
-                    }
-                  }
-
-                  Swal.fire(
-                    "Ticket Loaded",
-                    "Ticket data loaded into form.",
-                    "success"
-                  );
+                  Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
                   setCurrentStep(1);
                 } else {
-                  Swal.fire(
-                    "Not Found",
-                    "No ticket found with that ID.",
-                    "warning"
-                  );
+                  Swal.fire("Not Found", "No ticket found with that ID.", "warning");
                 }
 
                 // Stop scanner after handling
@@ -171,14 +152,9 @@ useEffect(() => {
               }
             }
           },
-          
           {
-             highlightScanRegion: true,
-    // Use back camera on mobile devices
-    video: {
-      facingMode: "environment"
-    }
-            // preferredCamera: preferredCameraId, 
+            highlightScanRegion: true,
+            preferredCamera: preferredCameraId
           }
         );
 
@@ -211,6 +187,7 @@ useEffect(() => {
     };
   }
 }, [scannerRequested]);
+
 
 
     useEffect(() => {
