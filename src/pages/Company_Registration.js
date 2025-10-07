@@ -1,10 +1,13 @@
 import { Form, Button, Dropdown, InputGroup, Row, Col, Alert, Container, Image, Modal } from 'react-bootstrap';
+import ReactDOM from "react-dom";
+
 import React, { useState, useRef, useCallback } from 'react';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
 import { Navigate } from 'react-router-dom';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { docreateUserWithEmailAndPassword } from "../config/auth";
 import Swal from 'sweetalert2';
 import Company from '../classes/company';
 import AppNavBar from "../components/AppNavBar";
@@ -15,7 +18,17 @@ import { faUpload, faCancel, faCamera, faFileWord, faFilePdf } from '@fortawesom
 import AddressInput from '../components/AddressForm'
 import SaveGroupToCloud from "../components/SaveGroup"; // Adjust the import path if necessary
 import FooterCustomized from '../components/Footer';
+import { auth } from "../config/firebase";
+import { useNavigate } from "react-router-dom";
+import download from "downloadjs";
+import { createRoot } from "react-dom/client";
 
+import { QRCodeCanvas } from "qrcode.react";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
+import logolgu from "../assets/images/lgu.png";
+
+import QRCode from "qrcode";
 
 
 
@@ -33,6 +46,228 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
     // Initialize Company class 
     const [companyData, setCompanyData] = useState(new Company({}));
     const companyCollectionRef = collection(db, "company");
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+
+        try {
+            // ✅ Validate required files
+            if (!permit || !logo) {
+                Swal.fire({
+                    title: "Missing File(s)",
+                    icon: "warning",
+                    text: "Please upload both your permit/accreditation and official logo before submitting."
+                });
+                return;
+            }
+
+            // ✅ Uploading message
+            Swal.fire({
+                title: "Uploading...",
+                text: "Please wait while your files are being uploaded.",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            // ✅ Create Auth user first (check duplicate email automatically)
+            let userCredential;
+            try {
+                userCredential = await docreateUserWithEmailAndPassword(
+                    companyData.email,
+                    companyData.password // 🔹 Make sure you’re storing password from your form
+                );
+            } catch (authError) {
+                if (authError.code === "auth/email-already-in-use") {
+                    Swal.fire({
+                        title: "Email Already Registered",
+                        icon: "warning",
+                        text: "This email is already registered. Please use another one."
+                    });
+                    return; // stop submission
+                }
+                throw authError; // rethrow other auth errors
+            }
+
+
+            // 🟢 Upload Permit
+            const permitExt = permit.name?.split(".").pop() || "jpg";
+            const permitRef = ref(
+                storage,
+                `company/permits/${Date.now()}_${permit.name || "permit"}.${permitExt}`
+            );
+            await uploadBytes(permitRef, permit);
+            const permitURL = await getDownloadURL(permitRef);
+
+            // 🟢 Upload Logo
+            const logoExt = logo.name?.split(".").pop() || "jpg";
+            const logoRef = ref(
+                storage,
+                `company/logos/${Date.now()}_${logo.name || "logo"}.${logoExt}`
+            );
+            await uploadBytes(logoRef, logo);
+            const logoURL = await getDownloadURL(logoRef);
+
+            // 🟢 Firestore Object
+            const companyObject = {
+                ...companyData,
+                permit: permitURL,
+                logo: logoURL,
+                status_history: [
+                    ...(companyData.status_history || []),
+                    {
+                        date_updated: new Date().toISOString(),
+                        remarks: "Under Review",
+                        status: "under review"
+                    }
+                ]
+            };
+
+            // Add to Firestore
+            const docRef = await addDoc(companyCollectionRef, companyObject);
+
+            // Update with doc ID
+            await updateDoc(doc(db, "company", docRef.id), {
+                id: docRef.id,
+                permit: permitURL,
+                logo: logoURL
+            });
+
+            // ✅ Reset local state
+            setCompanyData(new Company({}));
+            setPermit(null);
+            setLogo(null);
+
+            const dateNow = new Date().toLocaleString("en-PH", {
+                dateStyle: "long",
+                timeStyle: "short",
+                hour12: true
+            });
+
+            // ✅ Success message with QR + actions
+            Swal.fire({
+                title: "Registration Successful!",
+                html: `
+        <div id="qr-preview" style="padding:20px;text-align:center;background:#fff;border:1px solid #ccc;font-family:Arial;">
+          <img src="${logolgu}" alt="LGU Logo" height="80" style="margin-bottom:10px;" />
+          <div style="font-size:12px;font-weight:bold;line-height:18px;margin-bottom:10px;">
+            Republic of the Philippines<br />
+            Province of Aklan<br />
+            Municipality of Malay<br />
+            Municipal Tourism Office
+          </div>
+          <p style="font-size:11px;margin-bottom:10px;margin-top:5px;">
+            Company ID: <strong>${docRef.id}</strong><br/>
+            ${companyData.companyName || "Company"}
+          </p>
+          <div style="display: flex; justify-content: center;">
+            <canvas id="generatedQR"></canvas>
+          </div>
+          <p style="font-size:11px;margin-top:10px;">
+            Scan this QR code to check your application status.<br />
+            All information is protected and complies with the Data Privacy Act.
+          </p>
+          <p style="font-size:10px;margin-top:10px;">
+            Issued by the Municipal Tourism Office, Malay Aklan<br />
+            Registered on: ${dateNow}
+          </p>
+        </div>
+        <div style="margin-top:15px;display:flex;flex-direction:column;gap:10px;">
+          <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
+          <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background:#28a745;">Proceed</button>
+        </div>
+      `,
+                showConfirmButton: false,
+                didOpen: () => {
+                    // Generate QR
+                    const qrCanvas = document.getElementById("generatedQR");
+                    if (qrCanvas) {
+                        QRCode.toCanvas(
+                            qrCanvas,
+                            `https://esteem.com/application-status-check/${docRef.id}`,
+                            { width: 300 },
+                            (err) => {
+                                if (err) console.error("QR generation error:", err);
+                            }
+                        );
+                    }
+
+                    const qrPreview = document.getElementById("qr-preview");
+
+                    // Download button
+                    const downloadBtn = document.getElementById("downloadImageBtn");
+                    if (downloadBtn) {
+                        downloadBtn.addEventListener("click", async () => {
+                            if (!qrPreview) return;
+
+                            // Show loading state inside current Swal
+                            Swal.showLoading();
+
+                            try {
+                                const dataUrl = await toPng(qrPreview, { cacheBust: true, useCORS: true, backgroundColor: "#ffffff" });
+
+                                const link = document.createElement("a");
+                                link.download = `CompanyQR_${companyData.companyName || "Company"}_${docRef.id}.png`;
+                                link.href = dataUrl;
+                                link.click();
+
+                                // ✅ After download, show the same Next Steps dialog as Proceed button
+                                Swal.fire({
+                                    title: "Next Steps",
+                                    icon: "info",
+                                    html: `
+          <p>Your submission is under review.</p>
+          <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
+          <p>You will be <strong>notified via email</strong> at <em>${companyData.email}</em>.</p>
+        `,
+                                    confirmButtonText: "Okay, got it!"
+                                }).then(() => navigate("/home"));
+
+                            } catch (err) {
+                                console.error("Image download error:", err);
+                                Swal.update({
+                                    icon: "error",
+                                    title: "Download Failed",
+                                    text: "There was an error generating your QR. Please try again."
+                                });
+                            }
+                        });
+                    }
+
+
+
+                    // Proceed button
+                    const proceedBtn = document.getElementById("proceedBtn");
+                    if (proceedBtn) {
+                        proceedBtn.addEventListener("click", () => {
+                            Swal.fire({
+                                title: "Next Steps",
+                                icon: "info",
+                                html: `
+                <p>Your submission is under review.</p>
+                <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
+                <p>You will be <strong>notified via email</strong> at <em>${companyData.email}</em>.</p>
+              `,
+                                confirmButtonText: "Okay, got it!"
+                            }).then(() => navigate("/home"));
+                        });
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            setErrorMessage(error.message);
+
+            Swal.fire({
+                title: "Error!",
+                icon: "error",
+                text: "Please Try Again"
+            });
+        }
+    };
+
+
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -462,6 +697,8 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
 
                                         <Form.Group className="my-2">
                                             <Form.Label className="fw-bold mt-2">Company Email Address</Form.Label>
+                                            <p className="sub-title text-muted">Use official working email for this.</p>
+
                                             <Form.Control
 
                                                 type="text"
@@ -742,56 +979,74 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
 
                                     </>
                                 )}
-                                {/* Pagination Buttons */}
-                                <Container className='empty-container'></Container>
-                                {/* Page Indicators */}
-                                <Container className="d-flex justify-content-center my-1">
-                                    {Array.from({ length: totalSteps }, (_, index) => (
-                                        <span
-                                            key={index}
-                                            className={`mx-1 step-indicator ${currentStep === index + 1 ? "active" : ""}`}
-                                        >
-                                            ●
-                                        </span>
-                                    ))}
-                                </Container>
                                 <Container className="d-flex justify-content-between mt-3">
-                                    {/* Previous Button - Show if currentStep > 1 */}
-                                    {currentStep > 1 && (
-                                        <Button variant="secondary" onClick={prevStep}>
-                                            Previous
-                                        </Button>
+                                    {/* Page 1 → Only Next button aligned right */}
+                                    {currentStep === 1 && (
+                                        <div className="ms-auto"> {/* pushes to the right */}
+                                            <Button
+                                                type="button"
+                                                className="color-blue-button"
+                                                variant="primary"
+                                                onClick={nextStep}
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
                                     )}
 
-                                    {/* Next Button or Save Button on Last Step */}
-                                    {currentStep < 3 ? (
-                                        <Button className="color-blue-button" variant="primary" onClick={nextStep}>
-                                            Next
-                                        </Button>
-                                    ) : (
-                                        <SaveGroupToCloud
-                                            groupData={companyData}
-                                            setGroupData={setCompanyData}
-                                            password={password}
-                                            email={companyData.email}
-                                            fileType="Application"
-                                            collectionName="company"
-                                            disabled={!logoURL || !permitURL || !password}
-                                            idName="company_id"
-                                            ModelClass={Company}
-                                            onSuccess={() => {
-                                                setLogoURL("");
-                                                setPermitURL("");
-                                                setConfirmPassword("");
-                                                setPassword("");
-                                            }}
-                                        />
+                                    {/* Page 2 → Previous (left) and Next (right) */}
+                                    {currentStep === 2 && (
+                                        <>
+                                            <Button type="button" variant="secondary" onClick={prevStep}>
+                                                Previous
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                className="color-blue-button"
+                                                variant="primary"
+                                                onClick={nextStep}
+                                            >
+                                                Next
+                                            </Button>
+                                        </>
+                                    )}
 
+                                    {/* Page 3 → Previous (left) and Submit (right) */}
+                                    {currentStep === 3 && (
+                                        <>
+                                            <Button type="button" variant="secondary" onClick={prevStep}>
+                                                Previous
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                className="color-blue-button"
+                                                onClick={handleSubmit}
+                                            >
+                                                Submit
+                                            </Button>
+                                        </>
                                     )}
                                 </Container>
 
-                                <Container className='empty-container'></Container>
 
+                                <Container className='empty-container'></Container>
+                                {/* // <SaveGroupToCloud
+                                        //     groupData={companyData}
+                                        //     setGroupData={setCompanyData}
+                                        //     password={password}
+                                        //     email={companyData.email}
+                                        //     fileType="Application"
+                                        //     collectionName="company"
+                                        //     disabled={!logoURL || !permitURL || !password}
+                                        //     idName="company_id"
+                                        //     ModelClass={Company}
+                                        //     onSuccess={() => {
+                                        //         setLogoURL("");
+                                        //         setPermitURL("");
+                                        //         setConfirmPassword("");
+                                        //         setPassword("");
+                                        //     }}
+                                        // /> */}
                                 {/* Custom Styles for Dots */}
                                 <style>
                                     {`

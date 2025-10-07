@@ -160,143 +160,178 @@ const TicketSummary = ({ ticket }) => {
     <p className="mt-1">{ticket_id}</p>
   </div>
 )}
+{/* Basic Details */}
+<Row className="row justify-content-center align-items-center">
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Created By:</strong>{" "}
+      {createdByCompany?.name ||
+        (createdByEmployee?.firstname && createdByEmployee?.surname
+          ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
+          : "Unknown")}
+      <br />
+      <small className="text-muted" style={{ fontSize: "0.65rem" }}>
+        {new Date(date_created).toLocaleString()}
+      </small>
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}
+    </p>
+  </Col>
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Valid Until:</strong> {new Date(valid_until).toLocaleString()}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Activity End:</strong> {new Date(end_date_time).toLocaleString()}
+    </p>
+  </Col>
+</Row>
 
-          {/* Basic Details */}
-          <Row className="row justify-content-center align-items-center">
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small">
-                <strong>Created By:</strong>{" "}
-                {createdByCompany?.name ||
-                  (createdByEmployee?.firstname && createdByEmployee?.surname
-                    ? `${createdByEmployee.firstname} ${createdByEmployee.surname}`
-                    : "Unknown")}
-                <br />
-                <small className="text-muted">{new Date(date_created).toLocaleString()}</small>
-              </p>
-              <p className="m-1 small">
-                <strong>Activity Start:</strong> {new Date(start_date_time).toLocaleString()}
-              </p>
-            </Col>
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small">
-                <strong>Valid Until:</strong> {new Date(valid_until).toLocaleString()}
-              </p>
-              <p className="m-1 small">
-                <strong>Activity End:</strong> {new Date(end_date_time).toLocaleString()}
-              </p>
-            </Col>
-          </Row>
+{/* Basic Info */}
+<p className="mt-2 ms-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+  <strong>BASIC INFORMATION</strong>
+</p>
+<Row className="row justify-content-center align-items-center">
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Representative:</strong> {name}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Local Address:</strong> {localCountries}
+    </p>
+  </Col>
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Accommodation:</strong> {accommodation}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Foreign Address:</strong> {foreignCountries}
+    </p>
+  </Col>
+</Row>
 
-          {/* Basic Info */}
-          <p className="mt-2 ms-1 small">
-            <strong>BASIC INFORMATION</strong>
-          </p>
-          <Row className="row justify-content-center align-items-center">
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small">
-                <strong>Representative:</strong> {name}
-              </p>
-              <p className="m-1 small">
-                <strong>Local Address:</strong> {localCountries}
-              </p>
-            </Col>
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small">
-                <strong>Accommodation:</strong> {accommodation}
-              </p>
-              <p className="m-1 small">
-                <strong>Foreign Address:</strong> {foreignCountries}
-              </p>
-            </Col>
-          </Row>
+{/* Demographics */}
+<p className="mt-2 ms-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+  <strong>DEMOGRAPHIC SUMMARY</strong>
+</p>
+<Row className="row">
+  <Col md={6} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Locals:</strong> {totalLocals}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Males:</strong> {totalMales}
+    </p>
+    {prefer_not_to_say && (
+      <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+        <strong>Prefer not to say:</strong> {prefer_not_to_say}
+      </p>
+    )}
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Kids (0-12 y.o.):</strong> {totalKids}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Adults (20-59 y.o.):</strong> {totalAdults}
+    </p>
+  </Col>
+  <Col md={6} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Foreigns:</strong> {totalForeigns}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Females:</strong> {totalFemales}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Teens (13-19 y.o.):</strong> {totalTeens}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Seniors (60 y.o. above):</strong> {totalSeniors}
+    </p>
+  </Col>
+</Row>
 
-          {/* Demographics */}
-          <p className="mt-2 ms-1 small">
-            <strong>DEMOGRAPHIC SUMMARY</strong>
-          </p>
-          <Row className="row">
-            <Col md={6} className="col">
-              <p className="m-1 small"><strong>Locals:</strong> {totalLocals}</p>
-              <p className="m-1 small"><strong>Males:</strong> {totalMales}</p>
-              {prefer_not_to_say && (
-                <p className="m-1 small"><strong>Prefer not to say:</strong> {prefer_not_to_say}</p>
-              )}
-              <p className="m-1 small"><strong>Kids (0-12 y.o.):</strong> {totalKids}</p>
-              <p className="m-1 small"><strong>Adults (20-59 y.o.):</strong> {totalAdults}</p>
-            </Col>
-            <Col md={6} className="col">
-              <p className="m-1 small"><strong>Foreigns:</strong> {totalForeigns}</p>
-              <p className="m-1 small"><strong>Females:</strong> {totalFemales}</p>
-              <p className="m-1 small"><strong>Teens (13-19 y.o.):</strong> {totalTeens}</p>
-              <p className="m-1 small"><strong>Seniors (60 y.o. above):</strong> {totalSeniors}</p>
-            </Col>
-          </Row>
-
-          {/* Activities */}
-          <p className="mt-2 ms-1 small"><strong>ACTIVITIES AVAILED</strong></p>
-          {activities.map((a, i) => (
-            <div key={i} className="mb-3">
-              <Row className="row">
-                <Col md={6} className="col">
-                  {a.activities_availed?.map((id, idx) => {
-                    const activity = getActivityDetails(id);
-                    return (
-                      <div key={idx}>
-                        <p className="m-1 small">
-                          <strong>Activity:</strong> {activity?.activity_name || "Loading..."}
-                        </p>
-                        <p className="m-1 small">
-                          <strong>Duration:</strong> {activity?.activity_duration || "-"} mins
-                        </p>
-                      </div>
-                    );
-                  })}
-                  <p className="m-1 small"><strong>For:</strong> {a.activity_num_pax} pax</p>
-                  <p className="m-1 small"><strong>Area:</strong> {a.activity_area}</p>
-                </Col>
-                <Col md={6} className="col">
-                  <p className="m-1 small">
-                    <strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}
-                  </p>
-                  <p className="m-1 small">
-                    <strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}
-                  </p>
-                  {a.activity_selected_providers?.length > 0 && (
-                    <p className="m-1 small">
-                      <strong>Providers:</strong>{" "}
-                      {a.activity_selected_providers.map((id) => getProviderName(id) || "Loading...").join(", ")}
-                    </p>
-                  )}
-                </Col>
-              </Row>
+{/* Activities */}
+<p className="mt-2 ms-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+  <strong>ACTIVITIES AVAILED</strong>
+</p>
+{activities.map((a, i) => (
+  <div key={i} className="mb-3">
+    <Row className="row">
+      <Col md={6} className="col">
+        {a.activities_availed?.map((id, idx) => {
+          const activity = getActivityDetails(id);
+          return (
+            <div key={idx}>
+              <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+                <strong>Activity:</strong> {activity?.activity_name || "Loading..."}
+              </p>
+              <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+                <strong>Duration:</strong> {activity?.activity_duration || "-"} mins
+              </p>
             </div>
-          ))}
-
-          {/* Totals */}
-          <Row className="row justify-content-center align-items-center">
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small"><strong>Total Pax:</strong> {total_pax}</p>
-              <p className="m-1 small"><strong>Expected Pricing:</strong> {total_expected_payment}</p>
-            </Col>
-            <Col md={6} sm={12} className="col">
-              <p className="m-1 small"><strong>Total Duration:</strong> {total_duration}</p>
-              <p className="m-1 small"><strong>Agreed Pricing:</strong> {total_payment}</p>
-            </Col>
-          </Row>
-
-          {/* Company Info */}
-          <div className="text-center mt-2 small">
-            <p className="m-1"><strong>Company:</strong> {companyInfo?.name || "Loading..."}</p>
-            <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.firstname} ${employeeInfo.surname}` : "Loading..."}</p>
-            <p className="m-1"><strong>Contact:</strong> {employeeInfo ? `${employeeInfo.contact}` : "Loading..."}</p>
-          </div>
-
-          <p
-            className="m-1 mt-3 text-muted text-center"
-            style={{ fontSize: "0.6rem", lineHeight: "1rem" }}
-          >
-            Note: Generated electronic QR codes must be deleted properly once used or expired. Unethical or unpermitted use of this electronic copy or any of the data it contains is strictly prohibited and punishable by law.
+          );
+        })}
+        <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+          <strong>For:</strong> {a.activity_num_pax} pax
+        </p>
+        <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+          <strong>Area:</strong> {a.activity_area}
+        </p>
+      </Col>
+      <Col md={6} className="col">
+        <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+          <strong>Start:</strong> {new Date(a.activity_date_time_start).toLocaleString()}
+        </p>
+        <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+          <strong>End:</strong> {new Date(a.activity_date_time_end).toLocaleString()}
+        </p>
+        {a.activity_selected_providers?.length > 0 && (
+          <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+            <strong>Providers:</strong>{" "}
+            {a.activity_selected_providers.map((id) => getProviderName(id) || "Loading...").join(", ")}
           </p>
+        )}
+      </Col>
+    </Row>
+  </div>
+))}
+
+{/* Totals */}
+<Row className="row justify-content-center align-items-center">
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Total Pax:</strong> {total_pax}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Expected Pricing:</strong> {total_expected_payment}
+    </p>
+  </Col>
+  <Col md={6} sm={12} className="col">
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Total Duration:</strong> {total_duration}
+    </p>
+    <p className="m-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+      <strong>Agreed Pricing:</strong> {total_payment}
+    </p>
+  </Col>
+</Row>
+
+{/* Company Info */}
+<div className="text-center mt-2 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
+  <p className="m-1"><strong>Company:</strong> {companyInfo?.name || "Loading..."}</p>
+  <p className="m-1"><strong>Tour Coordinator/Guide:</strong> {employeeInfo ? `${employeeInfo.firstname} ${employeeInfo.surname}` : "Loading..."}</p>
+  <p className="m-1"><strong>Contact:</strong> {employeeInfo ? `${employeeInfo.contact}` : "Loading..."}</p>
+</div>
+
+<p
+  className="m-1 mt-3 text-muted text-center"
+  style={{ fontSize: "0.6rem", lineHeight: "1rem" }}
+>
+  Note: Generated electronic QR codes must be deleted properly once used or expired. Unethical or unpermitted use of this electronic copy or any of the data it contains is strictly prohibited and punishable by law.
+</p>
+
+
 
         </div>
 

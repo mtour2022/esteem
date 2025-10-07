@@ -2398,7 +2398,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
             {/* Summary Tab */}
             <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
-              <div className="mt-4 mx-2 p-0">
+              <div className="mt-4 mx-2 p-0 mb-4">
                 {/* <div className="d-flex align-items-center mb-2"></div> */}
                 <h6 className="mb-0 me-2">Summary</h6>
                 {/* <Button

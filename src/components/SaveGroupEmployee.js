@@ -220,18 +220,6 @@ const SaveGroupEmployee = ({
           });
 
 
-          // document.getElementById("downloadPdfBtn").addEventListener("click", () => {
-          //   if (!qrPreview) return;
-          //   toPng(qrPreview).then((dataUrl) => {
-          //     const pdf = new jsPDF({
-          //       orientation: "portrait",
-          //       unit: "px",
-          //       format: [qrPreview.offsetWidth, qrPreview.offsetHeight]
-          //     });
-          //     pdf.addImage(dataUrl, 'PNG', 0, 0, qrPreview.offsetWidth, qrPreview.offsetHeight);
-          //     pdf.save(`EmployeeQR_${docRef.id}.pdf`);
-          //   });
-          // });
 
           document.getElementById("proceedBtn").addEventListener("click", () => {
             Swal.fire({
@@ -319,3 +307,17 @@ const SaveGroupEmployee = ({
 };
 
 export default SaveGroupEmployee;
+
+
+          // document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+          //   if (!qrPreview) return;
+          //   toPng(qrPreview).then((dataUrl) => {
+          //     const pdf = new jsPDF({
+          //       orientation: "portrait",
+          //       unit: "px",
+          //       format: [qrPreview.offsetWidth, qrPreview.offsetHeight]
+          //     });
+          //     pdf.addImage(dataUrl, 'PNG', 0, 0, qrPreview.offsetWidth, qrPreview.offsetHeight);
+          //     pdf.save(`EmployeeQR_${docRef.id}.pdf`);
+          //   });
+          // });
