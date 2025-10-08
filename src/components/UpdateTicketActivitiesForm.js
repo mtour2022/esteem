@@ -9,7 +9,7 @@ import { db } from "../config/firebase";
 import useResolvedActivities from "../services/GetActivitiesDetails";
 
 
-const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
+const UpdateTicketActivitiesForm = ({ groupData, setGroupData, isPackaged  }) => {
 
 
     const [activityOptions, setActivityOptions] = useState([]);
@@ -515,8 +515,213 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
                             </Form.Label> */}
 
 
+{/* ✅ PRICING SECTION START */}
+                            {!isPackaged ? (
+                                <>
+                                    <Form.Label
+                                        className="mb-0"
+                                        style={{ fontSize: "0.7rem" }}
+                                    >
+                                        Expected Pricing
+                                    </Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        className="my-2"
+                                        placeholder="Expected Pricing"
+                                        value={actGroup.activity_expected_price || ""}
+                                        readOnly
+                                    />
 
-<Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Expected Pricing</Form.Label>
+                                    <Form.Label
+                                        className="mb-0"
+                                        style={{ fontSize: "0.7rem" }}
+                                    >
+                                        Agreed Price
+                                    </Form.Label>
+
+                                    {(() => {
+                                        const expected = Number(actGroup.activity_expected_price || 0);
+                                        const agreedRaw = actGroup.activity_agreed_price ?? "";
+                                        const agreedNum = Number(agreedRaw);
+                                        const isBelow =
+                                            agreedRaw !== "" && expected > 0 && agreedNum < expected;
+
+                                        return (
+                                            <>
+                                                <Form.Control
+                                                    type="number"
+                                                    min="0"
+                                                    className="my-2"
+                                                    required
+                                                    placeholder="Agreed Price"
+                                                    value={agreedRaw}
+                                                    isInvalid={isBelow}
+                                                    onChange={(e) =>
+                                                        handleActivityGroupChange(index, {
+                                                            activity_agreed_price: e.target.value,
+                                                        })
+                                                    }
+                                                    onBlur={(e) => {
+                                                        const num = Number(e.target.value);
+                                                        if (
+                                                            e.target.value !== "" &&
+                                                            expected > 0 &&
+                                                            num < expected
+                                                        ) {
+                                                            handleActivityGroupChange(index, {
+                                                                activity_agreed_price: "",
+                                                            });
+                                                        }
+                                                    }}
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    Agreed Price cannot be lower than Expected Pricing (
+                                                    {expected}).
+                                                </Form.Control.Feedback>
+
+                                                <Form.Label
+                                                    className="mb-0"
+                                                    style={{ fontSize: "0.7rem" }}
+                                                >
+                                                    {(() => {
+                                                        if (!expected || expected === 0) return "";
+                                                        if (agreedRaw === "" || Number.isNaN(agreedNum))
+                                                            return "";
+                                                        const markup =
+                                                            ((agreedNum - expected) / expected) * 100;
+                                                        return `Additional Markup: ${markup.toFixed(2)}%`;
+                                                    })()}
+                                                </Form.Label>
+                                            </>
+                                        );
+                                    })()}
+
+                                    {(() => {
+                                        const pax = parseInt(actGroup.activity_num_pax || "1");
+                                        const agreedPrice = parseFloat(
+                                            actGroup.activity_agreed_price || "0"
+                                        );
+                                        let baseTotal = 0;
+
+                                        actGroup.activities_availed?.forEach((activity) => {
+                                            const activityId =
+                                                typeof activity === "string"
+                                                    ? activity
+                                                    : activity.activity_id;
+                                            const resolved = resolvedActivities.find(
+                                                (act) => act.id === activityId
+                                            );
+                                            if (!resolved) return;
+                                            const basePrice = parseFloat(
+                                                resolved.activity_base_price || "0"
+                                            );
+                                            if (!isNaN(basePrice)) baseTotal += basePrice * pax;
+                                        });
+
+                                        const expectedSale = Math.max(agreedPrice - baseTotal, 0);
+                                        const markup =
+                                            baseTotal > 0 ? (expectedSale / baseTotal) * 100 : 0;
+                                        const formattedMarkup = markup.toFixed(1);
+
+                                        if (markup >= 30 && markup <= 50) {
+                                            return (
+                                                <Form.Label
+                                                    className="text-warning mb-0"
+                                                    style={{ fontSize: "0.7rem" }}
+                                                >
+                                                    ⚠️ Additional Markup is {formattedMarkup}%.
+                                                    Additional Markup between 30–50% is high for tourism
+                                                    services. Ensure value is justified to avoid guest
+                                                    dissatisfaction or refund disputes.
+                                                </Form.Label>
+                                            );
+                                        } else if (markup > 50) {
+                                            return (
+                                                <Form.Label
+                                                    className="text-danger mb-0"
+                                                    style={{ fontSize: "0.7rem" }}
+                                                >
+                                                    ⚠️ Additional Markup is {formattedMarkup}%.
+                                                    Additional Markup above 50% in tourism services may be
+                                                    considered excessive pricing. Ensure transparency to
+                                                    avoid complaints under fair trade and tourism
+                                                    regulations.
+                                                </Form.Label>
+                                            );
+                                        }
+
+                                        return null;
+                                    })()}
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-warning" style={{ fontSize: "0.85rem" }}>
+                                        ⚠️ Packaged Tour — SRP and markup validations are disabled.
+                                        Please enter the actual amount charged.
+                                    </p>
+
+                                    <Form.Label
+                                        className="mb-0"
+                                        style={{ fontSize: "0.7rem" }}
+                                    >
+                                        Actual Agreed Price
+                                    </Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min="0"
+                                        className="my-2"
+                                        required
+                                        placeholder="Enter Actual Agreed Price"
+                                        value={actGroup.activity_agreed_price || ""}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            handleActivityGroupChange(index, {
+                                                activity_agreed_price: val,
+                                                activity_expected_price: val,
+                                            });
+                                        }}
+                                    />
+                                </>
+                            )}
+                            {/* ✅ PRICING SECTION END */}
+
+                            <div className="d-flex justify-content-between">
+                                {groupData.activities.length > 1 && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-danger mt-2"
+                                        onClick={() => handleRemoveActivityGroup(index)}
+                                    >
+                                        <FontAwesomeIcon icon={faTrash} className="text-danger" />
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="btn btn-light border border-secondary text-secondary mt-2 d-flex align-items-center gap-2"
+                                    onClick={() => {
+                                        const last =
+                                            groupData.activities[groupData.activities.length - 1];
+                                        if (
+                                            !last.activity_agreed_price ||
+                                            last.activity_agreed_price === "0"
+                                        ) {
+                                            alert(
+                                                "Please enter the agreed pricing before adding another activity."
+                                            );
+                                            return;
+                                        }
+                                        handleAddActivityGroup();
+                                    }}
+                                >
+                                    <FontAwesomeIcon
+                                        icon={faCirclePlus}
+                                        className="text-secondary"
+                                    />
+                                    Add Another Activity
+                                </button>
+                            </div>
+{/* <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>Expected Pricing</Form.Label>
 <Form.Control
   type="text"
   className="my-2"
@@ -656,7 +861,7 @@ const UpdateTicketActivitiesForm = ({ groupData, setGroupData }) => {
                                     <FontAwesomeIcon icon={faCirclePlus} className="text-secondary" />
                                     Add Another Activity
                                 </button>
-                            </div>
+                            </div> */}
 
                         </div>
                     );

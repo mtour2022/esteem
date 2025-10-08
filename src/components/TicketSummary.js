@@ -39,6 +39,7 @@ const TicketSummary = ({ ticket }) => {
     prefer_not_to_say,
     date_created,
     valid_until,
+    isPackaged,
     total_expected_payment,
     activities = [],
     address = [],
@@ -253,7 +254,9 @@ const TicketSummary = ({ ticket }) => {
 
 {/* Activities */}
 <p className="mt-2 ms-1 small" style={{ fontSize: "0.7rem", lineHeight: "1rem" }}>
-  <strong>ACTIVITIES AVAILED</strong>
+<strong>
+  ACTIVITIES AVAILED - {isPackaged ? "Packaged Tour" : "Unpackaged"}
+</strong>
 </p>
 {activities.map((a, i) => (
   <div key={i} className="mb-3">

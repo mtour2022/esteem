@@ -243,23 +243,48 @@ export default function TicketEdit({ ticket }) {
 
                                 {/* Step 3 */}
                                 {currentStep === 3 && (
-                                    <UpdateTicketActivitiesForm
-                                        groupData={ticketData}
-                                        setGroupData={setTicketData}
-                                    />
+                                    <>
+                                        {/* NEW ADDED */}
+                                        <Form.Group className="my-3 d-flex align-items-center justify-content-between">
+                                            <Form.Label className="fw-bold mb-0">Is this a Packaged Tour?</Form.Label>
+                                            <Form.Check
+                                                type="switch"
+                                                id="isPackaged-switch"
+                                                label={ticketData.isPackaged ? "Packaged" : "Not Packaged"}
+                                                checked={ticketData.isPackaged || false}
+                                                onChange={(e) =>
+                                                    setTicketData((prev) => ({
+                                                        ...prev,
+                                                        isPackaged: e.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                        </Form.Group>
+                                        <UpdateTicketActivitiesForm
+                                            groupData={ticketData}
+                                            setGroupData={setTicketData}
+                                            isPackaged={ticketData.isPackaged} // ✅ pass value here
+                                        />
+                                    </>
+
                                 )}
 
 
 
                                 {/* Navigation */}
                                 {/* Navigation */}
-                                <Container className="d-flex justify-content-between mt-3">
+                                <Container
+                                    className={`d-flex mt-3 ${currentStep === 1 ? "justify-content-end" : "justify-content-between"
+                                        }`}
+                                >
+                                    {/* Previous Button - Show only if currentStep > 1 */}
                                     {currentStep > 1 && (
                                         <Button variant="secondary" onClick={prevStep}>
                                             Previous
                                         </Button>
                                     )}
 
+                                    {/* Next or Edit Button */}
                                     {currentStep < 3 ? (
                                         <Button
                                             className="color-blue-button"
@@ -283,10 +308,9 @@ export default function TicketEdit({ ticket }) {
                                             }}
                                             disabled={!isStep3FormValid()}
                                         />
-
-
                                     )}
                                 </Container>
+
 
 
                                 {/* add here the Text field of the verifier name and contact using the currentUser Id in the /verifier collection */}

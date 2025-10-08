@@ -1070,15 +1070,109 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
   const getGrandTotal = () => Object.values(groupedData).reduce((acc, days) => acc + getMonthTotal(days), 0);
 
 
-  const handleDownloadImageSummary = async () => {
-    if (!tableRefSummaryImage.current) return;
-    try {
-      const dataUrl = await toPng(tableRefSummaryImage.current);
-      download(dataUrl, `tickets_summary.png`);
-    } catch (err) {
-      console.error("Image download failed", err);
-    }
+const handleDownloadImageSummary = async () => {
+  if (!tableRefSummaryImage.current) return;
+
+  const element = tableRefSummaryImage.current;
+
+  // Find buttons and responsive scroll wrapper inside the card
+  const buttonElements = element.querySelectorAll("button");
+  const scrollWrapper = element.querySelector(".table-responsive");
+
+  // Save original styles
+  const originalStyle = {
+    width: element.style.width,
+    overflowX: element.style.overflowX,
   };
+  const originalScrollStyle = scrollWrapper
+    ? {
+        overflowX: scrollWrapper.style.overflowX,
+        scrollbarWidth: scrollWrapper.style.scrollbarWidth,
+      }
+    : {};
+
+  try {
+    // 🟢 Show exporting Swal
+    Swal.fire({
+      title: "Exporting...",
+      text: "Please wait while the summary image is being generated.",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    // 🟢 Hide buttons
+    buttonElements.forEach((btn) => (btn.style.display = "none"));
+
+    // 🟢 Temporarily expand container and disable overflow
+    element.style.width = "max-content";
+    element.style.overflowX = "visible";
+
+    // 🟢 Hide scrollbars on wrapper and globally
+    if (scrollWrapper) {
+      scrollWrapper.style.overflowX = "visible";
+      scrollWrapper.style.scrollbarWidth = "none"; // Firefox
+      scrollWrapper.style.msOverflowStyle = "none"; // IE
+      scrollWrapper.classList.add("no-scrollbar");
+    }
+    document.body.style.overflow = "hidden";
+
+    // 🟢 Add a small CSS rule to hide scrollbar visually (for WebKit)
+    const styleTag = document.createElement("style");
+    styleTag.innerHTML = `
+      .no-scrollbar::-webkit-scrollbar { display: none !important; }
+    `;
+    document.head.appendChild(styleTag);
+
+    // Give browser time to re-render
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // 🟢 Capture full table as PNG
+    const dataUrl = await toPng(element, {
+      backgroundColor: "#ffffff",
+      style: {
+        transform: "scale(1)",
+        transformOrigin: "top left",
+      },
+    });
+
+    // 🟢 Download image
+    download(dataUrl, `tickets_summary.png`);
+
+    // 🟢 Success Swal
+    Swal.fire({
+      icon: "success",
+      title: "Export Complete!",
+      text: "Your summary image has been downloaded.",
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  } catch (err) {
+    console.error("Image download failed", err);
+    Swal.fire({
+      icon: "error",
+      title: "Export Failed",
+      text: "Something went wrong while generating the image.",
+    });
+  } finally {
+    // 🟢 Restore styles
+    element.style.width = originalStyle.width;
+    element.style.overflowX = originalStyle.overflowX;
+    document.body.style.overflow = "";
+
+    if (scrollWrapper) {
+      scrollWrapper.style.overflowX = originalScrollStyle.overflowX;
+      scrollWrapper.style.scrollbarWidth = originalScrollStyle.scrollbarWidth;
+      scrollWrapper.classList.remove("no-scrollbar");
+    }
+
+    // 🟢 Remove temporary CSS
+    const tempStyle = document.querySelector("style:has(.no-scrollbar)");
+    if (tempStyle) tempStyle.remove();
+
+    buttonElements.forEach((btn) => (btn.style.display = ""));
+  }
+};
+
 
 
   const handleDownloadExcel = () => {

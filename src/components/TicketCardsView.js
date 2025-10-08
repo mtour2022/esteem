@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, Button, Form, Badge } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faQrcode } from "@fortawesome/free-solid-svg-icons";
+import { faQrcode, faPen } from "@fortawesome/free-solid-svg-icons";
 
 // ✅ Helper: Map status → Bootstrap variant
 const getStatusBadgeVariant = (status) => {
@@ -187,10 +187,19 @@ const TicketRankingList = ({ tickets = [], onViewQR }) => {
                       <Button
                         variant="outline-secondary"
                         size="md"
+
                         onClick={() => onViewQR && onViewQR(t)}
                       >
                         <FontAwesomeIcon icon={faQrcode} />
                       </Button>
+                      {/* <Button
+                        variant="outline-secondary"
+                        size="md"
+                        className="me-2"
+                        onClick={() => onViewQR && onViewQR(t)}
+                      >
+                        <FontAwesomeIcon icon={faPen} />
+                      </Button> */}
                     </div>
                   </Card.Body>
                 </Card>
