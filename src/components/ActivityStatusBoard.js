@@ -230,6 +230,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
     { key: "seniors", label: "Seniors" },
     { key: "assignedTo", label: "Assigned To" },
     { key: "assigneeContact", label: "Assignee's Contact" },
+    { key: "isPackaged", label: "Is Packaged" },
     { key: "activityNames", label: "Activity Names" },
     { key: "totalDuration", label: "Total Duration" },
     { key: "expectedPayment", label: "Expected Payment" },
@@ -887,6 +888,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
         Seniors: seniors,
         "Assigned To": employeeName,
         "Assignee's Contact": employeeContact,
+        isPackaged: t.isPackaged,
         "Activities Availed": Array.isArray(t.activities)
           ? t.activities.map((a) => {
             const providerNames = Array.isArray(a.activity_selected_providers)
@@ -973,6 +975,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
         females,
         preferNotToSay, kids, teens, adults, seniors,
         employeeName, employeeContact,
+        t.isPackaged,
         Array.isArray(t.activities)
           ? t.activities.map((a) => {
             const providerNames = Array.isArray(a.activity_selected_providers)
@@ -1005,7 +1008,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
       head: [[
         "Status", "TicketID", "Name", "Contact", "Accommodation", "Addresses", "Start Time", "End Time", "Total Pax",
         "Locals", "Foreigns", "Males", "Females", "Prefered Not To Say",
-        "Kids", "Teens", "Adults", "Seniors", "Assigned To", "Asignee's Contact", "Activities Availed",
+        "Kids", "Teens", "Adults", "Seniors", "Assigned To", "Is Packaged", "Asignee's Contact", "Activities Availed",
         , "Expected Payment", "Actual Payment", "Total Markup", "Scanned By"
       ]],
       body: exportData,
@@ -2056,39 +2059,39 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                   }}
                 />
 
-           {selectedTicket && (
-  <Card
-    className="border rounded p-2 mt-4 position-relative"
-    style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
-  >
-    {/* Close button positioned at top-right */}
-    <Button
-      variant="danger"
-      size="sm"
-      onClick={() => setSelectedTicket(null)}
-      className="d-flex align-items-center justify-content-center"
-      style={{
-        position: "absolute",
-        top: "15px",
-        right: "15px",
-        zIndex: 10,
-        width: "32px",
-        height: "32px",
-        borderRadius: "50%", // make it circular
-        padding: 0,
-      }}
-    >
-      <FontAwesomeIcon icon={faClose} />
-    </Button>
+                {selectedTicket && (
+                  <Card
+                    className="border rounded p-2 mt-4 position-relative"
+                    style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
+                  >
+                    {/* Close button positioned at top-right */}
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setSelectedTicket(null)}
+                      className="d-flex align-items-center justify-content-center"
+                      style={{
+                        position: "absolute",
+                        top: "15px",
+                        right: "15px",
+                        zIndex: 10,
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%", // make it circular
+                        padding: 0,
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faClose} />
+                    </Button>
 
-    {/* Scrollable container for TicketSummary */}
-    <div style={{ maxHeight: "800px", overflowY: "auto", paddingTop: "40px" }}>
-      <div className="mt-4 mb-4" id="ticket-summary">
-        <TicketSummary ticket={selectedTicket} />
-      </div>
-    </div>
-  </Card>
-)}
+                    {/* Scrollable container for TicketSummary */}
+                    <div style={{ maxHeight: "800px", overflowY: "auto", paddingTop: "40px" }}>
+                      <div className="mt-4 mb-4" id="ticket-summary">
+                        <TicketSummary ticket={selectedTicket} />
+                      </div>
+                    </div>
+                  </Card>
+                )}
 
 
 
@@ -2142,6 +2145,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                                   `seniors: ${total(t.address, 'seniors')}`,
                                   `assignedTo: ${getEmployeeName(t)}`,
                                   `assigneeContact: ${getEmployeeContact(t)}`,
+                                  `isPackaged: ${t.isPackaged}`,
                                   `activityAvailed: ${getActivitiesText(t)}`,
                                   `totalDuration: ${t.total_duration || 0}`,
                                   `expectedPayment: ₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
@@ -2182,23 +2186,23 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                                       >
                                         <FontAwesomeIcon icon={faTrash} />
                                       </Button>
-                            <Button
-  variant="outline-secondary"
-  size="sm"
- onClick={() => {
-  setSelectedTicketEdit(null);
-  setTimeout(() => {
-    setSelectedTicketEdit(t);
-    const el = document.getElementById("ticket-edit");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, 50);
-}}
+                                      <Button
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedTicketEdit(null);
+                                          setTimeout(() => {
+                                            setSelectedTicketEdit(t);
+                                            const el = document.getElementById("ticket-edit");
+                                            if (el) {
+                                              el.scrollIntoView({ behavior: "smooth", block: "start" });
+                                            }
+                                          }, 50);
+                                        }}
 
->
-  <FontAwesomeIcon icon={faPen} />
-</Button>
+                                      >
+                                        <FontAwesomeIcon icon={faPen} />
+                                      </Button>
 
 
                                       <Button
@@ -2246,6 +2250,7 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
                                 seniors: total(t.address, 'seniors'),
                                 assignedTo: getEmployeeName(t),
                                 assigneeContact: getEmployeeContact(t),
+                                isPackaged: t.isPackaged ? "Packaged" : "Unpackaged",
                                 activityNames: renderActivities(t),
                                 totalDuration: `${t.total_duration || 0} min`,
                                 expectedPayment: `₱${t.total_expected_payment?.toLocaleString() || "0.00"}`,
@@ -2333,35 +2338,35 @@ const TouristActivityStatusBoard = ({ ticket_ids = [], refreshKey }) => {
 
 
       </Card.Body>
-      
-{selectedTicketEdit && (
-  <Card
-    className="border rounded p-2 mt-4 position-relative"
-    id="ticket-edit"
-    style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
-  >
-    {/* Close Button */}
-    <Button
-      variant="danger"
-      size="sm"
-      className="position-absolute d-flex align-items-center justify-content-center"
-      style={{
-        top: "20px",
-        right: "20px",
-        width: "32px",
-        height: "32px",
-        borderRadius: "50%", // makes it circular
-        padding: "0",
-      }}
-      onClick={() => setSelectedTicketEdit(null)}
-    >
-      <FontAwesomeIcon icon={faClose} />
-    </Button>
 
-    {/* Ticket Edit Component */}
-    <TicketEdit ticket={selectedTicketEdit} />
-  </Card>
-)}
+      {selectedTicketEdit && (
+        <Card
+          className="border rounded p-2 mt-4 position-relative"
+          id="ticket-edit"
+          style={{ backgroundColor: "#f8f9fa", borderColor: "#dee2e6" }}
+        >
+          {/* Close Button */}
+          <Button
+            variant="danger"
+            size="sm"
+            className="position-absolute d-flex align-items-center justify-content-center"
+            style={{
+              top: "20px",
+              right: "20px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%", // makes it circular
+              padding: "0",
+            }}
+            onClick={() => setSelectedTicketEdit(null)}
+          >
+            <FontAwesomeIcon icon={faClose} />
+          </Button>
+
+          {/* Ticket Edit Component */}
+          <TicketEdit ticket={selectedTicketEdit} />
+        </Card>
+      )}
 
 
       {/* qr screen here  */}

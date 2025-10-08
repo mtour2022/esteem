@@ -150,22 +150,22 @@ const CompanyDashboardPanel = ({ company, refreshKey }) => {
                     <td>{index + 1}</td>
                     <td>{certId}</td>
                     <td>
-                              <button
-  className="btn btn-sm btn-primary"
-  onClick={() => {
-    setSelectedCert(certId);
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => {
+                          setSelectedCert(certId);
 
-    // Wait a tick for React to render <CompanyTourismCert />
-    setTimeout(() => {
-      const element = document.getElementById("summary-cert");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 200);
-  }}
->
-  View Certificate
-</button>
+                          // Wait a tick for React to render <CompanyTourismCert />
+                          setTimeout(() => {
+                            const element = document.getElementById("summary-cert");
+                            if (element) {
+                              element.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }, 200);
+                        }}
+                      >
+                        View Certificate
+                      </button>
                     </td>
                   </tr>
                 ))}

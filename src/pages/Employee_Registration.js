@@ -7,31 +7,37 @@ import {
     Col,
     Alert,
     Container,
-
 } from 'react-bootstrap';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai';
-import { db } from '../config/firebase';
 import {
     collection,
-    where,
+    where, addDoc, updateDoc, doc, arrayUnion,
     query,
     getDocs
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import AppNavBar from '../components/AppNavBar';
 import AddressRegistrationForm from '../components/AddressRegistration';
 import SaveGroupEmployee from '../components/SaveGroupEmployee';
 import FooterCustomized from '../components/Footer';
-// import FileUploader from '../components/UploadFile';
 import useCompanyInfo from '../services/GetCompanyDetails';
 import Employee from '../classes/employee';
 import BirthPlaceForm from '../components/BirthPlaceRegistration copy';
 import Select from "react-select";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import FileUploader from '../components/UploadImageFile';
-
+import Swal from "sweetalert2";
+import { storage, db, auth } from "../config/firebase";
+import { docreateUserWithEmailAndPassword } from "../config/auth";
+import { toPng } from "html-to-image";
+import download from "downloadjs";
+import jsPDF from "jspdf";
+import QRCode from "qrcode";
+import logo from "../assets/images/lgu.png";
 
 export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
     const { residency } = useParams();
+    const navigate = useNavigate(); // ✅ defines navigate
 
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState({
@@ -69,15 +75,244 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
         confirmPassword: '',
         agreed: false,
     });
-
     const [companies, setCompanies] = useState([]);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
     const webcamRef = useRef(null);
     const [errorMessage, setErrorMessage] = useState('');
-
     const companyInfo = useCompanyInfo(formData.companyId);
+    // 🟢 Replace with your Firestore collection
+    const collectionName = "employee";
+    const groupCollectionRef = collection(db, collectionName);
+    const dateNow = new Date().toLocaleString("en-PH");
+
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+
+        try {
+            // 🟢 Determine exemption and nationality logic
+            const isExempted =
+                formData.designation === "Field Staff" ||
+                formData.designation === "Office Staff" ||
+                (formData.designation || "").toLowerCase().includes("owner");
+
+            const nationalityValue = formData.nationality?.toLowerCase();
+            const isForeign =
+                nationalityValue === "foreign" ||
+                (!nationalityValue && residency === "foreign");
+
+            // 🟡 Collect missing fields dynamically
+            const missingFields = [];
+
+            if (!formData.profilePhoto)
+                missingFields.push("Profile Photo");
+            if (!formData.additionalRequirement)
+                missingFields.push("Signed Endorsement / Employment Certificate");
+            if (!formData.email)
+                missingFields.push("Email Address");
+            if (!formData.agreed)
+                missingFields.push("Agreement Checkbox (Please check to proceed)");
+
+            if (isExempted) {
+                // No extra
+            } else if (isForeign) {
+                if (!formData.workingPermit)
+                    missingFields.push("Special Working Permit (AEP/9G/DOLE Certificate)");
+                if (!formData.passportNumber)
+                    missingFields.push("Passport Number");
+            } else {
+                if (formData.isTrained && !formData.trainingCert)
+                    missingFields.push("Training Certificate (required if trained)");
+                if (
+                    formData.application_type === "new" &&
+                    formData.designation === "Local Tour Coordinator" &&
+                    !formData.diploma
+                )
+                    missingFields.push("Diploma / Transcript / Certificate of Completion");
+            }
+
+            if (missingFields.length > 0) {
+                Swal.fire({
+                    title: "Missing File(s)",
+                    icon: "warning",
+                    html: `
+            <p>Please upload or complete the following before submitting:</p>
+            <ul style="text-align: left; margin: 10px auto; display: inline-block;">
+              ${missingFields.map((f) => `<li>${f}</li>`).join("")}
+            </ul>
+          `,
+                });
+                return;
+            }
+
+            // ✅ Uploading message
+            Swal.fire({
+                title: "Uploading...",
+                text: "Please wait while your files are being uploaded.",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            // ✅ Create Firebase Auth User
+            let userCredential;
+            try {
+                userCredential = await docreateUserWithEmailAndPassword(
+                    auth,
+                    formData.email,
+                    formData.password
+                );
+            } catch (authError) {
+                if (authError.code === "auth/email-already-in-use") {
+                    Swal.fire({
+                        title: "Email Already Registered",
+                        icon: "warning",
+                        text: "This email is already registered. Please use another one.",
+                    });
+                    return;
+                }
+                throw authError;
+            }
+
+            const userUID = userCredential.user.uid;
+
+            // ✅ Upload files to Firebase Storage
+            const uploads = {};
+            const uploadFile = async (file, folderName) => {
+                const fileExt = file.name?.split(".").pop() || "jpg";
+                const fileRef = ref(
+                    storage,
+                    `employee/${folderName}/${Date.now()}_${file.name || folderName}.${fileExt}`
+                );
+                await uploadBytes(fileRef, file);
+                return getDownloadURL(fileRef);
+            };
+
+            if (formData.profilePhoto)
+                uploads.profilePhoto = await uploadFile(formData.profilePhoto, "profilePhotos");
+            if (formData.trainingCert)
+                uploads.trainingCert = await uploadFile(formData.trainingCert, "trainingCerts");
+            if (formData.additionalRequirement)
+                uploads.additionalRequirement = await uploadFile(formData.additionalRequirement, "additionalRequirements");
+            if (formData.workingPermit)
+                uploads.workingPermit = await uploadFile(formData.workingPermit, "workingPermits");
+            if (formData.diploma)
+                uploads.diploma = await uploadFile(formData.diploma, "diplomas");
+
+            // 🟢 Firestore object
+            const employeeData = {
+                ...formData,
+                ...uploads,
+                userUID,
+                status: "under review",
+                date_registered: dateNow,
+                status_history: arrayUnion({
+                    date_updated: new Date().toISOString(),
+                    remarks: "Under Review",
+                    status: "under review",
+                    userId: userUID || "system",
+                }),
+            };
+
+            const docRef = await addDoc(groupCollectionRef, employeeData);
+            const empDoc = doc(db, collectionName, docRef.id);
+            await updateDoc(empDoc, {
+                employeeId: docRef.id,
+                quickstatus_id: docRef.id,
+            });
+
+            // ✅ Success message + QR
+            Swal.fire({
+                title: "Success!",
+                html: `
+          <div id="qr-preview" style="padding: 20px; text-align: center; background: #fff; border: 1px solid #ccc; font-family: Arial;">
+                        <img src="${logo}" alt="Logo" height="80" style="margin-bottom: 10px;" />
+          <div style="font-size: 12px; font-weight: bold; line-height: 18px; margin-bottom: 10px;">
+              Republic of the Philippines<br />
+              Province of Aklan<br />
+              Municipality of Malay<br />
+              Municipal Tourism Office
+            </div>
+            <p style="font-size: 11px; margin-bottom: 10px; margin-top: 5px;">
+              ${docRef.id} - ${formData.firstname} ${formData.middlename} ${formData.surname}
+            </p>
+            <div style="display: flex; justify-content: center;">
+              <canvas id="generatedQR"></canvas>
+            </div>
+            <p style="font-size: 11px; margin-top: 10px;">
+              Scan this QR code to check your application status.<br />
+              All information is protected under the Data Privacy Act.
+            </p>
+            <p style="font-size: 10px; margin-top: 10px;">
+              Registered on: ${dateNow}
+            </p>
+          </div>
+          <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+            <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
+            <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background: #28a745;">Proceed</button>
+          </div>
+        `,
+                showConfirmButton: false,
+                didOpen: () => {
+                    const qrCanvas = document.getElementById("generatedQR");
+                    QRCode.toCanvas(
+                        qrCanvas,
+                        `https://esteem.com/application-status-check/${docRef.id}`,
+                        { width: 300 },
+                        (err) => {
+                            if (err) console.error("QR error:", err);
+                        }
+                    );
+
+                    const qrPreview = document.getElementById("qr-preview");
+
+                    document.getElementById("downloadImageBtn").addEventListener("click", async () => {
+                        if (!qrPreview) return;
+                        Swal.showLoading();
+                        try {
+                            const dataUrl = await toPng(qrPreview, { useCORS: true, backgroundColor: "#ffffff" });
+                            download(dataUrl, `EmployeeQR_${formData.firstname}_${formData.surname}_${docRef.id}.png`);
+                            Swal.fire({
+                                icon: "success",
+                                title: "Downloaded!",
+                                text: "The image has been saved to your device.",
+                                timer: 1500,
+                                showConfirmButton: false,
+                            }).then(() => navigate("/home"));
+                        } catch (err) {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Download Failed",
+                                text: "Error generating QR. Please try again.",
+                            });
+                        }
+                    });
+
+                    document.getElementById("proceedBtn").addEventListener("click", () => {
+                        Swal.fire({
+                            title: "Next Steps",
+                            icon: "info",
+                            html: `
+                <p>Your submission is under review.</p>
+                <p><strong>Please wait up to 24 hours</strong> for validation (48 hours on weekends).</p>
+                <p>Notification will be sent to <em>${formData.email}</em>.</p>
+              `,
+                            confirmButtonText: "Okay, got it!",
+                        }).then(() => navigate("/home"));
+                    });
+                },
+            });
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            setErrorMessage(error.message);
+            Swal.fire({
+                title: "Error!",
+                icon: "error",
+                text: "Please try again.",
+            });
+        }
+    };
+
 
     useEffect(() => {
         if (residency === "local" || residency === "foreign") {
@@ -199,7 +434,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
         ]
     };
 
-const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide", "Local Tour Guide", "Local Tour Coordinator", "Travel Agency Owner", "Tourist Port Assistance", "Hotel Coordinator", "Foreign Staff", "Field Staff", "Office Staff", "Others (Specify)" ], "peoples organization": [ "Local Tour Guide", "Island Hopping Boat Owner", "Island Hopping Boat Captian", "Island Hopping Boatman", "Party Boat Owner", "Party Boat Captain", "Party Boatman", "Yacht Owner", "Yacht Boat Captain", "Yacht Boatman", "Yacht Steward", "Paraw Owner", "Paraw Boatman", "Picnican Staff", "Travel Agency Owner", "Field Staff", "Office Staff", ], "watersports provider": [ "Watersports Provider Owner (Service Provider)", "Field Staff", "Office Staff", ] };
+    const designationOptionsForPassword = { "travel agency": ["Foreign Tour Guide", "Local Tour Guide", "Local Tour Coordinator", "Travel Agency Owner", "Tourist Port Assistance", "Hotel Coordinator", "Foreign Staff", "Field Staff", "Office Staff", "Others (Specify)"], "peoples organization": ["Local Tour Guide", "Island Hopping Boat Owner", "Island Hopping Boat Captian", "Island Hopping Boatman", "Party Boat Owner", "Party Boat Captain", "Party Boatman", "Yacht Owner", "Yacht Boat Captain", "Yacht Boatman", "Yacht Steward", "Paraw Owner", "Paraw Boatman", "Picnican Staff", "Travel Agency Owner", "Field Staff", "Office Staff",], "watersports provider": ["Watersports Provider Owner (Service Provider)", "Field Staff", "Office Staff",] };
     const [selectedDesignationOption, setSelectedDesignationOption] = useState(null);
 
     const handleDesignationSelect = (option) => {
@@ -668,7 +903,7 @@ const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide",
                                     </>
                                 )}
 
-                                {/* Step 4: Company Details */}
+                                {/* Step 4: Requirements */}
                                 {currentStep === 4 && (
                                     <>
                                         {!formData.designation && (
@@ -793,70 +1028,70 @@ const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide",
                                             />
 
                                         </Form.Group>
-                                     {/* Notification + Password Fields */}
-{Object.values(designationOptionsForPassword)
-  .flat()
-  .includes(formData.designation) && (
-    <div className="mt-4">
-      {/* Notification */}
-      <div className="alert alert-info small">
-        ⚠️ Submitting a password will enable tourist activity online access for this employee.
-      </div>
+                                        {/* Notification + Password Fields */}
+                                        {Object.values(designationOptionsForPassword)
+                                            .flat()
+                                            .includes(formData.designation) && (
+                                                <div className="mt-4">
+                                                    {/* Notification */}
+                                                    <div className="alert alert-info small">
+                                                        ⚠️ Submitting a password will enable tourist activity online access for this employee.
+                                                    </div>
 
-      {/* Password */}
-      <Form.Group className="mb-3">
-        <Form.Label>Password *</Form.Label>
-        <InputGroup>
-          <Form.Control
-            type={showPassword ? "text" : "password"}
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-          <InputGroup.Text
-            onClick={() => setShowPassword(!showPassword)}
-            style={{ cursor: "pointer" }}
-          >
-            {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
-          </InputGroup.Text>
-        </InputGroup>
-      </Form.Group>
+                                                    {/* Password */}
+                                                    <Form.Group className="mb-3">
+                                                        <Form.Label>Password *</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control
+                                                                type={showPassword ? "text" : "password"}
+                                                                name="password"
+                                                                value={formData.password}
+                                                                onChange={handleChange}
+                                                                required
+                                                            />
+                                                            <InputGroup.Text
+                                                                onClick={() => setShowPassword(!showPassword)}
+                                                                style={{ cursor: "pointer" }}
+                                                            >
+                                                                {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
+                                                            </InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
 
-      {/* Confirm Password */}
-      <Form.Group className="mb-3">
-        <Form.Label>Confirm Password *</Form.Label>
-        <InputGroup>
-          <Form.Control
-            type={showConfirmPassword ? "text" : "password"}
-            name="confirmPassword"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            isInvalid={
-              formData.confirmPassword &&
-              formData.confirmPassword !== formData.password
-            }
-          />
-          <InputGroup.Text
-            onClick={() =>
-              setShowConfirmPassword(!showConfirmPassword)
-            }
-            style={{ cursor: "pointer" }}
-          >
-            {showConfirmPassword ? (
-              <AiFillEyeInvisible />
-            ) : (
-              <AiFillEye />
-            )}
-          </InputGroup.Text>
-          <Form.Control.Feedback type="invalid">
-            Passwords do not match.
-          </Form.Control.Feedback>
-        </InputGroup>
-      </Form.Group>
-    </div>
-  )}
+                                                    {/* Confirm Password */}
+                                                    <Form.Group className="mb-3">
+                                                        <Form.Label>Confirm Password *</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control
+                                                                type={showConfirmPassword ? "text" : "password"}
+                                                                name="confirmPassword"
+                                                                value={formData.confirmPassword}
+                                                                onChange={handleChange}
+                                                                required
+                                                                isInvalid={
+                                                                    formData.confirmPassword &&
+                                                                    formData.confirmPassword !== formData.password
+                                                                }
+                                                            />
+                                                            <InputGroup.Text
+                                                                onClick={() =>
+                                                                    setShowConfirmPassword(!showConfirmPassword)
+                                                                }
+                                                                style={{ cursor: "pointer" }}
+                                                            >
+                                                                {showConfirmPassword ? (
+                                                                    <AiFillEyeInvisible />
+                                                                ) : (
+                                                                    <AiFillEye />
+                                                                )}
+                                                            </InputGroup.Text>
+                                                            <Form.Control.Feedback type="invalid">
+                                                                Passwords do not match.
+                                                            </Form.Control.Feedback>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </div>
+                                            )}
 
                                         <Form.Check
                                             className='mt-4'
@@ -880,7 +1115,8 @@ const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide",
                                         </div>
                                     </>)}
                                 {/* Pagination Buttons */}
-                                <Container className='empty-container'></Container>
+                                <Container className="empty-container"></Container>
+
                                 {/* Page Indicators */}
                                 <Container className="d-flex justify-content-center my-1">
                                     {Array.from({ length: totalSteps }, (_, index) => (
@@ -893,88 +1129,99 @@ const designationOptionsForPassword = { "travel agency": [ "Foreign Tour Guide",
                                     ))}
                                 </Container>
 
+                                {/* Navigation Buttons */}
                                 <Container className="d-flex justify-content-between mt-3">
-                                    {/* Previous Button - Show if currentStep > 1 */}
-                                    {currentStep > 1 && (
+                                    {/* Previous Button (only show if not on the first step) */}
+                                    {currentStep > 1 ? (
                                         <Button variant="secondary" onClick={prevStep}>
                                             Previous
                                         </Button>
+                                    ) : (
+                                        <div></div> // Keeps spacing consistent when there's no Previous button
                                     )}
 
-                                    {/* Next Button or Save Button on Last Step */}
+                                    {/* Next Button or Submit on last step */}
                                     {currentStep < 4 ? (
                                         <Button className="color-blue-button" variant="primary" onClick={nextStep}>
                                             Next
                                         </Button>
                                     ) : (
-                                        <SaveGroupEmployee
-                                            groupData={formData}
-                                            setGroupData={setFormData}
-                                            password={formData.password}
-                                            email={formData.email}
-                                            fileType="Application"
-                                            collectionName="employee"
-                                            disabled={
-                                                (() => {
-                                                    const isExempted =
-                                                        formData.designation === "Field Staff" ||
-                                                        formData.designation === "Office Staff" ||
-                                                        (formData.designation || "").toLowerCase().includes("owner");
+                                        <Button
+                                            className="color-blue-button mt-3"
+                                            type="submit"
+                                            onClick={handleSubmit}
+                                        >
+                                            Submit
+                                        </Button>
 
-                                                    const nationalityValue = formData.nationality?.toLowerCase();
-                                                    const isForeign = nationalityValue === "foreign" || (!nationalityValue && residency === "foreign");
+                                        // <SaveGroupEmployee
+                                        //     groupData={formData}
+                                        //     setGroupData={setFormData}
+                                        //     password={formData.password}
+                                        //     email={formData.email}
+                                        //     fileType="Application"
+                                        //     collectionName="employee"
+                                        //     disabled={
+                                        //         (() => {
+                                        //             const isExempted =
+                                        //                 formData.designation === "Field Staff" ||
+                                        //                 formData.designation === "Office Staff" ||
+                                        //                 (formData.designation || "").toLowerCase().includes("owner");
 
-                                                    if (isExempted) {
-                                                        return (
-                                                            !formData.profilePhoto ||
-                                                            !formData.additionalRequirement ||
-                                                            !formData.email ||
-                                                            // !formData.password ||
-                                                            !formData.agreed
-                                                        );
-                                                    }
+                                        //             const nationalityValue = formData.nationality?.toLowerCase();
+                                        //             const isForeign = nationalityValue === "foreign" || (!nationalityValue && residency === "foreign");
 
-                                                    if (isForeign) {
-                                                        return (
-                                                            !formData.profilePhoto ||
-                                                            !formData.additionalRequirement ||
-                                                            !formData.workingPermit ||
-                                                            !formData.passportNumber ||
-                                                            !formData.email ||
-                                                            // !formData.password ||
-                                                            !formData.agreed
-                                                        );
-                                                    }
+                                        //             if (isExempted) {
+                                        //                 return (
+                                        //                     !formData.profilePhoto ||
+                                        //                     !formData.additionalRequirement ||
+                                        //                     !formData.email ||
+                                        //                     // !formData.password ||
+                                        //                     !formData.agreed
+                                        //                 );
+                                        //             }
 
-                                                    // Default (not foreign, not exempted)
-                                                    return (
-                                                        !formData.profilePhoto ||
-                                                        (formData.isTrained && !formData.trainingCert) || // ✅ Only require if isTrained is true
-                                                        !formData.additionalRequirement ||
-                                                        !formData.email ||
-                                                        // !formData.password ||
-                                                        !formData.agreed
-                                                    );
-                                                })()
-                                            }
+                                        //             if (isForeign) {
+                                        //                 return (
+                                        //                     !formData.profilePhoto ||
+                                        //                     !formData.additionalRequirement ||
+                                        //                     !formData.workingPermit ||
+                                        //                     !formData.passportNumber ||
+                                        //                     !formData.email ||
+                                        //                     // !formData.password ||
+                                        //                     !formData.agreed
+                                        //                 );
+                                        //             }
+
+                                        //             // Default (not foreign, not exempted)
+                                        //             return (
+                                        //                 !formData.profilePhoto ||
+                                        //                 (formData.isTrained && !formData.trainingCert) || // ✅ Only require if isTrained is true
+                                        //                 !formData.additionalRequirement ||
+                                        //                 !formData.email ||
+                                        //                 // !formData.password ||
+                                        //                 !formData.agreed
+                                        //             );
+                                        //         })()
+                                        //     }
 
 
-                                            idName="employeeId"
-                                            ModelClass={Employee}
-                                            onSuccess={() => {
-                                                setFormData((prev) => ({
-                                                    ...prev,
-                                                    profilePhoto: null,
-                                                    trainingCert: null,
-                                                    additionalRequirement: null,
-                                                    diploma: null,
-                                                    workingPermit: null,
-                                                    email: "",
-                                                    password: "",
-                                                    confirmPassword: "",
-                                                }));
-                                            }}
-                                        />
+                                        //     idName="employeeId"
+                                        //     ModelClass={Employee}
+                                        //     onSuccess={() => {
+                                        //         setFormData((prev) => ({
+                                        //             ...prev,
+                                        //             profilePhoto: null,
+                                        //             trainingCert: null,
+                                        //             additionalRequirement: null,
+                                        //             diploma: null,
+                                        //             workingPermit: null,
+                                        //             email: "",
+                                        //             password: "",
+                                        //             confirmPassword: "",
+                                        //         }));
+                                        //     }}
+                                        // />
 
 
 

@@ -118,32 +118,32 @@ const SaveTicketToCloud = ({
       let agreedTotal = 0;
 
       ticket.activities?.forEach(group => {
-  const pax = parseInt(group.activity_num_pax || "1"); // default to 1 if missing
-  const agreed = parseFloat(group.activity_agreed_price || "0");
-  if (!isNaN(agreed)) agreedTotal += agreed;
+        const pax = parseInt(group.activity_num_pax || "1"); // default to 1 if missing
+        const agreed = parseFloat(group.activity_agreed_price || "0");
+        if (!isNaN(agreed)) agreedTotal += agreed;
 
-  group.activities_availed?.forEach(id => {
-    const activity = getActivityDetails(id);
+        group.activities_availed?.forEach(id => {
+          const activity = getActivityDetails(id);
 
-    if (!activity) {
-      console.warn(`Missing activity for ID: ${id}`);
-      return;
-    }
+          if (!activity) {
+            console.warn(`Missing activity for ID: ${id}`);
+            return;
+          }
 
-    const price = parseFloat(activity.activity_price || "0");
-    const basePrice = parseFloat(activity.activity_base_price || "0");
+          const price = parseFloat(activity.activity_price || "0");
+          const basePrice = parseFloat(activity.activity_base_price || "0");
 
-    if (!isNaN(basePrice)) baseTotal += basePrice * pax;
-    if (!isNaN(price)) expectedSRP += price * pax;
-  });
-});
+          if (!isNaN(basePrice)) baseTotal += basePrice * pax;
+          if (!isNaN(price)) expectedSRP += price * pax;
+        });
+      });
 
-  // ✅ Total expected sale (no negative)
-ticket.total_expected_sale = Math.max(agreedTotal - baseTotal, 0);
+      // ✅ Total expected sale (no negative)
+      ticket.total_expected_sale = Math.max(agreedTotal - baseTotal, 0);
 
-// ✅ Markup % calculation (safe divide)
-ticket.total_markup =
-  baseTotal > 0 ? (ticket.total_expected_sale / baseTotal) * 100 : 0;
+      // ✅ Markup % calculation (safe divide)
+      ticket.total_markup =
+        baseTotal > 0 ? (ticket.total_expected_sale / baseTotal) * 100 : 0;
 
       // Prepare for Firestore
       ticket.userUID = currentUserUID;
@@ -158,6 +158,7 @@ ticket.total_markup =
         valid_until: ticket.valid_until,
         scan_logs: ticket.scan_logs,
         address: ticket.address,
+        isPackaged: ticket.isPackaged,
         activities: ticket.activities,
         total_pax: ticket.total_pax,
         total_duration: ticket.total_duration_readable,
@@ -184,11 +185,11 @@ ticket.total_markup =
       });
 
       // Add the ticket.ticket_id to the employee document
-if (ticket.employee_id) {
-  await updateDoc(doc(db, "employee", ticket.employee_id), {
-    tickets: arrayUnion(docRef.id),
-  });
-}
+      if (ticket.employee_id) {
+        await updateDoc(doc(db, "employee", ticket.employee_id), {
+          tickets: arrayUnion(docRef.id),
+        });
+      }
 
       setGroupData(new TicketModel({}));
 
