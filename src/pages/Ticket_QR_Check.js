@@ -87,106 +87,140 @@ export default function TicketQRScanner() {
 
         fetchticketData();
     }, [currentUser]);
-// ✅ QR Scanner
-useEffect(() => {
-  if (scannerRequested && webcamRef.current?.video) {
-    const initScanner = async () => {
-      try {
-        // 🔹 Get available cameras
-        const cameras = await QrScanner.listCameras(true);
+    // ✅ QR Scanner
+    useEffect(() => {
+        if (scannerRequested && webcamRef.current?.video) {
+            const initScanner = async () => {
+                try {
+                    // 🔹 Get available cameras
+                    const cameras = await QrScanner.listCameras(true);
 
-        // Try to choose the back/environment camera
-        let preferredCameraId;
-        const backCam = cameras.find(
-          (cam) =>
-            cam.label.toLowerCase().includes("back") ||
-            cam.label.toLowerCase().includes("rear") ||
-            cam.label.toLowerCase().includes("environment")
-        );
-        if (backCam) {
-          preferredCameraId = backCam.id;
-        } else if (cameras.length > 0) {
-          preferredCameraId = cameras[0].id; // fallback to first camera
-        }
+                    // Try to choose the back/environment camera
+                    let preferredCameraId;
+                    const backCam = cameras.find(
+                        (cam) =>
+                            cam.label.toLowerCase().includes("back") ||
+                            cam.label.toLowerCase().includes("rear") ||
+                            cam.label.toLowerCase().includes("environment")
+                    );
+                    if (backCam) {
+                        preferredCameraId = backCam.id;
+                    } else if (cameras.length > 0) {
+                        preferredCameraId = cameras[0].id; // fallback to first camera
+                    }
 
-        const scanner = new QrScanner(
-          webcamRef.current.video,
-          async (result) => {
-            if (handledRef.current) return;
-            if (result?.data) {
-              handledRef.current = true;
-              try {
-                const parts = result.data.trim().split("/").filter(Boolean);
-                const scannedTicketId = parts[parts.length - 1];
+                    const scanner = new QrScanner(
+                        webcamRef.current.video,
+                        async (result) => {
+                            if (handledRef.current) return;
+                            if (result?.data) {
+                                handledRef.current = true;
+                                try {
+                                    const parts = result.data.trim().split("/").filter(Boolean);
+                                    const scannedTicketId = parts[parts.length - 1];
 
-                if (!scannedTicketId) {
-                  Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
-                  return;
+                                    if (!scannedTicketId) {
+                                        Swal.fire("Invalid QR", "No valid Ticket ID found.", "error");
+                                        return;
+                                    }
+
+                                    // 🔹 Query Firestore for ticket
+                                    const q = query(
+                                        collection(db, "tickets"),
+                                        where("ticket_id", "==", scannedTicketId)
+                                    );
+                                    const snap = await getDocs(q);
+
+                                    if (!snap.empty) {
+                                        const ticketDoc = snap.docs[0].data();
+                                        setTicketData(new TicketModel(ticketDoc));
+                                        Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
+                                        setCurrentStep(1);
+                                    } else {
+                                        Swal.fire("Not Found", "No ticket found with that ID.", "warning");
+                                    }
+
+                                    // Stop scanner after handling
+                                    const stopResult = scanner.stop?.();
+                                    if (stopResult instanceof Promise) await stopResult;
+                                    qrScannerRef.current = null;
+                                    setScannerRequested(false);
+                                } catch (err) {
+                                    console.error("Error fetching ticket:", err);
+                                    Swal.fire("Error", "Failed to fetch ticket data.", "error");
+                                    setScannerRequested(false);
+                                }
+                            }
+                        },
+                        {
+                            highlightScanRegion: true,
+                            preferredCamera: preferredCameraId
+                        }
+                    );
+
+                    qrScannerRef.current = scanner;
+                    scanner.start().catch((err) => {
+                        console.error("Camera start error:", err);
+                        Swal.fire("Camera error", "Unable to access the camera.", "error");
+                        setScannerRequested(false);
+                    });
+                } catch (err) {
+                    console.error("Error initializing scanner:", err);
+                    Swal.fire("Camera error", "Unable to initialize camera list.", "error");
+                    setScannerRequested(false);
                 }
+            };
 
-                // 🔹 Query Firestore for ticket
-                const q = query(
-                  collection(db, "tickets"),
-                  where("ticket_id", "==", scannedTicketId)
-                );
-                const snap = await getDocs(q);
+            initScanner();
 
-                if (!snap.empty) {
-                  const ticketDoc = snap.docs[0].data();
-                  setTicketData(new TicketModel(ticketDoc));
-                  Swal.fire("Ticket Loaded", "Ticket data loaded into form.", "success");
-                  setCurrentStep(1);
-                } else {
-                  Swal.fire("Not Found", "No ticket found with that ID.", "warning");
+            return () => {
+                try {
+                    if (qrScannerRef.current && typeof qrScannerRef.current.stop === "function") {
+                        const stopResult = qrScannerRef.current.stop();
+                        if (stopResult instanceof Promise) stopResult.catch(() => { });
+                    }
+                } catch (err) {
+                    console.warn("Error stopping scanner in cleanup:", err);
                 }
-
-                // Stop scanner after handling
-                const stopResult = scanner.stop?.();
-                if (stopResult instanceof Promise) await stopResult;
                 qrScannerRef.current = null;
                 setScannerRequested(false);
-              } catch (err) {
-                console.error("Error fetching ticket:", err);
-                Swal.fire("Error", "Failed to fetch ticket data.", "error");
-                setScannerRequested(false);
-              }
-            }
-          },
-          {
-            highlightScanRegion: true,
-            preferredCamera: preferredCameraId
-          }
-        );
-
-        qrScannerRef.current = scanner;
-        scanner.start().catch((err) => {
-          console.error("Camera start error:", err);
-          Swal.fire("Camera error", "Unable to access the camera.", "error");
-          setScannerRequested(false);
-        });
-      } catch (err) {
-        console.error("Error initializing scanner:", err);
-        Swal.fire("Camera error", "Unable to initialize camera list.", "error");
-        setScannerRequested(false);
-      }
-    };
-
-    initScanner();
-
-    return () => {
-      try {
-        if (qrScannerRef.current && typeof qrScannerRef.current.stop === "function") {
-          const stopResult = qrScannerRef.current.stop();
-          if (stopResult instanceof Promise) stopResult.catch(() => {});
+            };
         }
-      } catch (err) {
-        console.warn("Error stopping scanner in cleanup:", err);
-      }
-      qrScannerRef.current = null;
-      setScannerRequested(false);
-    };
-  }
-}, [scannerRequested]);
+    }, [scannerRequested]);
+
+    // ✅ Auto-fetch assigned employee details when ticketData.employee_id changes
+    useEffect(() => {
+        const loadAssignedEmployee = async () => {
+            if (!ticketData?.employee_id) {
+                setSelectedEmployee(null);
+                return;
+            }
+
+            // If already loaded in employees list, use it directly
+            const existingEmp = employees.find(
+                (emp) => emp.employeeId === ticketData.employee_id
+            );
+            if (existingEmp) {
+                setSelectedEmployee(existingEmp);
+                return;
+            }
+
+            // Otherwise fetch from Firestore
+            const empData = await fetchEmployeeById(ticketData.employee_id);
+            if (empData) {
+                setSelectedEmployee(empData);
+
+                // Optionally add to local employees list for caching
+                setEmployees((prev) => {
+                    const exists = prev.some((e) => e.employeeId === empData.employeeId);
+                    return exists ? prev : [...prev, empData];
+                });
+            }
+        };
+
+        loadAssignedEmployee();
+    }, [ticketData.employee_id, employees]);
+
 
 
 
@@ -305,6 +339,7 @@ useEffect(() => {
     };
 
 
+
     return (
         <div>
             {/* Search Options */}
@@ -369,13 +404,13 @@ useEffect(() => {
                         </Button>
                     ) : (
                         <div>
-                             <Webcam
-                                            audio={false}
-                                            ref={webcamRef}
-                                            screenshotFormat="image/jpeg"
-                                            className="w-100 h-100 mb-2"
-                                            videoConstraints={{ facingMode: "environment" }}
-                                          />
+                            <Webcam
+                                audio={false}
+                                ref={webcamRef}
+                                screenshotFormat="image/jpeg"
+                                className="w-100 h-100 mb-2"
+                                videoConstraints={{ facingMode: "environment" }}
+                            />
                             <Button onClick={handleResetScanner}>Stop Scanner</Button>
                         </div>
                     )}
@@ -488,6 +523,7 @@ useEffect(() => {
                                             <Form.Label className="mb-0" style={{ fontSize: "0.7rem" }}>
                                                 Select designated employee to assist the guests.
                                             </Form.Label>
+
                                             <Select
                                                 options={employees
                                                     .filter(emp =>
@@ -527,9 +563,8 @@ useEffect(() => {
                                                     } : null)
                                                 }
                                                 isClearable
-                                                isDisabled  // 🔹 Makes it read-only
+                                                isDisabled  // 🔹 read-only
                                             />
-
                                         </Form.Group>
 
                                         {selectedEmployee && (
@@ -542,6 +577,7 @@ useEffect(() => {
                                                 />
                                             </Form.Group>
                                         )}
+
                                     </>
                                 )}
 
@@ -556,10 +592,30 @@ useEffect(() => {
 
                                 {/* Step 3 */}
                                 {currentStep === 3 && (
-                                    <UpdateTicketActivitiesForm
-                                        groupData={ticketData}
-                                        setGroupData={setTicketData}
-                                    />
+                                    <>
+                                        {/* NEW ADDED */}
+                                        <Form.Group className="my-3 d-flex align-items-center justify-content-between">
+                                            <Form.Label className="fw-bold mb-0">Is this a Packaged Tour?</Form.Label>
+                                            <Form.Check
+                                                type="switch"
+                                                id="isPackaged-switch"
+                                                label={ticketData.isPackaged ? "Packaged" : "Not Packaged"}
+                                                checked={ticketData.isPackaged || false}
+                                                onChange={(e) =>
+                                                    setTicketData((prev) => ({
+                                                        ...prev,
+                                                        isPackaged: e.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                        </Form.Group>
+                                        <UpdateTicketActivitiesForm
+                                            groupData={ticketData}
+                                            setGroupData={setTicketData}
+                                        />
+
+                                    </>
+
                                 )}
 
                                 {/* Verifier Info */}
@@ -588,7 +644,10 @@ useEffect(() => {
 
                                 {/* Navigation */}
                                 {/* Navigation */}
-                                <Container className="d-flex justify-content-between mt-3">
+                                <Container
+                                    className={`d-flex mt-3 ${currentStep === 1 ? "justify-content-end" : "justify-content-between"
+                                        }`}
+                                >
                                     {currentStep > 1 && (
                                         <Button variant="secondary" onClick={prevStep}>
                                             Previous
@@ -620,8 +679,6 @@ useEffect(() => {
                                             }}
                                             disabled={!isStep3FormValid()}
                                         />
-
-
                                     )}
                                 </Container>
 

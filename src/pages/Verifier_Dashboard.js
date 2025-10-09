@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Nav, Tab, Row, Col, Card, Image, Tooltip, OverlayTrigger, Button } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat, faRegistered, faBuilding, faTicket, faTable, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faUser, faFileExport, faDoorOpen, faCopy, faQrcode, faPlane, faStepForward, faCheckSquare, faCheckToSlot, faCertificate, faPersonSwimming, faSailboat, faRegistered, faBuilding, faTicket, faTable, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import AppNavBar from '../components/AppNavBar';
 import FooterCustomized from '../components/Footer';
 import { auth } from '../config/firebase';
@@ -25,6 +25,7 @@ import CompanyRegistrationPage from './Company_Registration'
 import TicketCreationForm from '../components/TicketCreationForm'
 import CompanyPage from './Verifier_Company_List';
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import TourismDataAdmin from '../components/touristarrival/admintourismarrival';
 
 const TourismFrontlinersTab = () => (
     <VerifierEmployeeListPage></VerifierEmployeeListPage>
@@ -59,6 +60,9 @@ const ActivitiesTab = () => (
 );
 const ProvidersTab = () => (
     <ProviderAdminPage></ProviderAdminPage>
+);
+const TouristArrivalTab = () => (
+    <TourismDataAdmin></TourismDataAdmin>
 );
 
 const SaveReportsTab = () => (
@@ -135,6 +139,7 @@ export default function VerifierDashboard() {
         { key: "registerEmployee", label: "Register Frontliner", icon: faUser },
         { key: "activities", label: "Activities", icon: faPersonSwimming },
         { key: "providers", label: "Providers", icon: faSailboat },
+        { key: "touristArrival", label: "Tourist Arrival Forecast", icon: faPlane },
         { key: "reports", label: "Save Reports", icon: faFileExport },
         { key: "profile", label: "Profile", icon: faUser },
         { key: "logout", label: "Log Out", icon: faDoorOpen },
@@ -171,7 +176,7 @@ export default function VerifierDashboard() {
                             {/* Verifier Info */}
                             {verifier && (
                                 <Row className="justify-content-center my-4">
-                                    <Col xs={12} md={10}>
+                                    <Col xs={12} sm={12} md={12} lg={10}>
                                         <Row className="align-items-center justify-content-center text-center text-md-start">
                                             <Col xs="auto">
                                                 <Image
@@ -309,6 +314,9 @@ export default function VerifierDashboard() {
                                 </Tab.Pane>
                                 <Tab.Pane eventKey="providers">
                                     <ProvidersTab />
+                                </Tab.Pane>
+                                <Tab.Pane eventKey="touristArrival">
+                                    <TouristArrivalTab />
                                 </Tab.Pane>
                                 <Tab.Pane eventKey="reports">
                                     <SaveReportsTab />

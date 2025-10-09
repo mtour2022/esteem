@@ -10,6 +10,7 @@ import useResolvedProviders from "../services/GetProvidersDetails"
 import useCompanyInfo from "../services/GetCompanyDetails";
 import Select from "react-select";
 import TicketSummary from "../components/TicketSummary.js"; // adjust the path if needed
+import ActivitiesHeatmapChart from "../components/TicketActivitiesHeatMap.js"
 
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
@@ -25,7 +26,7 @@ import {
   faFilter, faTrash,
   faLayerGroup, faCalendarDays, faColumns,
   faCopy,
-  faRefresh,
+  faRefresh,faTable,
   faUserGroup,
   faBarChart,  faEyeSlash,
 faQrcode,
@@ -183,7 +184,8 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
   const [showFullSummary, setShowFullSummary] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState(null);
-  
+    const tableRefSummary = useRef();
+
   useEffect(() => {
     const handleResize = () => {
       setIsSmallScreen(window.innerWidth < 768);
@@ -275,6 +277,8 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryFilter, setSummaryFilter] = useState("all"); // 'all' or 'scanned'
   const summaryRef = useRef(null);
+  const tableRefSummaryImage = useRef();
+ 
 
   useEffect(() => {
     const today = new Date();
@@ -488,6 +492,112 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
       setEndDateInput(formatDateLocal(end));
     }
   };
+
+  
+
+  const handleDownloadImageSummary = async () => {
+    if (!tableRefSummaryImage.current) return;
+  
+    const element = tableRefSummaryImage.current;
+  
+    // Find buttons and responsive scroll wrapper inside the card
+    const buttonElements = element.querySelectorAll("button");
+    const scrollWrapper = element.querySelector(".table-responsive");
+  
+    // Save original styles
+    const originalStyle = {
+      width: element.style.width,
+      overflowX: element.style.overflowX,
+    };
+    const originalScrollStyle = scrollWrapper
+      ? {
+          overflowX: scrollWrapper.style.overflowX,
+          scrollbarWidth: scrollWrapper.style.scrollbarWidth,
+        }
+      : {};
+  
+    try {
+      // 🟢 Show exporting Swal
+      Swal.fire({
+        title: "Exporting...",
+        text: "Please wait while the summary image is being generated.",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+  
+      // 🟢 Hide buttons
+      buttonElements.forEach((btn) => (btn.style.display = "none"));
+  
+      // 🟢 Temporarily expand container and disable overflow
+      element.style.width = "max-content";
+      element.style.overflowX = "visible";
+  
+      // 🟢 Hide scrollbars on wrapper and globally
+      if (scrollWrapper) {
+        scrollWrapper.style.overflowX = "visible";
+        scrollWrapper.style.scrollbarWidth = "none"; // Firefox
+        scrollWrapper.style.msOverflowStyle = "none"; // IE
+        scrollWrapper.classList.add("no-scrollbar");
+      }
+      document.body.style.overflow = "hidden";
+  
+      // 🟢 Add a small CSS rule to hide scrollbar visually (for WebKit)
+      const styleTag = document.createElement("style");
+      styleTag.innerHTML = `
+        .no-scrollbar::-webkit-scrollbar { display: none !important; }
+      `;
+      document.head.appendChild(styleTag);
+  
+      // Give browser time to re-render
+      await new Promise((resolve) => setTimeout(resolve, 150));
+  
+      // 🟢 Capture full table as PNG
+      const dataUrl = await toPng(element, {
+        backgroundColor: "#ffffff",
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
+      });
+  
+      // 🟢 Download image
+      download(dataUrl, `tickets_summary.png`);
+  
+      // 🟢 Success Swal
+      Swal.fire({
+        icon: "success",
+        title: "Export Complete!",
+        text: "Your summary image has been downloaded.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error("Image download failed", err);
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: "Something went wrong while generating the image.",
+      });
+    } finally {
+      // 🟢 Restore styles
+      element.style.width = originalStyle.width;
+      element.style.overflowX = originalStyle.overflowX;
+      document.body.style.overflow = "";
+  
+      if (scrollWrapper) {
+        scrollWrapper.style.overflowX = originalScrollStyle.overflowX;
+        scrollWrapper.style.scrollbarWidth = originalScrollStyle.scrollbarWidth;
+        scrollWrapper.classList.remove("no-scrollbar");
+      }
+  
+      // 🟢 Remove temporary CSS
+      const tempStyle = document.querySelector("style:has(.no-scrollbar)");
+      if (tempStyle) tempStyle.remove();
+  
+      buttonElements.forEach((btn) => (btn.style.display = ""));
+    }
+  };
+  
 
   const handleSearch = () => {
     setIsLoading(true);
@@ -1007,6 +1117,32 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     doc.save("tourist-activity-status-board.pdf");
   };
 
+    const handleDownloadExcel = () => {
+      const headers = ["Month", ...Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`), "Total"];
+      const data = months.map(month => {
+        const days = groupedData[month] || {};
+        const total = getMonthTotal(days);
+        const row = [month];
+        for (let i = 1; i <= daysInMonth; i++) {
+          row.push(days[i] || "");
+        }
+        row.push(total);
+        return row;
+      });
+  
+      if (months.length > 0) {
+        const grandTotalRow = ["Grand Total", ...Array(daysInMonth).fill(""), getGrandTotal()];
+        data.push(grandTotalRow);
+      }
+  
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Tickets Summary");
+      XLSX.writeFile(workbook, `tickets_summary.xlsx`);
+    };
+  
+  
+
 
   const filteredSummaryTickets = useMemo(() => {
     if (summaryFilter === "scanned") {
@@ -1014,6 +1150,41 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     }
     return allFilteredTickets;
   }, [allFilteredTickets, summaryFilter]);
+
+
+
+  useEffect(() => {
+    console.log("filteredSummaryTickets:", filteredSummaryTickets);
+  }, [filteredSummaryTickets]);
+
+  const [groupedData, setGroupedData] = useState({});
+  const daysInMonth = 31;
+
+  useEffect(() => {
+    const tableGroup = {};
+
+    for (const ticket of filteredSummaryTickets) {
+      const rawDate = ticket.start_date_time?.toDate
+        ? ticket.start_date_time.toDate()
+        : new Date(ticket.start_date_time);
+
+      const dateObj = new Date(rawDate);
+      const month = dateObj.toLocaleString("default", { month: "long" });
+      const day = dateObj.getDate();
+
+      if (!tableGroup[month]) tableGroup[month] = {};
+      if (!tableGroup[month][day]) tableGroup[month][day] = 0;
+
+      // Use ticket.total_pax directly
+      tableGroup[month][day] += Number(ticket.total_pax) || 0;
+    }
+
+    setGroupedData(tableGroup);
+  }, [filteredSummaryTickets]);
+  const months = Object.keys(groupedData);
+
+  const getMonthTotal = (days) => Object.values(days).reduce((sum, val) => sum + val, 0);
+  const getGrandTotal = () => Object.values(groupedData).reduce((acc, days) => acc + getMonthTotal(days), 0);
 
 
   const initialSummary = {
@@ -1069,6 +1240,7 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
     return filteredSummaryTickets.length > 0 && filteredSummaryTickets.some(t => t.total_pax > 0);
   }, [filteredSummaryTickets]);
 
+
   const residencyData = useMemo(() => {
     return [
       { name: 'Locals', value: summary.locals },
@@ -1113,135 +1285,103 @@ const VerifierTicketStatusPage = ({ ticket_ids = [] }) => {
   }, {});
 
 
-  // const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
-
-  // const activityPaxCounts = {};
-
-  // filteredSummaryTickets.forEach(ticket => {
-  //   if (!Array.isArray(ticket.activities)) return;
-
-  //   ticket.activities.forEach(act => {
-  //     const availedIds = act.activities_availed || [];
-  //     const pax = Number(act.activity_num_pax || 0);
-
-  //     availedIds.forEach(id => {
-  //       if (!id) return;
-  //       if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
-  //       activityPaxCounts[id] += pax;
-  //     });
-  //   });
-  // });
-
-
-  // const activityNameMap = allResolvedActivities.reduce((acc, a) => {
-  //   acc[a.id] = a.activity_name || "Unknown Activity";
-  //   return acc;
-  // }, {});
-
-  // const topActivities = Object.entries(activityPaxCounts)
-  //   .sort((a, b) => b[1] - a[1])
-  //   .slice(0, 10)
-  //   .map(([activityId, value]) => ({
-  //     name: activityNameMap[activityId] || activityId,
-  //     value,
-  //   }));
-
   const allResolvedActivities = useResolvedAllActivitiesFromTickets(filteredSummaryTickets);
 
-const activityPaxCounts = {};
+  const activityPaxCounts = {};
 
-// Define normalization rules
-const normalizeActivityName = (name) => {
-  if (!name) return "Unknown Activity";
-  const lower = name.toLowerCase();
+  // Define normalization rules
+  const normalizeActivityName = (name) => {
+    if (!name) return "Unknown Activity";
+    const lower = name.toLowerCase();
 
-  if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
-  if (lower.includes("island hopping")) return "Island Hopping";
+    if (lower.includes("island hopping") && lower.includes("private")) return "Private Island Hopping";
+    if (lower.includes("island hopping")) return "Island Hopping";
 
-  if (lower.includes("private yacht")) return "Private Yacht";
-  if (lower.includes("yacht")) return "Yacht";
+    if (lower.includes("private yacht")) return "Private Yacht";
+    if (lower.includes("yacht")) return "Yacht";
 
-  if (lower.includes("private party boat")) return "Private Party Boat";
-  if (lower.includes("party boat")) return "Party Boat";
+    if (lower.includes("private party boat")) return "Private Party Boat";
+    if (lower.includes("party boat")) return "Party Boat";
 
-  if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
-  if (lower.includes("atv and zipline")) return "ATV and Zipline";
+    if (lower.includes("atv and zipline with skybike")) return "ATV and Zipline with Skybike";
+    if (lower.includes("atv and zipline")) return "ATV and Zipline";
 
-  return name; // keep original if no match
-};
+    return name; // keep original if no match
+  };
 
-filteredSummaryTickets.forEach(ticket => {
-  if (!Array.isArray(ticket.activities)) return;
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.activities)) return;
 
-  ticket.activities.forEach(act => {
-    const availedIds = act.activities_availed || [];
-    const pax = Number(act.activity_num_pax || 0);
+    ticket.activities.forEach(act => {
+      const availedIds = act.activities_availed || [];
+      const pax = Number(act.activity_num_pax || 0);
 
-    availedIds.forEach(id => {
-      if (!id) return;
-      if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
-      activityPaxCounts[id] += pax;
+      availedIds.forEach(id => {
+        if (!id) return;
+        if (!activityPaxCounts[id]) activityPaxCounts[id] = 0;
+        activityPaxCounts[id] += pax;
+      });
     });
   });
-});
 
-const activityNameMap = allResolvedActivities.reduce((acc, a) => {
-  acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
-  return acc;
-}, {});
+  const activityNameMap = allResolvedActivities.reduce((acc, a) => {
+    acc[a.id] = normalizeActivityName(a.activity_name || "Unknown Activity");
+    return acc;
+  }, {});
 
-// Merge pax counts by normalized name
-const mergedPaxCounts = {};
-Object.entries(activityPaxCounts).forEach(([id, value]) => {
-  const normalizedName = activityNameMap[id] || id;
-  if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
-  mergedPaxCounts[normalizedName] += value;
-});
+  // Merge pax counts by normalized name
+  const mergedPaxCounts = {};
+  Object.entries(activityPaxCounts).forEach(([id, value]) => {
+    const normalizedName = activityNameMap[id] || id;
+    if (!mergedPaxCounts[normalizedName]) mergedPaxCounts[normalizedName] = 0;
+    mergedPaxCounts[normalizedName] += value;
+  });
 
-const topActivities = Object.entries(mergedPaxCounts)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([name, value]) => ({ name, value }));
+  const topActivities = Object.entries(mergedPaxCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
 
-// --- Base price map ---
-const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
-  acc[a.id] = Number(a.activity_base_price) || 0;
-  return acc;
-}, {});
+  // --- Base price map ---
+  const activityBasePriceMap = allResolvedActivities.reduce((acc, a) => {
+    acc[a.id] = Number(a.activity_base_price) || 0;
+    return acc;
+  }, {});
 
-const activitySaleTotals = {};
+  const activitySaleTotals = {};
 
-filteredSummaryTickets.forEach(ticket => {
-  if (!Array.isArray(ticket.activities)) return;
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.activities)) return;
 
-  ticket.activities.forEach(act => {
-    const availedIds = act.activities_availed || [];
-    const pax = Number(act.activity_num_pax || 0);
+    ticket.activities.forEach(act => {
+      const availedIds = act.activities_availed || [];
+      const pax = Number(act.activity_num_pax || 0);
 
-    availedIds.forEach(id => {
-      if (!id) return;
+      availedIds.forEach(id => {
+        if (!id) return;
 
-      const expectedPrice = Number(activityBasePriceMap[id] || 0);
-      const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
+        const expectedPrice = Number(activityBasePriceMap[id] || 0);
+        const activitySale = Number(ticket.total_payment || 0) - (expectedPrice * pax);
 
-      if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
-      activitySaleTotals[id] += activitySale;
+        if (!activitySaleTotals[id]) activitySaleTotals[id] = 0;
+        activitySaleTotals[id] += activitySale;
+      });
     });
   });
-});
 
-// Merge sales by normalized name
-const mergedSaleTotals = {};
-Object.entries(activitySaleTotals).forEach(([id, value]) => {
-  const normalizedName = activityNameMap[id] || id;
-  if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
-  mergedSaleTotals[normalizedName] += value;
-});
+  // Merge sales by normalized name
+  const mergedSaleTotals = {};
+  Object.entries(activitySaleTotals).forEach(([id, value]) => {
+    const normalizedName = activityNameMap[id] || id;
+    if (!mergedSaleTotals[normalizedName]) mergedSaleTotals[normalizedName] = 0;
+    mergedSaleTotals[normalizedName] += value;
+  });
 
-const topActivitiesBySale = Object.entries(mergedSaleTotals)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([name, value]) => ({ name, value }));
+  const topActivitiesBySale = Object.entries(mergedSaleTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
+
 
   // Count country appearances across all addresses in all tickets
   const countryCounts = {};
@@ -1288,6 +1428,142 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
   const topTowns = Object.entries(townCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10) // changed from 5 to 10
+    .map(([town, value]) => ({
+      name: town,
+      value,
+    }));
+  const employeeTicketCounts = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
+
+    // Initialize count if not set
+    if (!employeeTicketCounts[empId]) employeeTicketCounts[empId] = 0;
+
+    // Increment ticket count for this employee
+    employeeTicketCounts[empId] += 1;
+  });
+
+  // Map employee IDs to their names (from employeeMap)
+  const employeeNameMap = Object.values(employeeMap || {}).reduce((acc, emp) => {
+    acc[emp.employeeId] = emp.firstname || "Unknown Employee";
+    return acc;
+  }, {});
+
+  // Create a top employees array
+  const topEmployees = Object.entries(employeeTicketCounts)
+    .sort((a, b) => b[1] - a[1]) // sort by ticket count descending
+    .slice(0, 10) // top 10
+    .map(([empId, value]) => ({
+      name: employeeNameMap[empId] || empId,
+      value,
+    }));
+
+  const employeePaxCounts = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
+
+    // Calculate pax for this ticket
+    let pax = 0;
+    if (Array.isArray(ticket.address)) {
+      ticket.address.forEach(addr => {
+        pax += Number(addr?.males || 0) + Number(addr?.females || 0);
+      });
+    }
+
+    // Add pax to this employee's total
+    if (!employeePaxCounts[empId]) employeePaxCounts[empId] = 0;
+    employeePaxCounts[empId] += pax;
+  });
+
+  // Create top employees array
+  const topEmployeesByPax = Object.entries(employeePaxCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([empId, value]) => {
+      const emp = Array.isArray(employeeMap)
+        ? employeeMap.find(e => String(e.employeeId) === String(empId))
+        : employeeMap?.[empId] || employeeMap?.[String(empId)];
+
+      const name = emp
+        ? `${emp.firstname ?? ""} ${emp.surname ?? ""}`.trim() || String(empId)
+        : String(empId);
+
+      return { name, value };
+    });
+  // 🔹 Compute total expected sale per employee
+  const employeeSaleTotals = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    const empId = ticket.employee_id;
+    if (!empId) return;
+
+    const sale = Number(ticket.total_expected_sale || 0);
+
+    if (!employeeSaleTotals[empId]) employeeSaleTotals[empId] = 0;
+    employeeSaleTotals[empId] += sale;
+  });
+
+  // 🔹 Create Top Employees by Expected Sale
+  const topEmployeesBySale = Object.entries(employeeSaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
+    .map(([empId, value]) => ({
+      name: employeeNameMap[empId] || empId,
+      value,
+    }));
+
+  // Aggregate total expected sale per country
+  const countrySaleTotals = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.address)) return;
+
+    ticket.address.forEach(addr => {
+      const country = addr?.country?.trim();
+      if (!country) return;
+
+      const sale = Number(ticket.total_expected_sale || 0);
+
+      if (!countrySaleTotals[country]) countrySaleTotals[country] = 0;
+      countrySaleTotals[country] += sale;
+    });
+  });
+
+  // Create Top 10 Countries by Expected Sale
+  const topCountriesBySale = Object.entries(countrySaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
+    .map(([country, value]) => ({
+      name: country,
+      value,
+    }));
+
+  // Aggregate total expected sale per town (Philippines only)
+  const townSaleTotals = {};
+
+  filteredSummaryTickets.forEach(ticket => {
+    if (!Array.isArray(ticket.address)) return;
+
+    ticket.address.forEach(addr => {
+      const country = addr?.country?.trim();
+      const town = addr?.town?.trim();
+      if (country !== "Philippines" || !town) return;
+
+      const sale = Number(ticket.total_expected_sale || 0);
+
+      if (!townSaleTotals[town]) townSaleTotals[town] = 0;
+      townSaleTotals[town] += sale;
+    });
+  });
+
+  // Create Top 10 Philippine Towns by Expected Sale
+  const topTownsBySale = Object.entries(townSaleTotals)
+    .sort((a, b) => b[1] - a[1]) // highest sale first
+    .slice(0, 10)
     .map(([town, value]) => ({
       name: town,
       value,
@@ -2083,258 +2359,415 @@ const topActivitiesBySale = Object.entries(mergedSaleTotals)
           </div>
         </div>
 
-        <div className="mt-5 bg-white p-2" ref={summaryRef}>
-          <Tabs defaultActiveKey="summary" className="mb-4">
-
-            {/* Summary Tab */}
-            <Tab eventKey="summary" title="Summary">
-              <h6 className="mt-4">Summary</h6>
-              <small className="text-muted">
-                Overview of key metrics with charts, tables, and rankings, including data segmentation and bracket breakdowns.
-              </small>
-              <br></br>
-              <small className="text-muted mt-2 mb-4">
-                <Badge bg="secondary" className="me-1 mt-2">
-                  {summary.totalTickets}
-                </Badge>{" "}
-                ticket(s) from{" "}
-                <strong>
-                  {new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>{" "}
-                to{" "}
-                <strong>
-                  {new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>
-              </small>
-
-              {(!isSmallScreen || showFullSummary) && (
-                <>
-                  <Row className="mb-3 g-3">
-                    {Object.entries(statusCounts).map(([status, count], idx) => (
-                      <Col key={idx} md={2}>
-                        <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                          <div>
-                            <p className="mb-1 fw-semibold">{status}</p>
-                            <h6 className="mb-0 text-dark">
-                              <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
-                            </h6>
-                          </div>
-                        </div>
-                      </Col>
-                    ))}
-                  </Row>
-
-                  <Row className="mb-2 g-3">
-                    {[
-                      { label: "Total Pax", value: summary.totalPax?.toLocaleString() || "0" },
-                      { label: "Expected Payment", value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
-                      { label: "Actual Payment", value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
-                      { label: "Expected Sale", value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
-                      { label: "Avg. Markup", value: `${averageMarkup?.toFixed(2)}%` },
-                      { label: "Avg. Sale per Ticket", value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
-                    ].map((item, idx) => (
-                      <Col key={idx} md={2}>
-                        <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
-                          <div>
-                            <p className="mb-1 fw-semibold">{item.label}</p>
-                            <Badge bg="light" text="dark"><h6 className="mb-0 text-dark">{item.value}</h6></Badge>
-
-                          </div>
-                        </div>
-                      </Col>
-                    ))}
-                  </Row>
-                  <Row className="g-3 mt-2">
-                    <Col md={4}>
-                      <SummaryPieChart
-                        title="Residency Breakdown"
-                        loading={false}
-                        data={hasResidencyData ? residencyData : []}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <SummaryPieChart
-                        title="Sex Breakdown"
-                        loading={false}
-                        data={hasSexData ? sexData : []}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <SummaryPieChart
-                        title="Age Breakdown"
-                        loading={false}
-                        data={hasAgeData ? ageData : []}
-                      />
-                    </Col>
-                  </Row>
-
-                  <Row className="g-3 mt-2">
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Activities Availed (by Pax)"
-                        data={topActivities}
-                        loading={allResolvedActivities.length === 0}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Countries"
-                        data={topCountries}
-                        loading={filteredSummaryTickets.length === 0}
-                      />
-                    </Col>
-                    <Col md={4}>
-                      <TopRankingChart
-                        title="Domestic Towns (Philippines)"
-                        data={topTowns}
-                        loading={filteredSummaryTickets.length === 0}
-                      />
-                    </Col>
-                  </Row>
-                </>
-              )}
-            </Tab>
-
-            {/* Performance Tab */}
-            <Tab eventKey="performance" title="Performance">
-              <h6 className="mt-4">Performance</h6>
-              <small className="text-muted">
-                This section shows performance metrics compared to previous data, helping identify trends and changes over time.
-              </small>
-              <Row className="g-3 mt-2">
-                <Col md={12}>
-                  <TicketsSummaryTable
-                    loading={!hasFilteredSummaryData}
-                    filterType={summaryFilter}
-                  />
-                </Col>
-              </Row>
-            </Tab>
-
-            {/* Insights Tab */}
-            <Tab eventKey="insights" title="Insights">
-              <h6 className="mt-4">Insights</h6>
-              <small className="text-muted">
-                Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
-              </small>
-              <br></br>
-              <small className="text-muted mt-2">
-                Insights from data dated{" "}
-                <strong>
-                  {new Date(startDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>{" "}
-                to{" "}
-                <strong>
-                  {new Date(endDateInput).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                  })}
-                </strong>
-              </small>
-
-
-              <Row className="mb-4 mt-2 g-3">
-                <Col md={12}>
-                  <Tabs defaultActiveKey="ticketVsPax" id="dashboard-tabs" className="mb-3">
-
-                    <Tab eventKey="expectedSales" title="Expected Sale Forecast">
-                      <ExpectedSaleForecastChart
-                        title="Expected Sale Forecast"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                      />
+         <div className="mt-2 bg-white" ref={summaryRef}>
+                  <Tabs defaultActiveKey="summary" className="mb-4">
+        
+                    {/* Summary Tab */}
+                    <Tab eventKey="summary" title="Summary" className="bg-white" ref={summaryRef}>
+                      <div className="mt-4 mx-2 p-0 mb-4">
+                        {/* <div className="d-flex align-items-center mb-2"></div> */}
+                        <h6 className="mb-0 me-2">Summary</h6>
+                        {/* <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={handleDownloadImage}
+            >
+              <FontAwesomeIcon icon={faDownload} />
+            </Button> */}
+        
+        
+                        <small className="text-muted d-block mb-2">
+                          Overview of key metrics with charts, tables, and rankings, including data
+                          segmentation and bracket breakdowns.
+                        </small>
+        
+                        <small className="text-muted d-block mb-5">
+                          <Badge bg="secondary" className="me-1 mt-2">
+                            {summary.totalTickets}
+                          </Badge>{" "}
+                          ticket(s) from{" "}
+                          <strong>
+                            {new Date(startDateInput).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric"
+                            })}
+                          </strong>{" "}
+                          to{" "}
+                          <strong>
+                            {new Date(endDateInput).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric"
+                            })}
+                          </strong>
+                        </small>
+                      </div>
+        
+                      {(!isSmallScreen || showFullSummary) && (
+                        <>
+                          <Row className="mb-3 g-3 mt-3">
+                            {Object.entries(statusCounts).map(([status, count], idx) => (
+                              <Col key={idx} md={2} sm={6} xs={6}>
+                                <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                                  <div>
+                                    <p className="mb-1 fw-semibold">{status}</p>
+                                    <h6 className="mb-0 text-dark">
+                                      <Badge bg={getStatusBadgeVariant(status)}>{count}</Badge>
+                                    </h6>
+                                  </div>
+                                </div>
+                              </Col>
+                            ))}
+                          </Row>
+        
+                          <Row className="mb-2 g-3">
+                            {[
+                              { label: "Total Pax", value: summary.totalPax?.toLocaleString() || "0" },
+                              { label: "Expected Payment", value: `₱${summary.expectedPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                              { label: "Actual Payment", value: `₱${summary.totalPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                              { label: "Expected Sale", value: `₱${summary.totalExpectedSale?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                              { label: "Avg. Markup", value: `${averageMarkup?.toFixed(2)}%` },
+                              { label: "Avg. Sale per Ticket", value: `₱${averageSalePerTicket?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` },
+                            ].map((item, idx) => (
+                              <Col key={idx} md={2} sm={6} xs={6}>
+                                <div className="summary-card border rounded bg-white text-muted p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                                  <div>
+                                    <p className="mb-1 fw-semibold">{item.label}</p>
+                                    <Badge bg="light" text="dark"><h6 className="mb-0 text-dark">{item.value}</h6></Badge>
+        
+                                  </div>
+                                </div>
+                              </Col>
+                            ))}
+                          </Row>
+                          <Row className="g-3 mt-2">
+                            <Col md={12}>
+                              <Card className="summary-card border rounded p-3 text-muted h-100 bg-white" ref={tableRefSummaryImage}>
+        
+                                <div className="d-flex justify-content-between align-items-center mb-2 flex-nowrap">
+                                  <div className="text-muted small fw-semibold">
+                                    <h6 className="text-muted mt-2">
+                                      Pax Summary from{" "}
+                                      {new Date(startDateInput).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric"
+                                      })}{" "}
+                                      to{" "}
+                                      {new Date(endDateInput).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric"
+                                      })}
+                                    </h6>
+                                  </div>
+                                  <div className="d-flex gap-2 flex-nowrap">
+                                    <Button variant="light" size="sm" onClick={handleDownloadImageSummary}>
+                                      <FontAwesomeIcon icon={faDownload} />
+                                    </Button>
+                                    <Button variant="light" size="sm" onClick={handleDownloadExcel}>
+                                      <FontAwesomeIcon icon={faTable} />
+                                    </Button>
+                                  </div>
+                                </div>
+        
+        
+                                <Table striped bordered hover responsive ref={tableRefSummary}>
+                                  <thead>
+                                    <tr>
+                                      <th>Month</th>
+                                      {[...Array(daysInMonth)].map((_, i) => (
+                                        <th key={i + 1}>{i + 1}</th>
+                                      ))}
+                                      <th>Total</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {months.map(month => {
+                                      const days = groupedData[month] || {};
+                                      return (
+                                        <tr key={month}>
+                                          <td>{month}</td>
+                                          {[...Array(daysInMonth)].map((_, i) => (
+                                            <td key={i + 1}>{days[i + 1] || ""}</td>
+                                          ))}
+                                          <td className="fw-bold">{getMonthTotal(days)}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                    {months.length > 0 && (
+                                      <tr>
+                                        <td colSpan={daysInMonth + 1} className="text-end fw-bold">
+                                          Grand Total
+                                        </td>
+                                        <td className="fw-bold">{getGrandTotal()}</td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </Table>
+                              </Card>
+        
+        
+                            </Col>
+        
+                          </Row>
+        
+                          <Row className="g-3 mt-2">
+                            <Col md={4}>
+                              <SummaryPieChart
+                                title="Residency Breakdown"
+                                loading={false}
+                                data={hasResidencyData ? residencyData : []}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <SummaryPieChart
+                                title="Sex Breakdown"
+                                loading={false}
+                                data={hasSexData ? sexData : []}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <SummaryPieChart
+                                title="Age Breakdown"
+                                loading={false}
+                                data={hasAgeData ? ageData : []}
+                              />
+                            </Col>
+                          </Row>
+        
+                          <Row className="g-3 mt-2">
+        
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Countries by Pax"
+                                data={topCountries}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Domestic Towns by Pax (Philippines)"
+                                data={topTowns}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Generating Countries (by Expected Sale)"
+                                data={topCountriesBySale}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                          </Row>
+                          <Row className="g-3 mt-2">
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Generating Philippine Towns (by Expected Sale)"
+                                data={topTownsBySale}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Activities Availed (by Pax)"
+                                data={topActivities}   // 👈 uses merged Pax counts
+                                loading={allResolvedActivities.length === 0}
+                              />
+                            </Col>
+        
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Generating Activities (by Expected Sale)"
+                                data={topActivitiesBySale}   // 👈 uses merged Sale totals
+                                loading={allResolvedActivities.length === 0}
+                              />
+                            </Col>
+                          </Row>
+        
+                          <Row className="g-3 mt-2">
+        
+        
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Performing Employees (by Tickets)"
+                                data={topEmployees}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="TopPerforming Employees (by Pax)"
+                                data={topEmployeesByPax}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <TopRankingChart
+                                title="Top Employees (by Expected Sale)"
+                                data={topEmployeesBySale}
+                                loading={filteredSummaryTickets.length === 0}
+                              />
+                            </Col>
+        
+        
+                          </Row>
+        
+        
+                        </>
+                      )}
                     </Tab>
-
-                    <Tab eventKey="paymentVsActual" title="Expected vs Actual Payment">
-                      <PaymentPaxLineChart
-                        title="Expected vs Actual Payment"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                      />
+        
+                    {/* Performance Tab */}
+                    <Tab eventKey="performance" title="Performance">
+                      <div className="d-flex flex-column align-items-start mx-2 mt-4">
+                        <h6>Performance</h6>
+                        <small className="text-muted">
+                          This section shows performance metrics compared to previous data, helping identify trends and changes over time.
+                        </small>
+                      </div>
+        
+        
+                      <Row className="g-3 mt-2">
+                        <Col md={12}>
+                          <TicketsSummaryTable
+                            loading={!hasFilteredSummaryData}
+                            filterType={summaryFilter}
+                          />
+                        </Col>
+                      </Row>
                     </Tab>
-
-                    <Tab eventKey="localVsForeign" title="Local vs Foreign">
-                      <TicketLocalVsForeign
-                        title="Local vs Foreign"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                      />
+        
+                    {/* Insights Tab */}
+                    <Tab eventKey="insights" title="Insights">
+                      <h6 className="mt-4 mx-2 text-start">Insights</h6>
+                      <small className="text-muted mx-2 d-block text-start">
+                        Provides forecasts and side-by-side comparisons of different datasets to uncover patterns and opportunities.
+                      </small>
+                      <small className="text-muted mt-2 mx-2 d-block text-start">
+                        Insights from data dated{" "}
+                        <strong>
+                          {new Date(startDateInput).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric"
+                          })}
+                        </strong>{" "}
+                        to{" "}
+                        <strong>
+                          {new Date(endDateInput).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric"
+                          })}
+                        </strong>
+                      </small>
+        
+        
+        
+                      <Row className="mb-4 mt-2 g-3">
+                        <Col md={12}>
+                          <Tabs defaultActiveKey="expectedSales" id="dashboard-tabs" className="mb-3">
+        
+                            <Tab eventKey="expectedSales" title="Expected Sale Forecast">
+                              <ExpectedSaleForecastChart
+                                title="Expected Sale Forecast"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                              />
+                            </Tab>
+                            <Tab eventKey="timeHeatMap" title="Activity Time Heat Map">
+                              <ActivitiesHeatmapChart
+                                title="Activity Time Heat Map"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                                filterType={summaryFilter}
+        
+                              />
+                            </Tab>
+                            <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
+                              <AgeGenderLineChart
+                                title="Age Gender Comparative"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                                filterType={summaryFilter}
+        
+                              />
+                            </Tab>
+        
+                            <Tab eventKey="paymentVsActual" title="Expected vs Actual Payment">
+                              <PaymentPaxLineChart
+                                title="Expected vs Actual Payment"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                              />
+                            </Tab>
+        
+                            <Tab eventKey="localVsForeign" title="Local vs Foreign">
+                              <TicketLocalVsForeign
+                                title="Local vs Foreign"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                              />
+                            </Tab>
+                            <Tab eventKey="scannedVsCreated" title="Tickets Generated vs Scanned">
+                              <TicketStatusLineChart
+                                title="Ticket Generate vs Scanned"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                                filterType={summaryFilter}
+        
+                              />
+                            </Tab>
+                            <Tab eventKey="ticketVsPax" title="Ticket Vs Pax Forecast">
+                              <TicketPaxVsTicket
+                                title="Ticket Vs Pax Forecast"
+                                tickets={filteredSummaryTickets}
+                                startDate={startDateInput}
+                                endDate={endDateInput}
+                              />
+                            </Tab>
+        
+        
+        
+        
+        
+                          </Tabs>
+                        </Col>
+                      </Row>
+        
                     </Tab>
-                    <Tab eventKey="scannedVsCreated" title="Tickets Generated vs Scanned">
-                      <TicketStatusLineChart
-                        title="Ticket Generate vs Scanned"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                        filterType={summaryFilter}
-
-                      />
-                    </Tab>
-                    <Tab eventKey="ageGenderComp" title="Age Gender Comparative">
-                      <AgeGenderLineChart
-                        title="Age Gender Comparative"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                        filterType={summaryFilter}
-
-                      />
-                    </Tab>
-                    <Tab eventKey="ticketVsPax" title="Ticket Vs Pax Forecast">
-                      <TicketPaxVsTicket
-                        title="Ticket Vs Pax Forecast"
-                        tickets={filteredSummaryTickets}
-                        startDate={startDateInput}
-                        endDate={endDateInput}
-                      />
-                    </Tab>
-
-
-
+        
+        
+        
+        
                   </Tabs>
-                </Col>
-              </Row>
-
-            </Tab>
-
-
-
-
-          </Tabs>
-
-          {isSmallScreen && (
-            <div className="mt-2">
-              <Button
-                size="sm"
-                variant="link"
-                onClick={() => setShowFullSummary(prev => !prev)}
-              >
-                {showFullSummary ? "Read less" : "Read more"}
-              </Button>
-            </div>
-          )}
-          <p className="mt-5 mb-5 text-muted small text-center">
-            <strong>Reminder:</strong> All information displayed is handled in compliance with the
-            <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
-            Please ensure that personal data is accessed and used only for authorized and lawful purposes.
-          </p>
-        </div>
+        
+                  {isSmallScreen && (
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="link"
+                        onClick={() => setShowFullSummary(prev => !prev)}
+                      >
+                        {showFullSummary ? "Read less" : "Read more"}
+                      </Button>
+                    </div>
+                  )}
+                  <p className="mt-5 mb-5 text-muted small text-center">
+                    <strong>Reminder:</strong> All information displayed is handled in compliance with the
+                    <a href="https://www.privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer"> Data Privacy Act of 2012 (RA 10173)</a> of the Philippines.
+                    Please ensure that personal data is accessed and used only for authorized and lawful purposes.
+                  </p>
+                </div>
+        
       </>
     </>
   );
