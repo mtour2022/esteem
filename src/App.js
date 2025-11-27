@@ -23,6 +23,7 @@ import TourismCertSearchPage from './pages/Tourism_Cert_Search.js'
 import EmployeeDashboardPage from './pages/Employee_Dashboard.js';
 import GeneralTFSummaryPage from './pages/GeneralTFSummary.js';
 import RequirementsPage from './pages/RequirementsPage.js';
+import TouristArrivalPage from './components/touristarrival/touristarrivalview.js';
 // Private Route
 function PrivateRoute({ element }) {
   const { userLoggedIn } = useAuth();
@@ -57,6 +58,7 @@ function App() {
             {/* ✅ Protected Routes */}
             <Route path="/employee-dashboard" element={<PrivateRoute element={<EmployeeDashboardPage />} />} />
             <Route path="/company-dashboard" element={<PrivateRoute element={<CompanyDashboardPage />} />} />
+                        <Route path="/touristarrival" element={<PrivateRoute element={<TouristArrivalPage />} />}/>
             <Route path="/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierEmployeeListPage />} />}/>
             <Route path="/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<VerifierDashboard />} />}/>
             <Route path="/verifier-employee-edit/:employee_id/0b5f8f06bafb3828f619f6f96fc6adb2" element={<PrivateRoute element={<EditEmployeeForm />} />}/>

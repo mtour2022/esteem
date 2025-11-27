@@ -12,7 +12,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { sendApprovalEmailCompany } from "../components/ApprovalEmailCompany";
 import { sendResubmitEmailCompany } from "../components/ResubmitEmailCompany";
 
-const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid"];
+const STATUSES = ["under review", "approved", "incomplete", "resigned", "change company", "invalid", "temporary"];
 
 const useMouseDragScroll = (ref) => {
     useEffect(() => {
@@ -137,7 +137,6 @@ export default function CompanyPage() {
     };
 
 
-
     const handleChangeStatus = async (company, newStatus) => {
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: `Change status to "${newStatus}"?`,
@@ -163,16 +162,26 @@ export default function CompanyPage() {
                 userId: currentUser?.email || "system",
             };
 
+            // 🔥 ALWAYS initialize updates with safe defaults
             const updates = {
                 status: newStatus,
                 status_history: [...(company.status_history || []), historyEntry],
                 latest_cert_id: company.latest_cert_id || "",
                 latest_cert_summary: company.latest_cert_summary || {},
+                tourism_certificate_ids: [...(company.tourism_certificate_ids || [])],
             };
 
             const companyRef = doc(db, "company", company.company_id);
 
-            // ✅ Handle certificate creation if approved
+            // ❌ TEMPORARY — skip certificate creation
+            if (newStatus.toLowerCase() === "temporary") {
+                await updateDoc(companyRef, updates);
+                await fetchCompanyDetails();
+                Swal.fire("Updated", "Company status updated to Temporary.", "success");
+                return;
+            }
+
+            // ✅ APPROVED — generate certificate
             if (newStatus.toLowerCase() === "approved") {
                 const dateNow = new Date();
                 const currentYear = dateNow.getFullYear();
@@ -185,9 +194,7 @@ export default function CompanyPage() {
                     const counterDoc = await transaction.get(counterRef);
                     let lastNumber = 0;
 
-                    if (counterDoc.exists()) {
-                        lastNumber = counterDoc.data().last_number;
-                    }
+                    if (counterDoc.exists()) lastNumber = counterDoc.data().last_number;
 
                     const nextNumber = lastNumber + 1;
                     const paddedNumber = String(nextNumber).padStart(4, "0");
@@ -203,7 +210,7 @@ export default function CompanyPage() {
 
                 const cert = {
                     tourism_cert_id: tourismCertId,
-                    type: "endorsement", // You can adjust logic here if needed
+                    type: "endorsement",
                     date_Issued: dateNow.toISOString(),
                     date_Expired: oneYearLater.toISOString(),
                     company_id: company.company_id,
@@ -213,10 +220,8 @@ export default function CompanyPage() {
 
                 await setDoc(certRef, cert);
 
-                updates.tourism_certificate_ids = [
-                    ...(company.tourism_certificate_ids || []),
-                    tourismCertId
-                ];
+                updates.tourism_certificate_ids.push(tourismCertId);
+
                 updates.latest_cert_id = tourismCertId;
                 updates.latest_cert_summary = {
                     tourism_cert_id: tourismCertId,
@@ -226,25 +231,20 @@ export default function CompanyPage() {
                 };
 
                 setShowCertificateFor(company.company_id);
-                
-    // ✅ Send email programmatically
-    await sendApprovalEmailCompany(company, updates.latest_cert_summary);
+
+                await sendApprovalEmailCompany(company, updates.latest_cert_summary);
             }
 
-                // ✅ Handle resubmit email
-                if (newStatus.toLowerCase() === "incomplete") {
-                  await sendResubmitEmailCompany(company);
-                }
+            // 🔁 INCOMPLETE — resubmit email
+            if (newStatus.toLowerCase() === "incomplete") {
+                await sendResubmitEmailCompany(company);
+            }
 
             await updateDoc(companyRef, updates);
             await fetchCompanyDetails();
-            await new Promise(res => setTimeout(res, 500));
-
-            if (newStatus.toLowerCase() === "approved") {
-                setShowCertificateFor(company.company_id);
-            }
 
             Swal.fire("Success", "Company status updated successfully.", "success");
+
         } catch (err) {
             console.error("Error updating company status:", err);
             Swal.fire("Error", "Failed to update company status.", "error");
@@ -254,6 +254,7 @@ export default function CompanyPage() {
 
     const getStatusBadgeVariant = (status) => {
         if (!status) return "secondary";
+
         switch (status.toLowerCase()) {
             case "approved":
                 return "success";
@@ -261,6 +262,8 @@ export default function CompanyPage() {
                 return "warning";
             case "incomplete":
                 return "danger";
+            case "temporary":
+                return "info"; // NEW STATUS
             case "resigned":
                 return "dark";
             default:
