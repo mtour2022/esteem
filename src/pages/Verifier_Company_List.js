@@ -171,7 +171,14 @@ export default function CompanyPage() {
                 tourism_certificate_ids: [...(company.tourism_certificate_ids || [])],
             };
 
-            const companyRef = doc(db, "company", company.company_id);
+if (!company.company_id) {
+    console.error("Error: company_id is missing", company);
+    Swal.fire("Error", "Invalid Company ID. Cannot update.", "error");
+    return;
+}
+
+const companyRef = doc(db, "company", company.company_id);
+
 
             // ❌ TEMPORARY — skip certificate creation
             if (newStatus.toLowerCase() === "temporary") {

@@ -53,7 +53,7 @@ export default function VerifierRegisterPage() {
       await setDoc(verifierRef, verifierData.toObject());
 
       Swal.fire('Success', 'Verifier registered successfully!', 'success');
-      navigate(`/verifier-employee/0b5f8f06bafb3828f619f6f96fc6adb2`);
+      navigate(`/verifier-dashboard/0b5f8f06bafb3828f619f6f96fc6adb2`);
     } catch (error) {
       console.error(error);
       Swal.fire('Error', error.message || 'Failed to register verifier', 'error');

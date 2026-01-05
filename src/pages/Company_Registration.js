@@ -108,9 +108,12 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
             await uploadBytes(logoRef, logo);
             const logoURL = await getDownloadURL(logoRef);
 
+const authUID = userCredential.user.uid;
+
             // 🟢 Firestore Object
             const companyObject = {
                 ...companyData,
+                userUID: authUID, // ✅ link company to auth user
                 permit: permitURL,
                 logo: logoURL,
                 status_history: [
@@ -128,7 +131,8 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
 
             // Update with doc ID
             await updateDoc(doc(db, "company", docRef.id), {
-                id: docRef.id,
+                company_id: docRef.id,
+                    userUID: authUID,
                 permit: permitURL,
                 logo: logoURL
             });

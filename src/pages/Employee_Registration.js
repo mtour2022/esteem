@@ -531,6 +531,9 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
                                         <Form.Group className="mb-3">
                                             <Form.Label>Current Company *</Form.Label>
+                                            <p className="text-danger mb-4">
+                                                If you current company is not on the list, inform them to register first in the system.
+                                            </p>
                                             <Select
                                                 name="companyId"
                                                 value={
