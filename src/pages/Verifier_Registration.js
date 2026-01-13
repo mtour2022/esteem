@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Form, Button, Card, Container } from 'react-bootstrap';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -22,6 +22,7 @@ export default function VerifierRegisterPage() {
     tourism_Id_code: '',
     profilePhoto: '', // ✅ Add this to hold the file URL
   });
+  const profileUploadRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -35,8 +36,14 @@ export default function VerifierRegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       Swal.fire({ title: 'Registering...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      // 🔥 Upload file first
+      if (profileUploadRef.current) {
+        await profileUploadRef.current();
+      }
 
       const { email, password, ...rest } = formData;
       const userCredential = await docreateUserWithEmailAndPassword(email, password);
@@ -116,6 +123,7 @@ export default function VerifierRegisterPage() {
                 storagePath="employee/profile_photos"
                 formData={formData}
                 setFormData={setFormData}
+                onAutoUploadRef={profileUploadRef}
               />
 
               <div className="d-flex justify-content-end mt-3">

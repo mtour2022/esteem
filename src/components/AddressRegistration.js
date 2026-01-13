@@ -10,6 +10,35 @@ const AddressRegistrationForm = ({ type = "local", address = {}, onChange }) => 
   const [cityList, setCityList] = useState([]);
   const [barangayList, setBarangayList] = useState([]);
   const countries = countryList().getData();
+const [townOptions, setTownOptions] = useState([]);
+
+useEffect(() => {
+  const fetchAll = async () => {
+    const regionData = await regions();
+    let allOptions = [];
+
+    for (const region of regionData) {
+      const provs = await provinces(region.region_code);
+      for (const prov of provs) {
+        const cts = await cities(prov.province_code);
+        allOptions.push(
+          ...cts.map(city => ({
+            value: city.city_name,
+            label: `${city.city_name}, ${prov.province_name}, ${region.region_name}`,
+            region_code: region.region_code,
+            province_code: prov.province_code,
+            city_name: city.city_name
+          }))
+        );
+      }
+    }
+
+    setTownOptions(allOptions);
+  };
+
+  if (type === "local") fetchAll();
+}, [type]);
+
 
   // Fetch regions
   useEffect(() => {
@@ -84,7 +113,8 @@ const AddressRegistrationForm = ({ type = "local", address = {}, onChange }) => 
               options={regionList}
               value={regionList.find((r) => r.value === address.region) || null}
               onChange={(selected) => onChange("region", selected?.value || "")}
-              placeholder="Select Region"
+              placeholder="Auto-filled from town/city"
+              isDisabled
             />
           </Form.Group>
 
@@ -94,11 +124,12 @@ const AddressRegistrationForm = ({ type = "local", address = {}, onChange }) => 
               options={provinceList}
               value={provinceList.find((p) => p.value === address.province) || null}
               onChange={(selected) => onChange("province", selected?.value || "")}
-              placeholder="Select Province"
+              placeholder="Auto-filled from town/city"
+              isDisabled
             />
           </Form.Group>
 
-          <Form.Group className="my-2">
+          {/* <Form.Group className="my-2">
             <Form.Label>Town/City</Form.Label>
             <Select
               options={cityList}
@@ -106,7 +137,28 @@ const AddressRegistrationForm = ({ type = "local", address = {}, onChange }) => 
               onChange={(selected) => onChange("town", selected?.value || "")}
               placeholder="Select Town/City"
             />
-          </Form.Group>
+          </Form.Group> */}
+          <Form.Group className="my-2">
+  <Form.Label>Town/City</Form.Label>
+<Select
+  placeholder="Type your town/city (auto-fills region & province)"
+  isSearchable
+  options={townOptions}
+  value={
+    townOptions.find(option => option.city_name === address.town) || null
+  }
+  onChange={(selectedOption) => {
+    if (selectedOption) {
+      onChange("town", selectedOption.city_name);
+      onChange("province", selectedOption.province_code);
+      onChange("region", selectedOption.region_code);
+      onChange("country", "Philippines");
+    }
+  }}
+/>
+
+</Form.Group>
+
 
           <Form.Group className="my-2">
             <Form.Label>Barangay</Form.Label>
