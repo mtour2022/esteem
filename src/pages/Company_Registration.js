@@ -47,6 +47,8 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
     const [companyData, setCompanyData] = useState(new Company({}));
     const companyCollectionRef = collection(db, "company");
     const navigate = useNavigate();
+
+    
 const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 
@@ -121,51 +123,57 @@ const handleSubmit = async (e) => {
         // Update document with its own ID
         await updateDoc(doc(db, "company", docRef.id), { company_id: docRef.id });
 
-        // 6. Success & QR Generation UI
+       // 6. Success & Status Information UI
         const dateNow = new Date().toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" });
 
         Swal.fire({
-            title: "Registration Successful!",
+            title: "Application Submitted!",
+            icon: "success",
             html: `
-                <div id="qr-download-area" style="padding:20px; background:#fff; border:1px solid #eee; color: #333;">
-                    <img src="${logolgu}" height="60" style="display: block; margin: 0 auto 10px;" />
-                    <div style="text-align: center;">
-                        <h6 style="margin:5px 0; font-weight: bold;">Municipal Tourism Office - Malay</h6>
-                        <p style="font-size:12px; margin-bottom: 10px;">ID: ${docRef.id}<br><strong>${companyData.companyName}</strong></p>
-                        <canvas id="generatedQR" style="margin: 0 auto;"></canvas>
-                        <p style="font-size:10px; color:#666; margin-top:10px;">Registered on: ${dateNow}</p>
+                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                    <p style="margin-bottom: 8px; font-weight: bold; color: #555;">Your Application ID:</p>
+                    <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                        <input type="text" id="appIdField" value="${docRef.id}" readonly 
+                            style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-family: monospace; font-weight: bold;" />
+                        <button id="copyIdBtn" class="btn btn-primary btn-sm" style="padding: 0 15px;">Copy</button>
+                    </div>
+                    
+                    <div style="font-size: 13px; color: #666; line-height: 1.5;">
+                        <p style="margin-bottom: 10px;">
+                            <i class="fa fa-info-circle text-primary"></i> 
+                            Please use the code above to check your <strong>registration status</strong> on our tracking page.
+                        </p>
+                        <hr style="margin: 10px 0;">
+                        <p><strong>Note on Processing:</strong></p>
+                        <ul style="padding-left: 20px;">
+                            <li>Wait up to <strong>24 hours</strong> for initial review.</li>
+                            <li>Expect some delays during <strong>weekends</strong> and holidays.</li>
+                        </ul>
+                        <p style="font-size: 11px; margin-top: 10px; color: #999;">Submitted on: ${dateNow}</p>
                     </div>
                 </div>
-                <div style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
-                    <button id="downloadImageBtn" class="swal2-confirm swal2-styled" style="background:#007bff;">Download QR Image</button>
-                    <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background:#28a745;">Finish</button>
+                <div style="margin-top: 20px;">
+                    <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background:#28a745; width: 100%;">Finish & Back to Home</button>
                 </div>
             `,
             showConfirmButton: false,
             allowOutsideClick: false,
             didOpen: () => {
-                const canvas = document.getElementById("generatedQR");
-                // Generate the QR inside the canvas
-                QRCode.toCanvas(canvas, `https://esteem.com/status/${docRef.id}`, { width: 200 });
-
-                // Download Logic
-                document.getElementById("downloadImageBtn").onclick = async () => {
-                    const area = document.getElementById("qr-download-area");
-                    try {
-                        // useCORS: true is vital if your logolgu is hosted on Firebase/External
-                        const dataUrl = await toPng(area, { 
-                            backgroundColor: "#ffffff",
-                            cacheBust: true,
-                            useCORS: true 
-                        });
-                        const link = document.createElement("a");
-                        link.download = `Registration_QR_${companyData.companyName}.png`;
-                        link.href = dataUrl;
-                        link.click();
-                    } catch (err) {
-                        console.error("Download failed", err);
-                        Swal.showValidationMessage(`Download failed: ${err.message}`);
-                    }
+                // Copy to Clipboard logic
+                document.getElementById("copyIdBtn").onclick = () => {
+                    const copyText = document.getElementById("appIdField");
+                    copyText.select();
+                    copyText.setSelectionRange(0, 99999); // For mobile
+                    navigator.clipboard.writeText(copyText.value);
+                    
+                    // Visual feedback for copy
+                    const btn = document.getElementById("copyIdBtn");
+                    btn.innerText = "Copied!";
+                    btn.classList.replace("btn-primary", "btn-success");
+                    setTimeout(() => {
+                        btn.innerText = "Copy";
+                        btn.classList.replace("btn-success", "btn-primary");
+                    }, 2000);
                 };
 
                 // Proceed Logic

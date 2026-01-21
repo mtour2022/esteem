@@ -41,6 +41,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState({
+        email: '', // 🟢 ADD THIS: Critical for Firebase Auth and controlled inputs
         classification: '',
         companyId: '',
         designation: '',
@@ -86,12 +87,20 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
     const collectionName = "employee";
     const groupCollectionRef = collection(db, collectionName);
     const dateNow = new Date().toLocaleString("en-PH");
-
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
 
         try {
-            // 🟢 Determine exemption and nationality logic
+            // 1. Sanitize input immediately to prevent "scalar field" (object) errors
+            const finalEmail = typeof formData.email === 'string' ? formData.email.trim() : String(formData.email || "").trim();
+            const finalPassword = typeof formData.password === 'string' ? formData.password : String(formData.password || "");
+
+            if (!finalEmail || !finalEmail.includes("@")) {
+                Swal.fire("Error", "A valid email address is required.", "error");
+                return;
+            }
+
+            // 2. Determine exemption and nationality logic
             const isExempted =
                 formData.designation === "Field Staff" ||
                 formData.designation === "Office Staff" ||
@@ -100,75 +109,35 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
             const nationalityValue = formData.nationality?.toLowerCase();
             const isForeign =
                 nationalityValue === "foreign" ||
-                (!nationalityValue && residency === "foreign");
+                (!nationalityValue && typeof residency !== 'undefined' && residency === "foreign");
 
-            // 🟡 Collect missing fields dynamically
-            const missingFields = [];
-
-            if (!formData.profilePhoto)
-                missingFields.push("Profile Photo");
-            if (!formData.additionalRequirement)
-                missingFields.push("Signed Endorsement / Employment Certificate");
-            if (!formData.email)
-                missingFields.push("Email Address");
-            if (!formData.agreed)
-                missingFields.push("Agreement Checkbox (Please check to proceed)");
-
-            if (isExempted) {
-                // No extra
-            } else if (isForeign) {
-                if (!formData.workingPermit)
-                    missingFields.push("Special Working Permit (AEP/9G/DOLE Certificate)");
-                if (!formData.passportNumber)
-                    missingFields.push("Passport Number");
-            } else {
-                if (formData.isTrained && !formData.trainingCert)
-                    missingFields.push("Training Certificate (required if trained)");
-                if (
-                    formData.application_type === "new" &&
-                    formData.designation === "Local Tour Coordinator" &&
-                    !formData.diploma
-                )
-                    missingFields.push("Diploma / Transcript / Certificate of Completion");
-            }
-
-            if (missingFields.length > 0) {
-                Swal.fire({
-                    title: "Missing File(s)",
-                    icon: "warning",
-                    html: `
-            <p>Please upload or complete the following before submitting:</p>
-            <ul style="text-align: left; margin: 10px auto; display: inline-block;">
-              ${missingFields.map((f) => `<li>${f}</li>`).join("")}
-            </ul>
-          `,
-                });
-                return;
-            }
-
-            // ✅ Uploading message
+            // 3. Show Uploading message
             Swal.fire({
                 title: "Uploading...",
-                text: "Please wait while your files are being uploaded.",
+                text: "Please wait while your account is created and files are uploaded.",
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading(),
             });
 
-            // ✅ Create Firebase Auth User
+            // 4. Create Firebase Auth User (Single, sanitized call)
             let userCredential;
             try {
+                // CRITICAL: We create local constants that are guaranteed to be primitives
+                const emailToSubmit = String(formData.email || "").trim();
+                const passwordToSubmit = String(formData.password || "");
+
+                console.log("Submitting to Firebase:", { emailToSubmit, passwordToSubmit });
+
+                // Ensure the parameters are passed exactly like this
                 userCredential = await docreateUserWithEmailAndPassword(
                     auth,
-                    formData.email,
-                    formData.password
+                    emailToSubmit,
+                    passwordToSubmit
                 );
             } catch (authError) {
+                console.error("Firebase Auth specific error:", authError);
                 if (authError.code === "auth/email-already-in-use") {
-                    Swal.fire({
-                        title: "Email Already Registered",
-                        icon: "warning",
-                        text: "This email is already registered. Please use another one.",
-                    });
+                    Swal.fire("Warning", "Email already in use.", "warning");
                     return;
                 }
                 throw authError;
@@ -176,36 +145,33 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
             const userUID = userCredential.user.uid;
 
-            // ✅ Upload files to Firebase Storage
+            // 5. Upload files helper (with null-check fix)
             const uploads = {};
             const uploadFile = async (file, folderName) => {
+                if (!file || !(file instanceof File)) return null;
                 const fileExt = file.name?.split(".").pop() || "jpg";
                 const fileRef = ref(
                     storage,
-                    `employee/${folderName}/${Date.now()}_${file.name || folderName}.${fileExt}`
+                    `employee/${folderName}/${Date.now()}_${userUID}.${fileExt}`
                 );
                 await uploadBytes(fileRef, file);
                 return getDownloadURL(fileRef);
             };
 
-            if (formData.profilePhoto)
-                uploads.profilePhoto = await uploadFile(formData.profilePhoto, "profilePhotos");
-            if (formData.trainingCert)
-                uploads.trainingCert = await uploadFile(formData.trainingCert, "trainingCerts");
-            if (formData.additionalRequirement)
-                uploads.additionalRequirement = await uploadFile(formData.additionalRequirement, "additionalRequirements");
-            if (formData.workingPermit)
-                uploads.workingPermit = await uploadFile(formData.workingPermit, "workingPermits");
-            if (formData.diploma)
-                uploads.diploma = await uploadFile(formData.diploma, "diplomas");
+            if (formData.profilePhoto) uploads.profilePhoto = await uploadFile(formData.profilePhoto, "profilePhotos");
+            if (formData.trainingCert) uploads.trainingCert = await uploadFile(formData.trainingCert, "trainingCerts");
+            if (formData.additionalRequirement) uploads.additionalRequirement = await uploadFile(formData.additionalRequirement, "additionalRequirements");
+            if (formData.workingPermit) uploads.workingPermit = await uploadFile(formData.workingPermit, "workingPermits");
+            if (formData.diploma) uploads.diploma = await uploadFile(formData.diploma, "diplomas");
 
-            // 🟢 Firestore object
+            // 6. Firestore object construction
             const employeeData = {
                 ...formData,
                 ...uploads,
+                email: finalEmail, // Ensure string format
                 userUID,
                 status: "under review",
-                date_registered: dateNow,
+                date_registered: typeof dateNow !== 'undefined' ? dateNow : new Date().toISOString(),
                 status_history: arrayUnion({
                     date_updated: new Date().toISOString(),
                     remarks: "Under Review",
@@ -214,6 +180,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                 }),
             };
 
+            // Save to Firestore
             const docRef = await addDoc(groupCollectionRef, employeeData);
             const empDoc = doc(db, collectionName, docRef.id);
             await updateDoc(empDoc, {
@@ -221,82 +188,82 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                 quickstatus_id: docRef.id,
             });
 
-            // ✅ Success message + QR
+            // 7. Success message + QR
             Swal.fire({
                 title: "Success!",
                 html: `
-          <div id="qr-preview" style="padding: 20px; text-align: center; background: #fff; border: 1px solid #ccc; font-family: Arial;">
-                        <img src="${logo}" alt="Logo" height="80" style="margin-bottom: 10px;" />
-          <div style="font-size: 12px; font-weight: bold; line-height: 18px; margin-bottom: 10px;">
-              Republic of the Philippines<br />
-              Province of Aklan<br />
-              Municipality of Malay<br />
-              Municipal Tourism Office
-            </div>
-            <p style="font-size: 11px; margin-bottom: 10px; margin-top: 5px;">
-              ${docRef.id} - ${formData.firstname} ${formData.middlename} ${formData.surname}
-            </p>
-            <div style="display: flex; justify-content: center;">
-              <canvas id="generatedQR"></canvas>
-            </div>
-            <p style="font-size: 11px; margin-top: 10px;">
-              Scan this QR code to check your application status.<br />
-              All information is protected under the Data Privacy Act.
-            </p>
-            <p style="font-size: 10px; margin-top: 10px;">
-              Registered on: ${dateNow}
-            </p>
-          </div>
-          <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-            <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
-            <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background: #28a745;">Proceed</button>
-          </div>
-        `,
+    <div id="qr-preview" style="padding: 20px; text-align: center; background: #fff; border: 1px solid #ccc; font-family: Arial;">
+        <img src="${logo}" alt="Logo" height="80" style="margin-bottom: 10px;" />
+        <div style="font-size: 12px; font-weight: bold; line-height: 18px; margin-bottom: 10px;">
+            Republic of the Philippines<br /> Province of Aklan<br /> Municipality of Malay<br /> Municipal Tourism Office
+        </div>
+        <p style="font-size: 11px; margin-bottom: 10px; margin-top: 5px;">
+            ${docRef.id} - ${formData.firstname} ${formData.surname}
+        </p>
+        <div style="display: flex; justify-content: center;">
+            <canvas id="generatedQR"></canvas>
+        </div>
+        <p style="font-size: 11px; margin-top: 10px;">
+            Scan this QR code to check your application status.<br />
+            All information is protected under the Data Privacy Act.
+        </p>
+    </div>
+    <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+        <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
+        <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background: #28a745;">Proceed</button>
+    </div>
+`,
                 showConfirmButton: false,
+                allowOutsideClick: false,
                 didOpen: () => {
                     const qrCanvas = document.getElementById("generatedQR");
                     QRCode.toCanvas(
                         qrCanvas,
                         `https://esteem.com/application-status-check/${docRef.id}`,
                         { width: 300 },
-                        (err) => {
-                            if (err) console.error("QR error:", err);
-                        }
+                        (err) => { if (err) console.error("QR error:", err); }
                     );
 
-                    const qrPreview = document.getElementById("qr-preview");
-
+                    // DOWNLOAD BUTTON LOGIC
                     document.getElementById("downloadImageBtn").addEventListener("click", async () => {
-                        if (!qrPreview) return;
+                        const qrPreview = document.getElementById("qr-preview");
                         Swal.showLoading();
                         try {
                             const dataUrl = await toPng(qrPreview, { useCORS: true, backgroundColor: "#ffffff" });
-                            download(dataUrl, `EmployeeQR_${formData.firstname}_${formData.surname}_${docRef.id}.png`);
+                            download(dataUrl, `EmployeeQR_${formData.surname}_${docRef.id}.png`);
+
+                            // NEW POP-UP AFTER DOWNLOAD
                             Swal.fire({
-                                icon: "success",
-                                title: "Downloaded!",
-                                text: "The image has been saved to your device.",
-                                timer: 1500,
-                                showConfirmButton: false,
+                                title: "Important Notice",
+                                icon: "info",
+                                html: `
+                        <div style="text-align: left;">
+                            <p><strong>Your QR Code has been downloaded.</strong></p>
+                            <p>Please allow up to <strong>24 hours</strong> for our team to review your application.</p>
+                            <p style="color: #d33;">Note: Expect potential delays on weekends and holidays.</p>
+                            <hr>
+                            <p>You can track your application anytime using the <strong>Registration Status</strong> feature on the home page.</p>
+                        </div>
+                    `,
+                                confirmButtonText: "I understand",
+                                confirmButtonColor: "#28a745"
                             }).then(() => navigate("/home"));
+
                         } catch (err) {
-                            Swal.fire({
-                                icon: "error",
-                                title: "Download Failed",
-                                text: "Error generating QR. Please try again.",
-                            });
+                            console.error(err);
+                            Swal.fire({ icon: "error", title: "Download Failed", text: "Error generating image." });
                         }
                     });
 
+                    // PROCEED BUTTON LOGIC
                     document.getElementById("proceedBtn").addEventListener("click", () => {
                         Swal.fire({
                             title: "Next Steps",
                             icon: "info",
                             html: `
-                <p>Your submission is under review.</p>
-                <p><strong>Please wait up to 24 hours</strong> for validation (48 hours on weekends).</p>
-                <p>Notification will be sent to <em>${formData.email}</em>.</p>
-              `,
+                    <p>Your submission is under review. Notification will be sent to <em>${finalEmail}</em>.</p>
+                    <p>Processing usually takes 24 hours (excluding weekends).</p>
+                `,
                             confirmButtonText: "Okay, got it!",
                         }).then(() => navigate("/home"));
                     });
@@ -304,11 +271,11 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
             });
         } catch (error) {
             console.error("Error submitting form:", error);
-            setErrorMessage(error.message);
+            if (typeof setErrorMessage === 'function') setErrorMessage(error.message);
             Swal.fire({
                 title: "Error!",
                 icon: "error",
-                text: "Please try again.",
+                text: error.message || "Something went wrong. Please try again.",
             });
         }
     };
@@ -331,7 +298,7 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                     where('classification', '==', formData.classification)
                 );
                 const snapshot = await getDocs(q);
-                const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+                const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, status: doc.data().status }));
                 setCompanies(data);
             };
             fetchCompanies();
@@ -349,11 +316,16 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
         }
     }, [formData.birthday]);
 
-    const handleChange = e => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
+    const handleChange = (e) => {
+        const { name, value, type, checked, files } = e.target;
+
+        setFormData((prev) => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value,
+            [name]: type === 'checkbox'
+                ? checked
+                : type === 'file'
+                    ? files[0] // Capture the first file selected
+                    : value,
         }));
     };
     const totalSteps = 4;
@@ -364,8 +336,12 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
     const companyOptions = companies.map((company) => ({
         label: company.name,
-        value: company.id
+        value: company.id,
+        status: company.status // Ensure your API/data provides this field
     }));
+
+
+
     const designationOptions = {
         "travel agency": [
             "Foreign Tour Guide",
@@ -528,17 +504,12 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                         </Form.Group>
 
 
-
                                         <Form.Group className="mb-3">
-                                            <Form.Label>Current Company *</Form.Label>
-                                            <p className="text-danger mb-4">
-                                                If you current company is not on the list, inform them to register first in the system.
-                                            </p>
+                                            <Form.Label>Select Current Company *</Form.Label>
+
                                             <Select
                                                 name="companyId"
-                                                value={
-                                                    companyOptions.find((option) => option.value === formData.companyId) || null
-                                                }
+                                                value={companyOptions.find((option) => option.value === formData.companyId) || null}
                                                 onChange={(selectedOption) =>
                                                     handleChange({
                                                         target: {
@@ -551,8 +522,32 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
                                                 placeholder="Select Company"
                                                 isClearable
                                                 required
+                                                // Disables the option if status is anything other than 'approved'
+                                                isOptionDisabled={(option) => option.status !== 'approved'}
+                                                // Customizes the label to show the status note
+                                                formatOptionLabel={(option) => (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>{option.label}</span>
+                                                        {option.status !== 'approved' && (
+                                                            <span style={{
+                                                                fontSize: '0.8rem',
+                                                                color: '#dc3545',
+                                                                backgroundColor: '#fff5f5',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid #feb2b2'
+                                                            }}>
+                                                                {option.status ? option.status.toUpperCase() : 'PENDING'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             />
+                                            <Form.Text className="text-muted" style={{ fontSize: '0.85rem', marginTop: '8px', display: 'block' }}>
+                                                If your current company is not on the list, kindly advise them to register first.
+                                            </Form.Text>
                                         </Form.Group>
+
 
                                         <Form.Group className="mb-3">
                                             <Form.Label>Current Designation *</Form.Label>
@@ -1019,17 +1014,16 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
 
                                         <Form.Group className="my-2">
-                                            <Form.Label className=" mt-2">Email Address</Form.Label>
+                                            <Form.Label className="mt-2">Email Address</Form.Label>
                                             <Form.Control
-
-                                                type="text"
+                                                type="email" // 1. Better for mobile keyboards and browser validation
                                                 name="email"
                                                 placeholder='Email address'
-                                                value={formData.email}
+                                                // 2. The "|| ''" prevents errors if formData.email starts as undefined
+                                                value={formData.email || ''}
                                                 onChange={handleChange}
                                                 required
                                             />
-
                                         </Form.Group>
                                         {/* Notification + Password Fields */}
                                         {Object.values(designationOptionsForPassword)
@@ -1134,100 +1128,38 @@ export default function EmployeeRegistrationForm({ hideNavAndFooter = false }) {
 
                                 {/* Navigation Buttons */}
                                 <Container className="d-flex justify-content-between mt-3">
-                                    {/* Previous Button (only show if not on the first step) */}
+                                    {/* Previous Button - Set type="button" to prevent submission */}
                                     {currentStep > 1 ? (
-                                        <Button variant="secondary" onClick={prevStep}>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={prevStep}
+                                        >
                                             Previous
                                         </Button>
                                     ) : (
-                                        <div></div> // Keeps spacing consistent when there's no Previous button
+                                        <div />
                                     )}
 
-                                    {/* Next Button or Submit on last step */}
+                                    {/* Next Button or Submit */}
                                     {currentStep < 4 ? (
-                                        <Button className="color-blue-button" variant="primary" onClick={nextStep}>
+                                        <Button
+                                            type="button"
+                                            className="color-blue-button"
+                                            variant="primary"
+                                            onClick={nextStep}
+                                        >
                                             Next
                                         </Button>
                                     ) : (
                                         <Button
-                                            className="color-blue-button mt-3"
                                             type="submit"
+                                            className="color-blue-button mt-3"
+                                            // Note: Since this is type="submit", the Form's onSubmit will handle it.
                                             onClick={handleSubmit}
                                         >
                                             Submit
                                         </Button>
-
-                                        // <SaveGroupEmployee
-                                        //     groupData={formData}
-                                        //     setGroupData={setFormData}
-                                        //     password={formData.password}
-                                        //     email={formData.email}
-                                        //     fileType="Application"
-                                        //     collectionName="employee"
-                                        //     disabled={
-                                        //         (() => {
-                                        //             const isExempted =
-                                        //                 formData.designation === "Field Staff" ||
-                                        //                 formData.designation === "Office Staff" ||
-                                        //                 (formData.designation || "").toLowerCase().includes("owner");
-
-                                        //             const nationalityValue = formData.nationality?.toLowerCase();
-                                        //             const isForeign = nationalityValue === "foreign" || (!nationalityValue && residency === "foreign");
-
-                                        //             if (isExempted) {
-                                        //                 return (
-                                        //                     !formData.profilePhoto ||
-                                        //                     !formData.additionalRequirement ||
-                                        //                     !formData.email ||
-                                        //                     // !formData.password ||
-                                        //                     !formData.agreed
-                                        //                 );
-                                        //             }
-
-                                        //             if (isForeign) {
-                                        //                 return (
-                                        //                     !formData.profilePhoto ||
-                                        //                     !formData.additionalRequirement ||
-                                        //                     !formData.workingPermit ||
-                                        //                     !formData.passportNumber ||
-                                        //                     !formData.email ||
-                                        //                     // !formData.password ||
-                                        //                     !formData.agreed
-                                        //                 );
-                                        //             }
-
-                                        //             // Default (not foreign, not exempted)
-                                        //             return (
-                                        //                 !formData.profilePhoto ||
-                                        //                 (formData.isTrained && !formData.trainingCert) || // ✅ Only require if isTrained is true
-                                        //                 !formData.additionalRequirement ||
-                                        //                 !formData.email ||
-                                        //                 // !formData.password ||
-                                        //                 !formData.agreed
-                                        //             );
-                                        //         })()
-                                        //     }
-
-
-                                        //     idName="employeeId"
-                                        //     ModelClass={Employee}
-                                        //     onSuccess={() => {
-                                        //         setFormData((prev) => ({
-                                        //             ...prev,
-                                        //             profilePhoto: null,
-                                        //             trainingCert: null,
-                                        //             additionalRequirement: null,
-                                        //             diploma: null,
-                                        //             workingPermit: null,
-                                        //             email: "",
-                                        //             password: "",
-                                        //             confirmPassword: "",
-                                        //         }));
-                                        //     }}
-                                        // />
-
-
-
                                     )}
                                 </Container>
 

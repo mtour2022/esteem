@@ -19,9 +19,9 @@ export default function AppNavBar() {
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto">
-            <NavLink className="ms-lg-3 navlink d-flex align-items-center" as={NavLink} to="/"> 
+            {/* <NavLink className="ms-lg-3 navlink d-flex align-items-center" as={NavLink} to="/"> 
                         <FontAwesomeIcon className="button-icon" icon={faBell} size="md" fixedWidth />
-            </NavLink>
+            </NavLink> */}
             <Nav.Link className='ms-lg-3 navlink' as={NavLink} to="/">Home</Nav.Link>
             <NavDropdown className='ms-lg-3 navlink' title="Register" id="basic-nav-dropdown">
               <NavDropdown.Item as={NavLink} to="/application-status-check">

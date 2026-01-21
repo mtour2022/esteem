@@ -2,7 +2,8 @@ import { FaPassport } from 'react-icons/fa';
 import { auth, googleProvider } from './firebase';
 import { createUserWithEmailAndPassword, signInWithPopup, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, sendEmailVerification } from 'firebase/auth';
 
-export const docreateUserWithEmailAndPassword = async (email, password) => {
+// Add 'auth' as the first parameter
+export const docreateUserWithEmailAndPassword = async (auth, email, password) => {
     return createUserWithEmailAndPassword(auth, email, password);
 };
 

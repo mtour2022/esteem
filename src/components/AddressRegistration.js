@@ -139,7 +139,7 @@ useEffect(() => {
             />
           </Form.Group> */}
           <Form.Group className="my-2">
-  <Form.Label>Town/City</Form.Label>
+  <Form.Label>Town/City/Municipality</Form.Label>
 <Select
   placeholder="Type your town/city (auto-fills region & province)"
   isSearchable
