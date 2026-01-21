@@ -47,229 +47,150 @@ export default function CompanyRegistrationPage({ hideNavAndFooter = false }) {
     const [companyData, setCompanyData] = useState(new Company({}));
     const companyCollectionRef = collection(db, "company");
     const navigate = useNavigate();
+const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
 
-    const handleSubmit = async (e) => {
-        if (e) e.preventDefault();
+    try {
+        // 1. Validation
+        if (!permit || !logo) {
+            Swal.fire({
+                title: "Missing File(s)",
+                icon: "warning",
+                text: "Please upload both your permit/accreditation and official logo before submitting."
+            });
+            return;
+        }
 
+        // 2. Start Loading
+        Swal.fire({
+            title: "Processing Registration...",
+            text: "Creating account and uploading files. Please wait.",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        // 3. Create Auth User
+        let userCredential;
         try {
-            // ✅ Validate required files
-            if (!permit || !logo) {
-                Swal.fire({
-                    title: "Missing File(s)",
-                    icon: "warning",
-                    text: "Please upload both your permit/accreditation and official logo before submitting."
-                });
+            userCredential = await docreateUserWithEmailAndPassword(
+                companyData.email,
+                companyData.password 
+            );
+        } catch (authError) {
+            if (authError.code === "auth/email-already-in-use") {
+                Swal.fire({ title: "Error", icon: "warning", text: "Email already registered." });
                 return;
             }
-
-            // ✅ Uploading message
-            Swal.fire({
-                title: "Uploading...",
-                text: "Please wait while your files are being uploaded.",
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
-
-            // ✅ Create Auth user first (check duplicate email automatically)
-            let userCredential;
-            try {
-                userCredential = await docreateUserWithEmailAndPassword(
-                    companyData.email,
-                    companyData.password // 🔹 Make sure you’re storing password from your form
-                );
-            } catch (authError) {
-                if (authError.code === "auth/email-already-in-use") {
-                    Swal.fire({
-                        title: "Email Already Registered",
-                        icon: "warning",
-                        text: "This email is already registered. Please use another one."
-                    });
-                    return; // stop submission
-                }
-                throw authError; // rethrow other auth errors
-            }
-
-
-            // 🟢 Upload Permit
-            const permitExt = permit.name?.split(".").pop() || "jpg";
-            const permitRef = ref(
-                storage,
-                `company/permits/${Date.now()}_${permit.name || "permit"}.${permitExt}`
-            );
-            await uploadBytes(permitRef, permit);
-            const permitURL = await getDownloadURL(permitRef);
-
-            // 🟢 Upload Logo
-            const logoExt = logo.name?.split(".").pop() || "jpg";
-            const logoRef = ref(
-                storage,
-                `company/logos/${Date.now()}_${logo.name || "logo"}.${logoExt}`
-            );
-            await uploadBytes(logoRef, logo);
-            const logoURL = await getDownloadURL(logoRef);
-
-const authUID = userCredential.user.uid;
-
-            // 🟢 Firestore Object
-            const companyObject = {
-                ...companyData,
-                userUID: authUID, // ✅ link company to auth user
-                permit: permitURL,
-                logo: logoURL,
-                status_history: [
-                    ...(companyData.status_history || []),
-                    {
-                        date_updated: new Date().toISOString(),
-                        remarks: "Under Review",
-                        status: "under review"
-                    }
-                ]
-            };
-
-            // Add to Firestore
-            const docRef = await addDoc(companyCollectionRef, companyObject);
-
-            // Update with doc ID
-            await updateDoc(doc(db, "company", docRef.id), {
-                company_id: docRef.id,
-                    userUID: authUID,
-                permit: permitURL,
-                logo: logoURL
-            });
-
-            // ✅ Reset local state
-            setCompanyData(new Company({}));
-            setPermit(null);
-            setLogo(null);
-
-            const dateNow = new Date().toLocaleString("en-PH", {
-                dateStyle: "long",
-                timeStyle: "short",
-                hour12: true
-            });
-
-            // ✅ Success message with QR + actions
-            Swal.fire({
-                title: "Registration Successful!",
-                html: `
-        <div id="qr-preview" style="padding:20px;text-align:center;background:#fff;border:1px solid #ccc;font-family:Arial;">
-          <img src="${logolgu}" alt="LGU Logo" height="80" style="margin-bottom:10px;" />
-          <div style="font-size:12px;font-weight:bold;line-height:18px;margin-bottom:10px;">
-            Republic of the Philippines<br />
-            Province of Aklan<br />
-            Municipality of Malay<br />
-            Municipal Tourism Office
-          </div>
-          <p style="font-size:11px;margin-bottom:10px;margin-top:5px;">
-            Company ID: <strong>${docRef.id}</strong><br/>
-            ${companyData.companyName || "Company"}
-          </p>
-          <div style="display: flex; justify-content: center;">
-            <canvas id="generatedQR"></canvas>
-          </div>
-          <p style="font-size:11px;margin-top:10px;">
-            Scan this QR code to check your application status.<br />
-            All information is protected and complies with the Data Privacy Act.
-          </p>
-          <p style="font-size:10px;margin-top:10px;">
-            Issued by the Municipal Tourism Office, Malay Aklan<br />
-            Registered on: ${dateNow}
-          </p>
-        </div>
-        <div style="margin-top:15px;display:flex;flex-direction:column;gap:10px;">
-          <button id="downloadImageBtn" class="swal2-confirm swal2-styled">Download as Image</button>
-          <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background:#28a745;">Proceed</button>
-        </div>
-      `,
-                showConfirmButton: false,
-                didOpen: () => {
-                    // Generate QR
-                    const qrCanvas = document.getElementById("generatedQR");
-                    if (qrCanvas) {
-                        QRCode.toCanvas(
-                            qrCanvas,
-                            `https://esteem.com/application-status-check/${docRef.id}`,
-                            { width: 300 },
-                            (err) => {
-                                if (err) console.error("QR generation error:", err);
-                            }
-                        );
-                    }
-
-                    const qrPreview = document.getElementById("qr-preview");
-
-                    // Download button
-                    const downloadBtn = document.getElementById("downloadImageBtn");
-                    if (downloadBtn) {
-                        downloadBtn.addEventListener("click", async () => {
-                            if (!qrPreview) return;
-
-                            // Show loading state inside current Swal
-                            Swal.showLoading();
-
-                            try {
-                                const dataUrl = await toPng(qrPreview, { cacheBust: true, useCORS: true, backgroundColor: "#ffffff" });
-
-                                const link = document.createElement("a");
-                                link.download = `CompanyQR_${companyData.companyName || "Company"}_${docRef.id}.png`;
-                                link.href = dataUrl;
-                                link.click();
-
-                                // ✅ After download, show the same Next Steps dialog as Proceed button
-                                Swal.fire({
-                                    title: "Next Steps",
-                                    icon: "info",
-                                    html: `
-          <p>Your submission is under review.</p>
-          <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
-          <p>You will be <strong>notified via email</strong> at <em>${companyData.email}</em>.</p>
-        `,
-                                    confirmButtonText: "Okay, got it!"
-                                }).then(() => navigate("/home"));
-
-                            } catch (err) {
-                                console.error("Image download error:", err);
-                                Swal.update({
-                                    icon: "error",
-                                    title: "Download Failed",
-                                    text: "There was an error generating your QR. Please try again."
-                                });
-                            }
-                        });
-                    }
-
-
-
-                    // Proceed button
-                    const proceedBtn = document.getElementById("proceedBtn");
-                    if (proceedBtn) {
-                        proceedBtn.addEventListener("click", () => {
-                            Swal.fire({
-                                title: "Next Steps",
-                                icon: "info",
-                                html: `
-                <p>Your submission is under review.</p>
-                <p><strong>Please wait up to 24 hours</strong> for validation, or <strong>up to 48 hours during weekends</strong>.</p>
-                <p>You will be <strong>notified via email</strong> at <em>${companyData.email}</em>.</p>
-              `,
-                                confirmButtonText: "Okay, got it!"
-                            }).then(() => navigate("/home"));
-                        });
-                    }
-                }
-            });
-        } catch (error) {
-            console.error("Error submitting form:", error);
-            setErrorMessage(error.message);
-
-            Swal.fire({
-                title: "Error!",
-                icon: "error",
-                text: "Please Try Again"
-            });
+            throw authError;
         }
-    };
 
+        const authUID = userCredential.user.uid;
+
+        // 4. Auto-Upload Files to Storage Helper
+        const uploadFile = async (file, folder) => {
+            const ext = file.name?.split(".").pop() || "jpg";
+            const storageRef = ref(storage, `company/${folder}/${authUID}_${Date.now()}.${ext}`);
+            await uploadBytes(storageRef, file);
+            return await getDownloadURL(storageRef);
+        };
+
+        // Parallel upload for better speed
+        const [permitURL, logoURL] = await Promise.all([
+            uploadFile(permit, "permits"),
+            uploadFile(logo, "logos")
+        ]);
+
+        // 5. Create Firestore Document
+        const companyObject = {
+            ...companyData,
+            userUID: authUID,
+            permit: permitURL,
+            logo: logoURL,
+            status: "under review",
+            status_history: [
+                {
+                    date_updated: new Date().toISOString(),
+                    remarks: "Application Submitted",
+                    status: "under review"
+                }
+            ]
+        };
+
+        const docRef = await addDoc(companyCollectionRef, companyObject);
+        
+        // Update document with its own ID
+        await updateDoc(doc(db, "company", docRef.id), { company_id: docRef.id });
+
+        // 6. Success & QR Generation UI
+        const dateNow = new Date().toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" });
+
+        Swal.fire({
+            title: "Registration Successful!",
+            html: `
+                <div id="qr-download-area" style="padding:20px; background:#fff; border:1px solid #eee; color: #333;">
+                    <img src="${logolgu}" height="60" style="display: block; margin: 0 auto 10px;" />
+                    <div style="text-align: center;">
+                        <h6 style="margin:5px 0; font-weight: bold;">Municipal Tourism Office - Malay</h6>
+                        <p style="font-size:12px; margin-bottom: 10px;">ID: ${docRef.id}<br><strong>${companyData.companyName}</strong></p>
+                        <canvas id="generatedQR" style="margin: 0 auto;"></canvas>
+                        <p style="font-size:10px; color:#666; margin-top:10px;">Registered on: ${dateNow}</p>
+                    </div>
+                </div>
+                <div style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+                    <button id="downloadImageBtn" class="swal2-confirm swal2-styled" style="background:#007bff;">Download QR Image</button>
+                    <button id="proceedBtn" class="swal2-confirm swal2-styled" style="background:#28a745;">Finish</button>
+                </div>
+            `,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            didOpen: () => {
+                const canvas = document.getElementById("generatedQR");
+                // Generate the QR inside the canvas
+                QRCode.toCanvas(canvas, `https://esteem.com/status/${docRef.id}`, { width: 200 });
+
+                // Download Logic
+                document.getElementById("downloadImageBtn").onclick = async () => {
+                    const area = document.getElementById("qr-download-area");
+                    try {
+                        // useCORS: true is vital if your logolgu is hosted on Firebase/External
+                        const dataUrl = await toPng(area, { 
+                            backgroundColor: "#ffffff",
+                            cacheBust: true,
+                            useCORS: true 
+                        });
+                        const link = document.createElement("a");
+                        link.download = `Registration_QR_${companyData.companyName}.png`;
+                        link.href = dataUrl;
+                        link.click();
+                    } catch (err) {
+                        console.error("Download failed", err);
+                        Swal.showValidationMessage(`Download failed: ${err.message}`);
+                    }
+                };
+
+                // Proceed Logic
+                document.getElementById("proceedBtn").onclick = () => {
+                    Swal.close();
+                    navigate("/home");
+                };
+            }
+        });
+
+        // 7. Clear local state after success
+        setPermit(null);
+        setLogo(null);
+        // If you have a state reset function for companyData:
+        // setCompanyData(initialState); 
+
+    } catch (error) {
+        console.error("Submission Error:", error);
+        Swal.fire({ 
+            title: "Submission Error", 
+            icon: "error", 
+            text: error.message || "An unexpected error occurred. Please try again." 
+        });
+    }
+};
 
 
 
@@ -346,6 +267,28 @@ const authUID = userCredential.user.uid;
         accept: "image/*,application/pdf",
         disabled: !!logoURL, // Disable dropzone after upload
     });
+
+    // Logo State
+const [showLogoCamera, setShowLogoCamera] = useState(false);
+const logoWebcamRef = useRef(null);
+
+// Logo Camera Capture
+const captureLogoPhoto = () => {
+    const imageSrc = logoWebcamRef.current.getScreenshot();
+    if (imageSrc) {
+        fetch(imageSrc)
+            .then(res => res.blob())
+            .then(blob => {
+                const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, "");
+                const fileName = `captured_logo_${timestamp}.jpg`;
+                const file = new File([blob], fileName, { type: "image/jpeg" });
+                setLogo(file);
+                setShowLogoCamera(false); // Close camera after capture
+            });
+    }
+};
+
+
 
     // Upload Logo to Firebase
     const uploadLogo = async () => {
@@ -533,6 +476,9 @@ const authUID = userCredential.user.uid;
             });
         console.log(imageSrc);
     };
+
+
+
 
     return (
         <>
@@ -795,36 +741,28 @@ const authUID = userCredential.user.uid;
 
 
                                             {/* Upload & Camera Buttons */}
-                                            <Container className="d-flex justify-content-center gap-2 flex-wrap">
-                                                {/* Always show "Use Camera" button */}
-                                                <Button
-                                                    className="my-2"
-                                                    variant="outline-secondary"
-                                                    onClick={() => {
-                                                        if (permitURL) {
-                                                            resetPermit();
-                                                        }
-                                                        setShowCamera(!showCamera);
-                                                    }}
-                                                >
-                                                    <FontAwesomeIcon icon={faCamera} /> {permitURL ? "Retake Photo" : showCamera ? "Cancel Camera" : "Use Camera"}
-                                                </Button>
+<Container className="d-flex justify-content-center gap-2 flex-wrap">
+    <Button
+        className="my-2"
+        variant="outline-secondary"
+        onClick={() => {
+            if (permit) setPermit(null); // Clear if retaking
+            setShowCamera(!showCamera);
+        }}
+    >
+        <FontAwesomeIcon icon={faCamera} /> {showCamera ? "Cancel Camera" : "Use Camera"}
+    </Button>
 
-                                                {/* Show Upload / Reupload button only when a file is selected */}
-                                                {permit && (
-                                                    !permitURL ? (
-                                                        <Button className="my-2" variant="outline-success" onClick={uploadPermit}>
-                                                            <FontAwesomeIcon className="button-icon" icon={faUpload} size="xs" fixedWidth />
-                                                            Upload File
-                                                        </Button>
-                                                    ) : (
-                                                        <Button className="my-2" variant="outline-danger" onClick={resetPermit}>
-                                                            <FontAwesomeIcon className="button-icon" icon={faCancel} size="xs" fixedWidth />
-                                                            Reupload
-                                                        </Button>
-                                                    )
-                                                )}
-                                            </Container>
+    {/* Note: We removed the "Upload File" button here. 
+        The file is now sent during handleSubmit. */}
+    
+    {permit && (
+        <Button className="my-2" variant="outline-danger" onClick={() => setPermit(null)}>
+            <FontAwesomeIcon icon={faCancel} size="xs" fixedWidth className="me-1"/>
+            Clear Selection
+        </Button>
+    )}
+</Container>
 
                                             {permit && (
                                                 !permitURL ? ("") : (
@@ -867,75 +805,71 @@ const authUID = userCredential.user.uid;
                                 {/* Step 3: Company Details */}
                                 {currentStep === 3 && (
                                     <>
-                                        <Form.Group className="my-2">
-                                            <Form.Label className="my-2 fw-bold">
-                                                Upload Official Logo
-                                            </Form.Label>
-                                            <Container {...getLogoRootProps({
-                                                accept: "image/png, image/jpeg, image/jpg",
-                                                onDrop: (acceptedFiles) => {
-                                                    const file = acceptedFiles[0];
-                                                    if (file && ["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
-                                                        setLogo(file);
-                                                    } else {
-                                                        Swal.fire({
-                                                            icon: "error",
-                                                            title: "Invalid File Type",
-                                                            text: "Only PNG, JPG, and JPEG files are allowed.",
-                                                        });
-                                                    }
-                                                }
-                                            })}
-                                                className={`dropzone-container text-center w-100 ${logoURL ? "border-success" : ""}`}
-                                            >
-                                                <input {...getLogoInputProps()} accept="image/png, image/jpeg, image/jpg" />
-                                                {logo ? (
-                                                    logo.type.startsWith("image/") ? (
-                                                        <img
-                                                            src={URL.createObjectURL(logo)}
-                                                            alt="Uploaded Preview"
-                                                            className="img-fluid mt-2"
-                                                            style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
-                                                        />
-                                                    ) : (
-                                                        <p className="fw-bold text-muted">File selected: {logo.name}</p>
-                                                    )
-                                                ) : (
-                                                    <p className="text-muted">
-                                                        Drag & Drop your logo here or <span className="text-primary text-decoration-underline">Choose File</span>
-                                                    </p>
-                                                )}
-                                            </Container>
-                                            <Container className="d-flex flex-wrap justify-content-between mt-2">
-                                                <p className="sub-title me-3">Supported File: PNG, JPEG, and JPG</p>
-                                                <p className="sub-title">Maximum size: 25MB</p>
-                                            </Container>
+                                       <Form.Group className="my-4">
+    <Form.Label className="fw-bold">Official Company Logo</Form.Label>
 
-                                            {/* Upload & Camera Buttons */}
-                                            <Container className="d-flex justify-content-end">
-                                                {/* Show Upload / Reupload button only when a file is selected */}
-                                                {logo && (
-                                                    !logoURL ? (
-                                                        <Button className="my-2" variant="outline-success" onClick={uploadLogo}>
-                                                            <FontAwesomeIcon className="button-icon" icon={faUpload} size="xs" fixedWidth />
-                                                            Upload Logo
-                                                        </Button>
-                                                    ) : (
-                                                        <Button className="my-2" variant="outline-danger" onClick={resetLogo}>
-                                                            <FontAwesomeIcon className="button-icon" icon={faCancel} size="xs" fixedWidth />
-                                                            Reupload
-                                                        </Button>
-                                                    )
-                                                )}
-                                            </Container>
-                                            {logo && (
-                                                !logoURL ? ("") : (
-                                                    <Container className="d-flex justify-content-center mt-2">
-                                                        <p className='sub-title text-success'>Logo Successfully Uploaded!</p>
-                                                    </Container>
-                                                )
-                                            )}
-                                        </Form.Group>
+    {/* Camera View */}
+    {showLogoCamera ? (
+        <Container className="text-center p-3 border rounded bg-light">
+            <Webcam
+                audio={false}
+                ref={logoWebcamRef}
+                screenshotFormat="image/jpeg"
+                className="w-100 rounded mb-2"
+                videoConstraints={{ facingMode: "user" }}
+            />
+            <Button variant="primary" onClick={captureLogoPhoto}>
+                <FontAwesomeIcon icon={faCamera} className="me-2" /> Capture Logo
+            </Button>
+        </Container>
+    ) : (
+        /* Dropzone View */
+        <Container 
+            {...getLogoRootProps()} 
+            className={`dropzone-container text-center p-4 border-2 rounded ${logo ? "border-success" : "border-dashed"}`}
+            style={{ borderStyle: logo ? 'solid' : 'dashed', cursor: 'pointer', backgroundColor: '#f8f9fa' }}
+        >
+            <input {...getLogoInputProps()} />
+            {logo ? (
+                <div>
+                    <img
+                        src={URL.createObjectURL(logo)}
+                        alt="Logo Preview"
+                        className="img-fluid"
+                        style={{ maxHeight: "150px" }}
+                    />
+                    <p className="mt-2 mb-0 text-success fw-bold">{logo.name}</p>
+                </div>
+            ) : (
+                <div className="py-3">
+                    <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted mb-2" />
+                    <p className="text-muted mb-0">Drag & Drop logo or click to select</p>
+                </div>
+            )}
+        </Container>
+    )}
+
+    {/* Action Buttons */}
+    <Container className="d-flex justify-content-center gap-2 mt-3 flex-wrap">
+        <Button
+            variant="outline-secondary"
+            onClick={() => {
+                if (logo) setLogo(null); 
+                setShowLogoCamera(!showLogoCamera);
+            }}
+        >
+            <FontAwesomeIcon icon={faCamera} className="me-2" />
+            {showLogoCamera ? "Cancel Camera" : "Use Camera"}
+        </Button>
+
+        {logo && (
+            <Button variant="outline-danger" onClick={() => setLogo(null)}>
+                <FontAwesomeIcon icon={faCancel} className="me-1" />
+                Clear Selection
+            </Button>
+        )}
+    </Container>
+</Form.Group>
                                         <Form.Group className="my-2">
 
                                         </Form.Group>
